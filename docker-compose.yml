@@ -1,0 +1,401 @@
+services:
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    restart: always
+    ports:
+      - "8333:8333"  # S3 API
+      - "9333:9333"  # Master
+      - "8080:8080"  # Volume/Filer
+    command: server -s3 -dir=/data
+    volumes:
+      - seaweedfs-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9333/cluster/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  db:
+    image: postgres:17
+    restart: always
+    volumes:
+      - app-db-data:/var/lib/postgresql/data/pgdata
+    env_file:
+      - ./backend/.env
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-app}"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # Infisical - Self-hosted secrets management
+  infisical-db:
+    image: postgres:17
+    restart: always
+    volumes:
+      - infisical-db-data:/var/lib/postgresql/data/pgdata
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_USER=infisical
+      - POSTGRES_PASSWORD=${INFISICAL_DB_PASSWORD:-infisical_dev}
+      - POSTGRES_DB=infisical
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U infisical -d infisical"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  infisical-redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --requirepass ${INFISICAL_REDIS_PASSWORD:-redis_dev}
+    volumes:
+      - infisical-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${INFISICAL_REDIS_PASSWORD:-redis_dev}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  infisical:
+    image: infisical/infisical:latest
+    restart: always
+    depends_on:
+      infisical-db:
+        condition: service_healthy
+      infisical-redis:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+    environment:
+      - ENCRYPTION_KEY=${INFISICAL_ENCRYPTION_KEY}
+      - AUTH_SECRET=${INFISICAL_AUTH_SECRET}
+      - DB_CONNECTION_URI=postgresql://infisical:${INFISICAL_DB_PASSWORD:-infisical_dev}@infisical-db:5432/infisical
+      - REDIS_URL=redis://:${INFISICAL_REDIS_PASSWORD:-redis_dev}@infisical-redis:6379
+      - SITE_URL=${INFISICAL_SITE_URL:-http://localhost:8081}
+      - TELEMETRY_ENABLED=false
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # prestart:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   env_file:
+  #     - ./backend/.env
+  #   environment:
+  #     - POSTGRES_SERVER=db
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   command: bash scripts/prestart.sh
+
+  # backend:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   restart: always
+  #   ports:
+  #     - "8000:8000"
+  #   env_file:
+  #     - ./backend/.env
+  #   environment:
+  #     - POSTGRES_SERVER=db
+  #     - S3_ENDPOINT_URL=http://seaweedfs:8333
+  #     - S3_ACCESS_KEY=any
+  #     - S3_SECRET_KEY=any
+  #     - S3_BUCKET_NAME=uploads
+  #     - S3_PUBLIC_URL=http://localhost:8333
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     prestart:
+  #       condition: service_completed_successfully
+  #   volumes:
+  #     - ./backend/src:/app/src:ro
+  #   command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   restart: always
+  #   ports:
+  #     - "5173:5173"
+  #   environment:
+  #     - VITE_API_URL=http://localhost:8000
+  #   volumes:
+  #     - ./frontend/src:/app/src:ro
+  #     - ./frontend/index.html:/app/index.html:ro
+  #   command: npm run dev -- --host 0.0.0.0
+
+  # OpenSearch - Audit logs and application logs
+  opensearch:
+    image: opensearchproject/opensearch:2.18.0
+    restart: always
+    environment:
+      - cluster.name=template-cluster
+      - node.name=opensearch-node1
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true  # Disable for local dev, enable in production
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"  # REST API
+      - "9600:9600"  # Performance Analyzer
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.18.0
+    restart: always
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    ports:
+      - "5601:5601"  # Dashboards UI
+    environment:
+      - OPENSEARCH_HOSTS=["http://opensearch:9200"]
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true  # Disable for local dev
+      - SERVER_MAXPAYLOADBYTES=8388608  # 8MB for large dashboard imports
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:5601/api/status | grep -q '\"state\":\"green\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # OpenSearch initialization - creates index patterns and default dashboards
+  opensearch-init:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      opensearch-dashboards:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env
+    environment:
+      - OPENSEARCH_URL=http://opensearch:9200
+    volumes:
+      - ./opensearch/default-dashboards.ndjson:/config/default-dashboards.ndjson:ro
+    command: uv run python -m backend.scripts.init_opensearch
+    restart: "no"
+
+  # =============================================================================
+  # Langfuse - LLM Observability Platform
+  # =============================================================================
+  # ClickHouse - OLAP database for Langfuse analytics
+  langfuse-clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    restart: always
+    user: "101:101"
+    environment:
+      - CLICKHOUSE_DB=default
+      - CLICKHOUSE_USER=langfuse
+      - CLICKHOUSE_PASSWORD=${LANGFUSE_CLICKHOUSE_PASSWORD:-langfuse_clickhouse_dev}
+    volumes:
+      - langfuse-clickhouse-data:/var/lib/clickhouse
+      - langfuse-clickhouse-logs:/var/log/clickhouse-server
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  # MinIO - S3-compatible blob storage for Langfuse
+  langfuse-minio:
+    image: minio/minio:latest
+    restart: always
+    entrypoint: sh
+    # Create the 'langfuse' bucket before starting the service
+    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
+    environment:
+      - MINIO_ROOT_USER=langfuse
+      - MINIO_ROOT_PASSWORD=${LANGFUSE_MINIO_PASSWORD:-langfuse_minio_dev}
+    volumes:
+      - langfuse-minio-data:/data
+    ports:
+      - "9090:9000"  # S3 API
+      - "9091:9001"  # MinIO Console
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # Langfuse Redis - Caching and queues (separate from Infisical Redis)
+  langfuse-redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --requirepass ${LANGFUSE_REDIS_PASSWORD:-langfuse_redis_dev}
+    volumes:
+      - langfuse-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${LANGFUSE_REDIS_PASSWORD:-langfuse_redis_dev}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Langfuse PostgreSQL - Separate database for Langfuse
+  langfuse-db:
+    image: postgres:17
+    restart: always
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_USER=langfuse
+      - POSTGRES_PASSWORD=${LANGFUSE_DB_PASSWORD:-langfuse_db_dev}
+      - POSTGRES_DB=langfuse
+    volumes:
+      - langfuse-db-data:/var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse -d langfuse"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # Langfuse Worker - Background job processing
+  # IMPORTANT: Uses the dedicated worker image, not the web image
+  langfuse-worker:
+    image: langfuse/langfuse-worker:3
+    restart: always
+    depends_on:
+      langfuse-db:
+        condition: service_healthy
+      langfuse-clickhouse:
+        condition: service_healthy
+      langfuse-minio:
+        condition: service_healthy
+      langfuse-redis:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://langfuse:${LANGFUSE_DB_PASSWORD:-langfuse_db_dev}@langfuse-db:5432/langfuse
+      # Auth secrets required by worker process
+      - NEXTAUTH_SECRET=${LANGFUSE_NEXTAUTH_SECRET:-your-nextauth-secret-change-me}
+      - NEXTAUTH_URL=${LANGFUSE_URL:-http://localhost:3001}
+      - SALT=${LANGFUSE_SALT:-0000000000000000000000000000000000000000000000000000000000000000}
+      - ENCRYPTION_KEY=${LANGFUSE_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      - CLICKHOUSE_URL=http://langfuse-clickhouse:8123
+      - CLICKHOUSE_MIGRATION_URL=clickhouse://langfuse-clickhouse:9000
+      - CLICKHOUSE_USER=langfuse
+      - CLICKHOUSE_PASSWORD=${LANGFUSE_CLICKHOUSE_PASSWORD:-langfuse_clickhouse_dev}
+      - CLICKHOUSE_CLUSTER_ENABLED=false
+      - LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_REGION=auto
+      - LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY=${LANGFUSE_MINIO_PASSWORD:-langfuse_minio_dev}
+      - LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://langfuse-minio:9000
+      - LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE=true
+      - LANGFUSE_S3_EVENT_UPLOAD_PREFIX=events/
+      - LANGFUSE_S3_MEDIA_UPLOAD_BUCKET=langfuse
+      - LANGFUSE_S3_MEDIA_UPLOAD_REGION=auto
+      - LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID=langfuse
+      - LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY=${LANGFUSE_MINIO_PASSWORD:-langfuse_minio_dev}
+      - LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT=http://langfuse-minio:9000
+      - LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE=true
+      - LANGFUSE_S3_MEDIA_UPLOAD_PREFIX=media/
+      - REDIS_HOST=langfuse-redis
+      - REDIS_PORT=6379
+      - REDIS_AUTH=${LANGFUSE_REDIS_PASSWORD:-langfuse_redis_dev}
+
+  # Langfuse Web - Main application UI and API
+  langfuse-web:
+    image: langfuse/langfuse:3
+    restart: always
+    env_file:
+      - ./backend/.env
+    depends_on:
+      langfuse-db:
+        condition: service_healthy
+      langfuse-clickhouse:
+        condition: service_healthy
+      langfuse-minio:
+        condition: service_healthy
+      langfuse-redis:
+        condition: service_healthy
+      langfuse-worker:
+        condition: service_started
+    ports:
+      - "3001:3000"  # Langfuse UI (3001 to avoid conflict with frontend)
+    environment:
+      - PORT=3000  # Override backend's PORT from env_file
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://langfuse:${LANGFUSE_DB_PASSWORD:-langfuse_db_dev}@langfuse-db:5432/langfuse
+      - NEXTAUTH_URL=${LANGFUSE_URL:-http://localhost:3001}
+      - NEXTAUTH_SECRET=${LANGFUSE_NEXTAUTH_SECRET:-your-nextauth-secret-change-me}
+      - SALT=${LANGFUSE_SALT:-0000000000000000000000000000000000000000000000000000000000000000}
+      - ENCRYPTION_KEY=${LANGFUSE_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      - CLICKHOUSE_URL=http://langfuse-clickhouse:8123
+      - CLICKHOUSE_MIGRATION_URL=clickhouse://langfuse-clickhouse:9000
+      - CLICKHOUSE_USER=langfuse
+      - CLICKHOUSE_PASSWORD=${LANGFUSE_CLICKHOUSE_PASSWORD:-langfuse_clickhouse_dev}
+      - CLICKHOUSE_CLUSTER_ENABLED=false
+      - LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_REGION=auto
+      - LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID=langfuse
+      - LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY=${LANGFUSE_MINIO_PASSWORD:-langfuse_minio_dev}
+      - LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT=http://langfuse-minio:9000
+      - LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE=true
+      - LANGFUSE_S3_EVENT_UPLOAD_PREFIX=events/
+      - LANGFUSE_S3_MEDIA_UPLOAD_BUCKET=langfuse
+      - LANGFUSE_S3_MEDIA_UPLOAD_REGION=auto
+      - LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID=langfuse
+      - LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY=${LANGFUSE_MINIO_PASSWORD:-langfuse_minio_dev}
+      - LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT=http://langfuse-minio:9000
+      - LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE=true
+      - LANGFUSE_S3_MEDIA_UPLOAD_PREFIX=media/
+      - REDIS_HOST=langfuse-redis
+      - REDIS_PORT=6379
+      - REDIS_AUTH=${LANGFUSE_REDIS_PASSWORD:-langfuse_redis_dev}
+      # Optional: Enable public sign-up for development
+      - LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=true
+      - TELEMETRY_ENABLED=false
+      # Headless initialization variables are loaded from env_file (./backend/.env)
+      # These auto-create org, project, user, and API keys on first startup
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/public/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  app-db-data:
+  seaweedfs-data:
+  infisical-db-data:
+  infisical-redis-data:
+  opensearch-data:
+  langfuse-clickhouse-data:
+  langfuse-clickhouse-logs:
+  langfuse-minio-data:
+  langfuse-redis-data:
+  langfuse-db-data:
