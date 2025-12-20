@@ -62,10 +62,8 @@ function MainLayout() {
         transition: "grid-template-columns 200ms ease-linear",
       }}
     >
-      {/* Sidebar */}
       <AppSidebar />
 
-      {/* Main content area */}
       <main className="overflow-auto bg-background border-0">
         <Outlet />
       </main>
