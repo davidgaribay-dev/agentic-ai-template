@@ -4,7 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export const Route = createFileRoute("/")({
   beforeLoad: ({ context }) => {
-    if (context.auth.isAuthenticated) {
+    // Redirect if authenticated OR if we're loading auth state (have token, fetching user)
+    // This prevents showing the landing page while the authenticated layout is displayed
+    if (context.auth.isAuthenticated || context.auth.isLoading) {
       throw redirect({ to: "/chat" })
     }
   },

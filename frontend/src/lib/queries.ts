@@ -16,6 +16,7 @@ import {
   agentApi,
   chatSettingsApi,
   conversationsApi,
+  memoryApi,
   type ChatRequest,
   type ChatMessage,
   type ChatSettingsUpdate,
@@ -40,6 +41,10 @@ export const queryKeys = {
     user: ["chatSettings", "user"] as const,
     effective: (orgId?: string, teamId?: string) =>
       ["chatSettings", "effective", orgId, teamId] as const,
+  },
+  memory: {
+    user: (orgId?: string, teamId?: string) =>
+      ["memory", "user", orgId, teamId] as const,
   },
 }
 
@@ -230,5 +235,47 @@ export function useEffectiveChatSettings(
     queryFn: () => chatSettingsApi.getEffectiveSettings(orgId, teamId),
     enabled: !!orgId,
     staleTime: 1000 * 60, // 1 minute
+  })
+}
+
+// =============================================================================
+// Memory Hooks
+// =============================================================================
+
+/** Hook to fetch user memories. */
+export function useUserMemories(orgId?: string, teamId?: string, limit = 50) {
+  return useQuery({
+    queryKey: queryKeys.memory.user(orgId, teamId),
+    queryFn: () => memoryApi.listMemories(orgId, teamId, limit),
+  })
+}
+
+/** Mutation hook for deleting a specific memory. */
+export function useDeleteMemory(orgId?: string, teamId?: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (memoryId: string) => memoryApi.deleteMemory(memoryId, orgId, teamId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.memory.user(orgId, teamId) })
+    },
+    onError: (error) => {
+      console.error("Failed to delete memory:", error)
+    },
+  })
+}
+
+/** Mutation hook for clearing all user memories. */
+export function useClearAllMemories(orgId?: string, teamId?: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => memoryApi.clearAllMemories(orgId, teamId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.memory.user(orgId, teamId) })
+    },
+    onError: (error) => {
+      console.error("Failed to clear memories:", error)
+    },
   })
 }
