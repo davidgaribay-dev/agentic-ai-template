@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/anthropics/anthropic-cookbook/main/misc/anthropic_logo.svg" alt="AI Agent Platform" width="120" height="120" />
-</p>
-
 <h1 align="center">Agentic AI Platform</h1>
 
 <p align="center">
