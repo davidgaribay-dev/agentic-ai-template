@@ -1,8 +1,10 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, Path, Query, Request
 
+from backend.audit import audit_service
+from backend.audit.schemas import AuditAction, Target
 from backend.auth.deps import CurrentUser, SessionDep
 from backend.rbac import (
     OrgContextDep,
@@ -48,9 +50,11 @@ def get_org_chat_settings(
     response_model=OrganizationSettingsPublic,
     dependencies=[Depends(require_org_permission(OrgPermission.ORG_UPDATE))],
 )
-def update_org_chat_settings(
+async def update_org_chat_settings(
+    request: Request,
     session: SessionDep,
     org_context: OrgContextDep,
+    current_user: CurrentUser,
     settings_in: OrganizationSettingsUpdate,
 ) -> OrganizationSettingsPublic:
     """Update organization chat visibility settings.
@@ -59,7 +63,27 @@ def update_org_chat_settings(
     These settings are the master controls - if disabled, teams and users
     cannot enable the feature.
     """
+    # Get current settings for change tracking
+    current_settings = service.get_or_create_org_settings(session, org_context.org_id)
+    changes = {}
+    update_data = settings_in.model_dump(exclude_unset=True)
+    for field, new_value in update_data.items():
+        old_value = getattr(current_settings, field, None)
+        if old_value != new_value:
+            changes[field] = {"before": old_value, "after": new_value}
+
     settings = service.update_org_settings(session, org_context.org_id, settings_in)
+
+    if changes:
+        await audit_service.log(
+            AuditAction.ORG_SETTINGS_UPDATED,
+            actor=current_user,
+            request=request,
+            organization_id=org_context.org_id,
+            targets=[Target(type="organization_settings", id=str(org_context.org_id))],
+            changes=changes,
+        )
+
     return OrganizationSettingsPublic.model_validate(settings)
 
 
@@ -85,9 +109,11 @@ def get_team_chat_settings(
     response_model=TeamSettingsPublic,
     dependencies=[Depends(require_team_permission(TeamPermission.TEAM_UPDATE))],
 )
-def update_team_chat_settings(
+async def update_team_chat_settings(
+    request: Request,
     session: SessionDep,
     team_context: TeamContextDep,
+    current_user: CurrentUser,
     settings_in: TeamSettingsUpdate,
 ) -> TeamSettingsPublic:
     """Update team chat visibility settings.
@@ -95,7 +121,28 @@ def update_team_chat_settings(
     Requires team:update permission (team admin or org admin).
     These settings can only enable features that the org has enabled.
     """
+    # Get current settings for change tracking
+    current_settings = service.get_or_create_team_settings(session, team_context.team_id)
+    changes = {}
+    update_data = settings_in.model_dump(exclude_unset=True)
+    for field, new_value in update_data.items():
+        old_value = getattr(current_settings, field, None)
+        if old_value != new_value:
+            changes[field] = {"before": old_value, "after": new_value}
+
     settings = service.update_team_settings(session, team_context.team_id, settings_in)
+
+    if changes:
+        await audit_service.log(
+            AuditAction.TEAM_SETTINGS_UPDATED,
+            actor=current_user,
+            request=request,
+            organization_id=team_context.org_id,
+            team_id=team_context.team_id,
+            targets=[Target(type="team_settings", id=str(team_context.team_id))],
+            changes=changes,
+        )
+
     return TeamSettingsPublic.model_validate(settings)
 
 
@@ -116,7 +163,8 @@ def get_user_chat_settings(
     "/users/me/chat-settings",
     response_model=UserSettingsPublic,
 )
-def update_user_chat_settings(
+async def update_user_chat_settings(
+    request: Request,
     session: SessionDep,
     current_user: CurrentUser,
     settings_in: UserSettingsUpdate,
@@ -126,7 +174,26 @@ def update_user_chat_settings(
     These settings are personal preferences that only apply when both
     org and team allow the feature.
     """
+    # Get current settings for change tracking
+    current_settings = service.get_or_create_user_settings(session, current_user.id)
+    changes = {}
+    update_data = settings_in.model_dump(exclude_unset=True)
+    for field, new_value in update_data.items():
+        old_value = getattr(current_settings, field, None)
+        if old_value != new_value:
+            changes[field] = {"before": old_value, "after": new_value}
+
     settings = service.update_user_settings(session, current_user.id, settings_in)
+
+    if changes:
+        await audit_service.log(
+            AuditAction.USER_SETTINGS_UPDATED,
+            actor=current_user,
+            request=request,
+            targets=[Target(type="user_settings", id=str(current_user.id))],
+            changes=changes,
+        )
+
     return UserSettingsPublic.model_validate(settings)
 
 

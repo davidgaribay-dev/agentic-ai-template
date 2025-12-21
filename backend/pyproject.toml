@@ -43,6 +43,8 @@ dependencies = [
     "aiohttp>=3.13.2",
     # Langfuse for LLM observability
     "langfuse>=3.0.0",
+    # MCP (Model Context Protocol) integration
+    "langchain-mcp-adapters>=0.1.0",
 ]
 
 [build-system]

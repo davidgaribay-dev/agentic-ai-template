@@ -498,6 +498,115 @@ class SecretsService:
         path = self._get_secret_path(org_id, team_id)
         return self._set_secret("default_provider", provider, path)
 
+    # =========================================================================
+    # MCP Server Auth Secrets
+    # =========================================================================
+
+    def _get_mcp_secret_path(
+        self,
+        org_id: str,
+        team_id: str | None = None,
+        user_id: str | None = None,
+    ) -> str:
+        """Get the Infisical path for MCP server secrets."""
+        if user_id and team_id:
+            return f"/organizations/{org_id}/teams/{team_id}/users/{user_id}/mcp"
+        if team_id:
+            return f"/organizations/{org_id}/teams/{team_id}/mcp"
+        return f"/organizations/{org_id}/mcp"
+
+    def set_mcp_auth_secret(
+        self,
+        server_id: str,
+        auth_secret: str,
+        org_id: str,
+        team_id: str | None = None,
+        user_id: str | None = None,
+    ) -> str | None:
+        """Store an MCP server auth secret in Infisical.
+
+        Args:
+            server_id: The MCP server ID (used as part of secret name)
+            auth_secret: The actual auth token/key to store
+            org_id: Organization ID
+            team_id: Optional team ID
+            user_id: Optional user ID for user-level servers
+
+        Returns:
+            The secret reference key if successful, None otherwise
+        """
+        secret_name = f"mcp_server_{server_id}"
+        path = self._get_mcp_secret_path(org_id, team_id, user_id)
+
+        if self._set_secret(secret_name, auth_secret, path):
+            logger.info(
+                "mcp_auth_secret_stored",
+                server_id=server_id,
+                path=path,
+            )
+            return secret_name
+        return None
+
+    def get_mcp_auth_secret(
+        self,
+        server_id: str,
+        org_id: str,
+        team_id: str | None = None,
+        user_id: str | None = None,
+    ) -> str | None:
+        """Retrieve an MCP server auth secret from Infisical.
+
+        Args:
+            server_id: The MCP server ID
+            org_id: Organization ID
+            team_id: Optional team ID
+            user_id: Optional user ID for user-level servers
+
+        Returns:
+            The auth secret value if found, None otherwise
+        """
+        secret_name = f"mcp_server_{server_id}"
+        path = self._get_mcp_secret_path(org_id, team_id, user_id)
+
+        secret = self._get_secret(secret_name, path)
+        if secret:
+            logger.debug(
+                "mcp_auth_secret_retrieved",
+                server_id=server_id,
+                path=path,
+            )
+        return secret
+
+    def delete_mcp_auth_secret(
+        self,
+        server_id: str,
+        org_id: str,
+        team_id: str | None = None,
+        user_id: str | None = None,
+    ) -> bool:
+        """Delete an MCP server auth secret from Infisical.
+
+        Args:
+            server_id: The MCP server ID
+            org_id: Organization ID
+            team_id: Optional team ID
+            user_id: Optional user ID for user-level servers
+
+        Returns:
+            True if deleted, False otherwise
+        """
+        secret_name = f"mcp_server_{server_id}"
+        path = self._get_mcp_secret_path(org_id, team_id, user_id)
+
+        success = self._delete_secret(secret_name, path)
+        if success:
+            logger.info(
+                "mcp_auth_secret_deleted",
+                server_id=server_id,
+                path=path,
+            )
+        return success
+
 
 _secrets_service: SecretsService | None = None
 

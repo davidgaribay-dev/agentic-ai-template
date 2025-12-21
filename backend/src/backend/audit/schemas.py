@@ -98,6 +98,21 @@ class AuditAction(str, Enum):
     PROMPT_ACTIVATED = "prompt.activated"
     PROMPT_DEACTIVATED = "prompt.deactivated"
 
+    # Settings events
+    ORG_SETTINGS_UPDATED = "organization.settings.updated"
+    TEAM_SETTINGS_UPDATED = "team.settings.updated"
+    USER_SETTINGS_UPDATED = "user.settings.updated"
+
+    # MCP Server events
+    MCP_SERVER_CREATED = "mcp_server.created"
+    MCP_SERVER_UPDATED = "mcp_server.updated"
+    MCP_SERVER_DELETED = "mcp_server.deleted"
+
+    # Tool approval events
+    TOOL_APPROVAL_REQUESTED = "tool.approval.requested"
+    TOOL_APPROVAL_GRANTED = "tool.approval.granted"
+    TOOL_APPROVAL_DENIED = "tool.approval.denied"
+
 
 class Actor(BaseModel):
     id: UUID | None = None

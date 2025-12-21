@@ -7,6 +7,7 @@ from sqlmodel import SQLModel, create_engine
 from backend.auth.models import User  # noqa: F401 - Import models for autogenerate
 from backend.conversations.models import Conversation  # noqa: F401 - Import models for autogenerate
 from backend.items.models import Item  # noqa: F401 - Import models for autogenerate
+from backend.mcp.models import MCPServer  # noqa: F401 - Import models for autogenerate
 from backend.organizations.models import Organization, OrganizationMember  # noqa: F401 - Import models for autogenerate
 from backend.teams.models import Team, TeamMember  # noqa: F401 - Import models for autogenerate
 from backend.invitations.models import Invitation  # noqa: F401 - Import models for autogenerate

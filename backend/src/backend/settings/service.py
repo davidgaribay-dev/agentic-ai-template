@@ -28,6 +28,11 @@ def get_or_create_org_settings(
             chat_enabled=True,
             chat_panel_enabled=True,
             memory_enabled=True,
+            mcp_enabled=True,
+            mcp_tool_approval_required=True,
+            mcp_allow_custom_servers=True,
+            mcp_max_servers_per_team=10,
+            mcp_max_servers_per_user=5,
         )
         session.add(settings)
         session.commit()
@@ -65,6 +70,9 @@ def get_or_create_team_settings(
             chat_enabled=True,
             chat_panel_enabled=True,
             memory_enabled=True,
+            mcp_enabled=True,
+            mcp_tool_approval_required=True,
+            mcp_allow_custom_servers=True,
         )
         session.add(settings)
         session.commit()
@@ -100,6 +108,8 @@ def get_or_create_user_settings(session: Session, user_id: uuid.UUID) -> UserSet
             chat_enabled=True,
             chat_panel_enabled=True,
             memory_enabled=True,
+            mcp_enabled=True,
+            mcp_tool_approval_required=True,
         )
         session.add(settings)
         session.commit()
@@ -186,6 +196,44 @@ def get_effective_settings(
     elif not user_settings.memory_enabled:
         memory_enabled = False
 
+    # MCP enabled
+    mcp_enabled = True
+    mcp_disabled_by = None
+
+    if org_settings and not org_settings.mcp_enabled:
+        mcp_enabled = False
+        mcp_disabled_by = "org"
+    elif team_settings and not team_settings.mcp_enabled:
+        mcp_enabled = False
+        mcp_disabled_by = "team"
+    elif not user_settings.mcp_enabled:
+        mcp_enabled = False
+
+    # MCP tool approval required (if ANY level requires it, it's required)
+    mcp_tool_approval_required = False
+    mcp_tool_approval_required_by = None
+
+    if org_settings and org_settings.mcp_tool_approval_required:
+        mcp_tool_approval_required = True
+        mcp_tool_approval_required_by = "org"
+    elif team_settings and team_settings.mcp_tool_approval_required:
+        mcp_tool_approval_required = True
+        mcp_tool_approval_required_by = "team"
+    elif user_settings.mcp_tool_approval_required:
+        mcp_tool_approval_required = True
+        mcp_tool_approval_required_by = "user"
+
+    # MCP custom servers allowed
+    mcp_allow_custom_servers = True
+    mcp_custom_servers_disabled_by = None
+
+    if org_settings and not org_settings.mcp_allow_custom_servers:
+        mcp_allow_custom_servers = False
+        mcp_custom_servers_disabled_by = "org"
+    elif team_settings and not team_settings.mcp_allow_custom_servers:
+        mcp_allow_custom_servers = False
+        mcp_custom_servers_disabled_by = "team"
+
     return EffectiveSettings(
         chat_enabled=chat_enabled,
         chat_disabled_by=chat_disabled_by,
@@ -193,4 +241,10 @@ def get_effective_settings(
         chat_panel_disabled_by=chat_panel_disabled_by,
         memory_enabled=memory_enabled,
         memory_disabled_by=memory_disabled_by,
+        mcp_enabled=mcp_enabled,
+        mcp_disabled_by=mcp_disabled_by,
+        mcp_tool_approval_required=mcp_tool_approval_required,
+        mcp_tool_approval_required_by=mcp_tool_approval_required_by,
+        mcp_allow_custom_servers=mcp_allow_custom_servers,
+        mcp_custom_servers_disabled_by=mcp_custom_servers_disabled_by,
     )
