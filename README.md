@@ -83,7 +83,7 @@ A production-ready full-stack AI agent platform built for teams and enterprises.
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/agentic-ai-template.git
+git clone https://github.com/davidgaribay-dev/agentic-ai-template.git
 cd agentic-ai-template
 
 # Run setup (starts infrastructure, runs migrations, configures Infisical/Langfuse)
