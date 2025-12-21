@@ -104,7 +104,11 @@ class Invitation(InvitationBase, table=True):
 
     def is_expired(self) -> bool:
         """Check if the invitation has expired."""
-        return datetime.now(UTC) > self.expires_at
+        expires_at = self.expires_at
+        # Handle naive datetime from database (PostgreSQL stores without tz info)
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=UTC)
+        return datetime.now(UTC) > expires_at
 
     def is_valid(self) -> bool:
         """Check if the invitation is still valid (pending and not expired)."""

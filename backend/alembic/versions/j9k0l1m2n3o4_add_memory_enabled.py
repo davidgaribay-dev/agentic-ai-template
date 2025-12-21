@@ -5,7 +5,6 @@ its own tables via setup(). This migration only adds the memory_enabled toggle.
 
 Revision ID: j9k0l1m2n3o4
 Revises: i8j9k0l1m2n3
-Create Date: 2024-12-21
 
 """
 

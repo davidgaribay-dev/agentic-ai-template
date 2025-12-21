@@ -41,6 +41,8 @@ src/backend/
 ├── teams/               # Team model + CRUD (TeamMember → OrganizationMember FK)
 ├── conversations/       # Soft-delete, multi-tenant scoped
 ├── prompts/             # Hierarchical system prompts (org/team/user)
+├── memory/              # Long-term memory with semantic search
+├── settings/            # Hierarchical settings (org/team/user)
 ├── core/
 │   ├── config.py        # Pydantic settings with computed fields
 │   ├── db.py            # Engine, session, pagination utilities
@@ -109,6 +111,43 @@ Tools: Add `@tool` functions to `agents/tools.py` - automatically available to R
 
 Tracing: Langfuse integration via `build_langfuse_config()` - include in all agent calls.
 
+## Memory System
+
+Long-term memory across conversations using LangGraph's PostgresStore with semantic search.
+
+Architecture:
+```
+memory/
+├── store.py       # AsyncPostgresStore with OpenAI embeddings
+├── service.py     # CRUD operations (store, search, list, delete)
+├── extraction.py  # LLM-based memory extraction from conversations
+```
+
+Key concepts:
+- **Namespace isolation**: `("memories", org_id, team_id, user_id)` - complete tenant separation
+- **Semantic search**: OpenAI embeddings (text-embedding-3-small, 1536 dims) for relevance
+- **Memory types**: preference, fact, entity, relationship, summary
+- **Automatic extraction**: Background task after each chat response extracts memories via LLM
+
+Memory flow:
+1. User sends message → Agent responds
+2. Background task calls `extract_and_store_memories()` with conversation
+3. LLM analyzes for memorable information (preferences, facts, entities)
+4. Memories stored in PostgresStore with embeddings
+5. On next message, `chat_node` searches relevant memories and injects into context
+
+Settings hierarchy (can disable at any level):
+- Organization → Team → User
+- `memory_enabled` field in `*_settings` tables
+- Check via `get_effective_settings()` before extraction
+
+API routes (`/v1/memory/*`):
+- `GET /users/me/memories` - List with org/team scoping
+- `DELETE /users/me/memories/{id}` - Delete single memory
+- `DELETE /users/me/memories` - Clear all memories
+
+Environment: Requires `OPENAI_API_KEY` for embeddings. Memory store optional - app works without it.
+
 ## Adding Features
 
 New Route:
@@ -154,6 +193,8 @@ Configured in `core/rate_limit.py`:
 - Organizations: `/v1/organizations/*` (CRUD + members)
 - Teams: `/v1/organizations/{id}/teams/*`
 - Prompts: org/team/user scopes with separate routers
+- Memory: `/v1/memory/*` (list, delete, clear)
+- Settings: `/v1/settings/*` (effective settings with hierarchy)
 
 ## Code Style
 

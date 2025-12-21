@@ -22,7 +22,8 @@ src/
 ├── routes/              # File-based routing → routeTree.gen.ts (auto-generated, never edit)
 ├── components/
 │   ├── ui/              # shadcn/ui (add: npx shadcn@latest add <name>)
-│   └── chat/            # Chat, ChatInput, ChatMessage, CodeBlock, PromptPicker
+│   ├── chat/            # Chat, ChatInput, ChatMessage, CodeBlock, PromptPicker
+│   └── settings/        # MemorySettings, MemoryViewer, ApiKeys, Prompts, etc.
 ├── hooks/useChat.ts     # SSE streaming chat hook
 └── lib/
     ├── api.ts           # Typed API client
@@ -115,6 +116,35 @@ const { messages, sendMessage, stopStreaming, clearMessages, isStreaming, conver
 ```
 
 Stream events: `token` (content), `title`, `done`, `error`. Uses Streamdown for markdown with custom CodeBlock (Shiki syntax highlighting).
+
+## Memory System
+
+Persistent memory management across conversations with semantic search.
+
+Components (`components/settings/`):
+- `MemorySettings` - Toggle for enabling/disabling memory (respects hierarchy)
+- `MemoryViewer` - List, view, and delete stored memories
+
+Hooks (`lib/queries.ts`):
+```typescript
+const { data } = useUserMemories(orgId, teamId)  // Fetch memories
+const deleteMutation = useDeleteMemory(orgId, teamId)  // Delete single
+const clearMutation = useClearAllMemories(orgId, teamId)  // Clear all
+```
+
+API (`lib/api.ts`):
+```typescript
+memoryApi.listMemories(orgId?, teamId?, limit?)
+memoryApi.deleteMemory(memoryId, orgId?, teamId?)
+memoryApi.clearAllMemories(orgId?, teamId?)
+```
+
+Memory types: `preference`, `fact`, `entity`, `relationship`, `summary` - displayed with color-coded badges.
+
+Settings integration:
+- `memory_enabled` in `EffectiveChatSettings`
+- Hierarchical control: org → team → user
+- Higher level can disable for all below
 
 ## Layout System
 
