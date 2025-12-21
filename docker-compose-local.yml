@@ -30,9 +30,9 @@ services:
       retries: 5
       start_period: 10s
 
-  # Main application database
+  # Main application database (with pgvector for LangGraph memory semantic search)
   db:
-    image: postgres:17
+    image: pgvector/pgvector:pg17
     restart: always
     volumes:
       - app-db-data:/var/lib/postgresql/data/pgdata

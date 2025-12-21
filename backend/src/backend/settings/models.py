@@ -13,15 +13,17 @@ if TYPE_CHECKING:
 class ChatSettingsBase(SQLModel):
     """Base settings for chat feature visibility.
 
-    Two toggles:
+    Toggles:
     - chat_enabled: Controls sidebar chat section and standalone chat page
     - chat_panel_enabled: Controls the right-side chat panel
+    - memory_enabled: Controls persistent memory across conversations
 
     Higher-level settings take precedence: Organization > Team > User.
     """
 
     chat_enabled: bool = Field(default=True)
     chat_panel_enabled: bool = Field(default=True)
+    memory_enabled: bool = Field(default=True)
 
 
 class OrganizationSettings(ChatSettingsBase, table=True):
@@ -46,6 +48,7 @@ class OrganizationSettings(ChatSettingsBase, table=True):
 class OrganizationSettingsUpdate(SQLModel):
     chat_enabled: bool | None = None
     chat_panel_enabled: bool | None = None
+    memory_enabled: bool | None = None
 
 
 class OrganizationSettingsPublic(ChatSettingsBase):
@@ -77,6 +80,7 @@ class TeamSettings(ChatSettingsBase, table=True):
 class TeamSettingsUpdate(SQLModel):
     chat_enabled: bool | None = None
     chat_panel_enabled: bool | None = None
+    memory_enabled: bool | None = None
 
 
 class TeamSettingsPublic(ChatSettingsBase):
@@ -108,6 +112,7 @@ class UserSettings(ChatSettingsBase, table=True):
 class UserSettingsUpdate(SQLModel):
     chat_enabled: bool | None = None
     chat_panel_enabled: bool | None = None
+    memory_enabled: bool | None = None
 
 
 class UserSettingsPublic(ChatSettingsBase):
@@ -128,6 +133,8 @@ class EffectiveSettings(SQLModel):
     chat_disabled_by: str | None = None
     chat_panel_enabled: bool
     chat_panel_disabled_by: str | None = None
+    memory_enabled: bool
+    memory_disabled_by: str | None = None
 
 
 from backend.auth.models import User  # noqa: E402, F401

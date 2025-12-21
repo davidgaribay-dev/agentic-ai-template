@@ -27,6 +27,7 @@ def get_or_create_org_settings(
             organization_id=organization_id,
             chat_enabled=True,
             chat_panel_enabled=True,
+            memory_enabled=True,
         )
         session.add(settings)
         session.commit()
@@ -63,6 +64,7 @@ def get_or_create_team_settings(
             team_id=team_id,
             chat_enabled=True,
             chat_panel_enabled=True,
+            memory_enabled=True,
         )
         session.add(settings)
         session.commit()
@@ -97,6 +99,7 @@ def get_or_create_user_settings(session: Session, user_id: uuid.UUID) -> UserSet
             user_id=user_id,
             chat_enabled=True,
             chat_panel_enabled=True,
+            memory_enabled=True,
         )
         session.add(settings)
         session.commit()
@@ -170,9 +173,24 @@ def get_effective_settings(
     elif not user_settings.chat_panel_enabled:
         chat_panel_enabled = False
 
+    # Memory enabled
+    memory_enabled = True
+    memory_disabled_by = None
+
+    if org_settings and not org_settings.memory_enabled:
+        memory_enabled = False
+        memory_disabled_by = "org"
+    elif team_settings and not team_settings.memory_enabled:
+        memory_enabled = False
+        memory_disabled_by = "team"
+    elif not user_settings.memory_enabled:
+        memory_enabled = False
+
     return EffectiveSettings(
         chat_enabled=chat_enabled,
         chat_disabled_by=chat_disabled_by,
         chat_panel_enabled=chat_panel_enabled,
         chat_panel_disabled_by=chat_panel_disabled_by,
+        memory_enabled=memory_enabled,
+        memory_disabled_by=memory_disabled_by,
     )

@@ -157,6 +157,15 @@ class Settings(BaseSettings):
 
     DEFAULT_LLM_PROVIDER: Literal["anthropic", "openai", "google"] = "anthropic"
 
+    # Memory Store - uses OpenAI embeddings for semantic search
+    MEMORY_EMBEDDING_MODEL: str = "text-embedding-3-small"
+
+    @computed_field
+    @property
+    def MEMORY_DATABASE_URI(self) -> str:
+        """Build PostgreSQL connection URI for LangGraph memory store."""
+        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+
     @computed_field
     @property
     def has_llm_api_key(self) -> bool:
