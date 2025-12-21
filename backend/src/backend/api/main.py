@@ -8,6 +8,7 @@ from backend.api.routes import (
     conversations,
     invitations,
     items,
+    memory,
     organizations,
     prompts,
     settings,
@@ -30,3 +31,4 @@ api_router.include_router(prompts.team_router)
 api_router.include_router(prompts.user_router)
 api_router.include_router(audit.router, tags=["audit"])
 api_router.include_router(settings.router)
+api_router.include_router(memory.router)

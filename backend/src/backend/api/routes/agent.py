@@ -1,3 +1,4 @@
+import asyncio
 import json
 import uuid
 from typing import Annotated
@@ -27,6 +28,7 @@ from backend.conversations import (
 from backend.core.config import Settings, get_settings
 from backend.core.logging import get_logger
 from backend.core.secrets import get_secrets_service
+from backend.memory.extraction import extract_and_store_memories
 from backend.organizations.models import OrganizationMember
 from sqlmodel import select
 
@@ -253,6 +255,71 @@ async def _update_conversation_title(
         return None
 
 
+async def _extract_memories_background(
+    user_message: str,
+    assistant_response: str,
+    org_id: str,
+    team_id: str | None,
+    user_id: str,
+    conversation_id: str | None = None,
+) -> None:
+    """Extract and store memories from a conversation exchange.
+
+    Runs as a background task to not block the response.
+    Checks if memory is enabled before extraction.
+    """
+    try:
+        # Check if memory is enabled via settings hierarchy
+        from backend.core.db import engine
+        from backend.settings.service import get_effective_settings
+        from sqlmodel import Session
+
+        with Session(engine) as session:
+            effective = get_effective_settings(
+                session=session,
+                user_id=uuid.UUID(user_id),
+                organization_id=uuid.UUID(org_id) if org_id else None,
+                team_id=uuid.UUID(team_id) if team_id else None,
+            )
+
+            if not effective.memory_enabled:
+                logger.debug(
+                    "memory_extraction_skipped",
+                    reason="disabled",
+                    user_id=user_id,
+                    org_id=org_id,
+                )
+                return
+
+        # Extract and store memories
+        stored_count = await extract_and_store_memories(
+            user_message=user_message,
+            assistant_response=assistant_response,
+            org_id=org_id,
+            team_id=team_id or "default",
+            user_id=user_id,
+            conversation_id=conversation_id,
+        )
+
+        if stored_count > 0:
+            logger.info(
+                "memories_extracted_background",
+                stored_count=stored_count,
+                conversation_id=conversation_id,
+                user_id=user_id,
+            )
+
+    except Exception as e:
+        # Don't propagate errors from background task
+        logger.warning(
+            "memory_extraction_background_error",
+            error=str(e),
+            error_type=type(e).__name__,
+            user_id=user_id,
+            org_id=org_id,
+        )
+
+
 async def stream_response(
     message: str,
     conversation_id: str,
@@ -295,6 +362,34 @@ async def stream_response(
                     "event": "title",
                     "data": json.dumps({"title": title, "conversation_id": conversation_id}),
                 }
+
+        # Extract and store memories in background (don't block response)
+        if full_response and org_id and user_id:
+            logger.info(
+                "memory_extraction_task_creating",
+                org_id=org_id,
+                team_id=team_id,
+                user_id=user_id,
+                conversation_id=conversation_id,
+                response_length=len(full_response),
+            )
+            asyncio.create_task(
+                _extract_memories_background(
+                    user_message=message,
+                    assistant_response=full_response,
+                    org_id=org_id,
+                    team_id=team_id,
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                )
+            )
+        else:
+            logger.info(
+                "memory_extraction_skipped_no_context",
+                has_response=bool(full_response),
+                has_org_id=bool(org_id),
+                has_user_id=bool(user_id),
+            )
 
         yield {
             "event": "done",

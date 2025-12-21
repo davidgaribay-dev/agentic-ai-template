@@ -17,6 +17,7 @@ from backend.agents.tracing import (
     flush_langfuse,
     shutdown_langfuse,
 )
+from backend.memory.store import cleanup_memory_store, init_memory_store
 from backend.api.main import api_router
 from backend.audit.client import opensearch_lifespan
 from backend.audit.middleware import AuditLoggingMiddleware
@@ -60,8 +61,20 @@ async def lifespan(app: FastAPI):
     async with opensearch_lifespan():
         await audit_service.start()
 
+        # Initialize memory store (PostgresStore with semantic search)
+        logger.info("memory_store_check", has_openai_key=bool(settings.OPENAI_API_KEY))
+        if settings.OPENAI_API_KEY:
+            try:
+                await init_memory_store()
+                logger.info("memory_store_initialized")
+            except Exception as e:
+                logger.warning("memory_store_init_failed", error=str(e), error_type=type(e).__name__)
+
         async with agent_lifespan():
             yield
+
+        # Cleanup memory store
+        await cleanup_memory_store()
 
         await audit_service.stop()
 

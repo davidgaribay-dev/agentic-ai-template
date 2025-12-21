@@ -43,11 +43,13 @@ def _safe_eval_node(node: ast.AST) -> float | int:
 
 @tool
 def get_current_time() -> str:
+    """Get the current date and time in ISO format."""
     return datetime.now().isoformat()
 
 
 @tool
 def calculate(expression: str) -> str:
+    """Safely evaluate a mathematical expression and return the result."""
     try:
         tree = ast.parse(expression, mode="eval")
         result = _safe_eval_node(tree)

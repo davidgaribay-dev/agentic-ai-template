@@ -14,6 +14,9 @@ from backend.agents.llm import get_chat_model, get_chat_model_with_context
 from backend.agents.tracing import build_langfuse_config, get_langfuse_handler
 from backend.core.config import settings
 from backend.core.logging import get_logger
+from backend.memory.extraction import format_memories_for_context
+from backend.memory.service import MemoryService
+from backend.memory.store import get_memory_store
 
 __all__ = [
     "get_agent",
@@ -29,6 +32,37 @@ __all__ = [
 logger = get_logger(__name__)
 
 _llm_context: ContextVar[dict | None] = ContextVar("_llm_context", default=None)
+
+
+def _is_memory_enabled(
+    org_id: str | None,
+    team_id: str | None,
+    user_id: str | None,
+) -> bool:
+    """Check if memory is enabled for the given context.
+
+    Uses the settings hierarchy: org > team > user.
+    Returns False if any level disables memory.
+    """
+    if not org_id or not user_id:
+        return False
+
+    try:
+        from backend.core.db import engine
+        from backend.settings.service import get_effective_settings
+        from sqlmodel import Session
+
+        with Session(engine) as session:
+            effective = get_effective_settings(
+                session=session,
+                user_id=uuid.UUID(user_id),
+                organization_id=uuid.UUID(org_id) if org_id else None,
+                team_id=uuid.UUID(team_id) if team_id else None,
+            )
+            return effective.memory_enabled
+    except Exception as e:
+        logger.warning("failed_to_check_memory_settings", error=str(e))
+        return False
 
 
 def _get_system_prompt_content(
@@ -99,6 +133,53 @@ def create_agent_graph(checkpointer: AsyncPostgresSaver | None = None) -> Any:
                 if not messages or not isinstance(messages[0], SystemMessage):
                     messages = [SystemMessage(content=system_prompt)] + messages
                     logger.debug("system_prompt_added", length=len(system_prompt))
+
+        # Inject relevant memories if enabled
+        if ctx and ctx.get("org_id") and ctx.get("user_id"):
+            memory_enabled = _is_memory_enabled(
+                org_id=ctx.get("org_id"),
+                team_id=ctx.get("team_id"),
+                user_id=ctx.get("user_id"),
+            )
+            if memory_enabled:
+                try:
+                    store = await get_memory_store()
+                    service = MemoryService(store)
+
+                    # Get the last user message for semantic search
+                    last_message = ""
+                    for msg in reversed(messages):
+                        if isinstance(msg, HumanMessage):
+                            last_message = str(msg.content)
+                            break
+
+                    if last_message:
+                        memories = await service.search_memories(
+                            org_id=ctx.get("org_id"),
+                            team_id=ctx.get("team_id") or "default",
+                            user_id=ctx.get("user_id"),
+                            query=last_message,
+                            limit=5,
+                        )
+
+                        if memories:
+                            memory_context = format_memories_for_context(memories)
+                            if memory_context:
+                                # Add memory context as a system message after any existing system prompt
+                                memory_msg = SystemMessage(content=memory_context)
+                                if messages and isinstance(messages[0], SystemMessage):
+                                    # Insert after existing system prompt
+                                    messages = [messages[0], memory_msg] + messages[1:]
+                                else:
+                                    messages = [memory_msg] + messages
+                                logger.debug(
+                                    "memories_injected",
+                                    count=len(memories),
+                                    user_id=ctx.get("user_id"),
+                                )
+                except Exception as e:
+                    # Don't fail the request if memory retrieval fails
+                    logger.warning("memory_injection_failed", error=str(e))
 
         response = await llm.ainvoke(messages)
         return {"messages": [response]}
