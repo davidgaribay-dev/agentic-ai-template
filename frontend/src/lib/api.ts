@@ -404,12 +404,40 @@ export type StreamErrorEvent = {
   data: string
 }
 
+export type StreamToolApprovalEvent = {
+  type: "tool_approval"
+  data: {
+    conversation_id: string
+    tool_name: string
+    tool_args: Record<string, unknown>
+    tool_call_id: string | null
+    tool_description: string
+  }
+}
+
 /** Union of all possible stream events */
 export type StreamEvent =
   | StreamTokenEvent
   | StreamTitleEvent
   | StreamDoneEvent
   | StreamErrorEvent
+  | StreamToolApprovalEvent
+
+export interface ToolApprovalRequest {
+  conversation_id: string
+  organization_id: string
+  team_id?: string | null
+  approved: boolean
+  stream?: boolean
+}
+
+export interface ToolApprovalInfo {
+  conversation_id: string
+  tool_name: string
+  tool_args: Record<string, unknown>
+  tool_call_id: string | null
+  tool_description: string
+}
 
 /** Helper to get auth header */
 function getAuthHeader(): Record<string, string> {
@@ -651,12 +679,135 @@ export const agentApi = {
                   type: "done",
                   data: { conversation_id: parsed.conversation_id }
                 } satisfies StreamDoneEvent
+              } else if (currentEvent === "tool_approval") {
+                yield {
+                  type: "tool_approval",
+                  data: {
+                    conversation_id: parsed.conversation_id,
+                    tool_name: parsed.tool_name,
+                    tool_args: parsed.tool_args || {},
+                    tool_call_id: parsed.tool_call_id || null,
+                    tool_description: parsed.tool_description || "",
+                  }
+                } satisfies StreamToolApprovalEvent
               } else if (parsed.token) {
                 yield {
                   type: "token",
                   data: String(parsed.token)
                 } satisfies StreamTokenEvent
               } else if (parsed.conversation_id && !parsed.token && !parsed.title) {
+                yield {
+                  type: "done",
+                  data: { conversation_id: parsed.conversation_id }
+                } satisfies StreamDoneEvent
+              }
+            } catch {
+              // Non-JSON lines are ignored (SSE keepalive, etc.)
+            }
+          }
+          currentEvent = "message"
+        }
+      }
+    }
+  },
+
+  /** Get pending tool approval for a conversation */
+  getPendingApproval: (conversationId: string, organizationId: string, teamId?: string) => {
+    const params = new URLSearchParams({ organization_id: organizationId })
+    if (teamId) params.append("team_id", teamId)
+    return apiClient.get<ToolApprovalInfo | null>(
+      `/v1/agent/conversations/${conversationId}/pending-approval?${params}`,
+      { headers: getAuthHeader() }
+    )
+  },
+
+  /** Resume a conversation after tool approval decision (non-streaming) */
+  resume: (request: ToolApprovalRequest) =>
+    apiClient.post<ChatResponse>("/v1/agent/resume", { ...request, stream: false }, {
+      headers: getAuthHeader(),
+    }),
+
+  /**
+   * Resume a conversation with streaming response.
+   * Returns an async generator that yields typed stream events.
+   */
+  resumeStream: async function* (
+    request: Omit<ToolApprovalRequest, "stream">,
+    signal?: AbortSignal
+  ): AsyncGenerator<StreamEvent> {
+    const token = localStorage.getItem("auth_token")
+    const headers: Record<string, string> = { "Content-Type": "application/json" }
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`
+    }
+
+    const response = await fetch(`${API_BASE}/v1/agent/resume`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...request, stream: true }),
+      signal,
+    })
+
+    if (!response.ok) {
+      throw new ApiError(response.status, response.statusText)
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error("No response body")
+    }
+
+    const decoder = new TextDecoder()
+    let buffer = ""
+    let currentEvent = "message"
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split("\n")
+      buffer = lines.pop() || ""
+
+      for (const line of lines) {
+        if (line.startsWith("event:")) {
+          currentEvent = line.slice(6).trim()
+          continue
+        }
+
+        if (line.startsWith("data:")) {
+          const data = line.slice(5).trim()
+          if (data) {
+            try {
+              const parsed = JSON.parse(data)
+
+              if (currentEvent === "error" || parsed.error) {
+                yield {
+                  type: "error",
+                  data: String(parsed.error || parsed.message || "Unknown error")
+                } satisfies StreamErrorEvent
+              } else if (currentEvent === "done") {
+                yield {
+                  type: "done",
+                  data: { conversation_id: parsed.conversation_id }
+                } satisfies StreamDoneEvent
+              } else if (currentEvent === "tool_approval") {
+                yield {
+                  type: "tool_approval",
+                  data: {
+                    conversation_id: parsed.conversation_id,
+                    tool_name: parsed.tool_name,
+                    tool_args: parsed.tool_args || {},
+                    tool_call_id: parsed.tool_call_id || null,
+                    tool_description: parsed.tool_description || "",
+                  }
+                } satisfies StreamToolApprovalEvent
+              } else if (parsed.token) {
+                yield {
+                  type: "token",
+                  data: String(parsed.token)
+                } satisfies StreamTokenEvent
+              } else if (parsed.conversation_id && !parsed.token) {
                 yield {
                   type: "done",
                   data: { conversation_id: parsed.conversation_id }
@@ -1257,11 +1408,15 @@ export interface ChatSettings {
   chat_enabled: boolean
   chat_panel_enabled: boolean
   memory_enabled: boolean
+  mcp_enabled: boolean
 }
 
 export interface OrganizationChatSettings extends ChatSettings {
   id: string
   organization_id: string
+  mcp_allow_custom_servers: boolean
+  mcp_max_servers_per_team: number
+  mcp_max_servers_per_user: number
   created_at: string
   updated_at: string
 }
@@ -1269,6 +1424,7 @@ export interface OrganizationChatSettings extends ChatSettings {
 export interface TeamChatSettings extends ChatSettings {
   id: string
   team_id: string
+  mcp_allow_custom_servers: boolean
   created_at: string
   updated_at: string
 }
@@ -1284,6 +1440,17 @@ export interface ChatSettingsUpdate {
   chat_enabled?: boolean
   chat_panel_enabled?: boolean
   memory_enabled?: boolean
+  mcp_enabled?: boolean
+}
+
+export interface OrgSettingsUpdate extends ChatSettingsUpdate {
+  mcp_allow_custom_servers?: boolean
+  mcp_max_servers_per_team?: number
+  mcp_max_servers_per_user?: number
+}
+
+export interface TeamSettingsUpdate extends ChatSettingsUpdate {
+  mcp_allow_custom_servers?: boolean
 }
 
 export type DisabledByLevel = "org" | "team" | null
@@ -1295,6 +1462,10 @@ export interface EffectiveChatSettings {
   chat_panel_disabled_by: DisabledByLevel
   memory_enabled: boolean
   memory_disabled_by: DisabledByLevel
+  mcp_enabled: boolean
+  mcp_disabled_by: DisabledByLevel
+  mcp_allow_custom_servers: boolean
+  mcp_custom_servers_disabled_by: DisabledByLevel
 }
 
 export const chatSettingsApi = {
@@ -1306,7 +1477,7 @@ export const chatSettingsApi = {
     ),
 
   /** Update organization chat visibility settings */
-  updateOrgSettings: (orgId: string, settings: ChatSettingsUpdate) =>
+  updateOrgSettings: (orgId: string, settings: OrgSettingsUpdate) =>
     apiClient.put<OrganizationChatSettings>(
       `/v1/organizations/${orgId}/chat-settings`,
       settings,
@@ -1321,7 +1492,7 @@ export const chatSettingsApi = {
     ),
 
   /** Update team chat visibility settings */
-  updateTeamSettings: (orgId: string, teamId: string, settings: ChatSettingsUpdate) =>
+  updateTeamSettings: (orgId: string, teamId: string, settings: TeamSettingsUpdate) =>
     apiClient.put<TeamChatSettings>(
       `/v1/organizations/${orgId}/teams/${teamId}/chat-settings`,
       settings,
@@ -1415,6 +1586,202 @@ export const memoryApi = {
     const queryString = params.toString()
     return apiClient.delete<ClearMemoriesResponse>(
       `/v1/memory/users/me/memories${queryString ? `?${queryString}` : ""}`,
+      { headers: getAuthHeader() }
+    )
+  },
+}
+
+// =============================================================================
+// MCP Server API Types
+// =============================================================================
+
+export type MCPTransport = "http" | "sse" | "streamable_http"
+export type MCPAuthType = "none" | "bearer" | "api_key"
+
+export interface MCPServer {
+  id: string
+  organization_id: string
+  team_id: string | null
+  user_id: string | null
+  name: string
+  description: string | null
+  url: string
+  transport: MCPTransport
+  auth_type: MCPAuthType
+  auth_header_name: string | null
+  has_auth_secret: boolean
+  enabled: boolean
+  is_builtin: boolean
+  tool_prefix: boolean
+  scope: "org" | "team" | "user"
+  created_by_id: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MCPServersPublic {
+  data: MCPServer[]
+  count: number
+}
+
+export interface MCPServerCreate {
+  name: string
+  description?: string | null
+  url: string
+  transport?: MCPTransport
+  auth_type?: MCPAuthType
+  auth_header_name?: string | null
+  auth_secret?: string | null
+  enabled?: boolean
+  tool_prefix?: boolean
+}
+
+export interface MCPServerUpdate {
+  name?: string | null
+  description?: string | null
+  url?: string | null
+  transport?: MCPTransport | null
+  auth_type?: MCPAuthType | null
+  auth_header_name?: string | null
+  auth_secret?: string | null
+  enabled?: boolean | null
+  tool_prefix?: boolean | null
+}
+
+export const mcpServersApi = {
+  // ==========================================================================
+  // Organization-level MCP Servers
+  // ==========================================================================
+
+  /** List organization-level MCP servers */
+  listOrgServers: (orgId: string) =>
+    apiClient.get<MCPServersPublic>(
+      `/v1/organizations/${orgId}/mcp-servers`,
+      { headers: getAuthHeader() }
+    ),
+
+  /** Get an organization-level MCP server */
+  getOrgServer: (orgId: string, serverId: string) =>
+    apiClient.get<MCPServer>(
+      `/v1/organizations/${orgId}/mcp-servers/${serverId}`,
+      { headers: getAuthHeader() }
+    ),
+
+  /** Create an organization-level MCP server */
+  createOrgServer: (orgId: string, data: MCPServerCreate) =>
+    apiClient.post<MCPServer>(
+      `/v1/organizations/${orgId}/mcp-servers`,
+      data,
+      { headers: getAuthHeader() }
+    ),
+
+  /** Update an organization-level MCP server */
+  updateOrgServer: (orgId: string, serverId: string, data: MCPServerUpdate) =>
+    apiClient.patch<MCPServer>(
+      `/v1/organizations/${orgId}/mcp-servers/${serverId}`,
+      data,
+      { headers: getAuthHeader() }
+    ),
+
+  /** Delete an organization-level MCP server */
+  deleteOrgServer: (orgId: string, serverId: string) =>
+    apiClient.delete<void>(
+      `/v1/organizations/${orgId}/mcp-servers/${serverId}`,
+      { headers: getAuthHeader() }
+    ),
+
+  // ==========================================================================
+  // Team-level MCP Servers
+  // ==========================================================================
+
+  /** List team-level MCP servers */
+  listTeamServers: (orgId: string, teamId: string) =>
+    apiClient.get<MCPServersPublic>(
+      `/v1/organizations/${orgId}/teams/${teamId}/mcp-servers`,
+      { headers: getAuthHeader() }
+    ),
+
+  /** Get a team-level MCP server */
+  getTeamServer: (orgId: string, teamId: string, serverId: string) =>
+    apiClient.get<MCPServer>(
+      `/v1/organizations/${orgId}/teams/${teamId}/mcp-servers/${serverId}`,
+      { headers: getAuthHeader() }
+    ),
+
+  /** Create a team-level MCP server */
+  createTeamServer: (orgId: string, teamId: string, data: MCPServerCreate) =>
+    apiClient.post<MCPServer>(
+      `/v1/organizations/${orgId}/teams/${teamId}/mcp-servers`,
+      data,
+      { headers: getAuthHeader() }
+    ),
+
+  /** Update a team-level MCP server */
+  updateTeamServer: (orgId: string, teamId: string, serverId: string, data: MCPServerUpdate) =>
+    apiClient.patch<MCPServer>(
+      `/v1/organizations/${orgId}/teams/${teamId}/mcp-servers/${serverId}`,
+      data,
+      { headers: getAuthHeader() }
+    ),
+
+  /** Delete a team-level MCP server */
+  deleteTeamServer: (orgId: string, teamId: string, serverId: string) =>
+    apiClient.delete<void>(
+      `/v1/organizations/${orgId}/teams/${teamId}/mcp-servers/${serverId}`,
+      { headers: getAuthHeader() }
+    ),
+
+  // ==========================================================================
+  // User-level MCP Servers
+  // ==========================================================================
+
+  /** List user's personal MCP servers */
+  listUserServers: (orgId: string, teamId: string) =>
+    apiClient.get<MCPServersPublic>(
+      `/v1/mcp-servers/me?organization_id=${orgId}&team_id=${teamId}`,
+      { headers: getAuthHeader() }
+    ),
+
+  /** Get a user's personal MCP server */
+  getUserServer: (serverId: string) =>
+    apiClient.get<MCPServer>(
+      `/v1/mcp-servers/me/${serverId}`,
+      { headers: getAuthHeader() }
+    ),
+
+  /** Create a user's personal MCP server */
+  createUserServer: (orgId: string, teamId: string, data: MCPServerCreate) =>
+    apiClient.post<MCPServer>(
+      `/v1/mcp-servers/me?organization_id=${orgId}&team_id=${teamId}`,
+      data,
+      { headers: getAuthHeader() }
+    ),
+
+  /** Update a user's personal MCP server */
+  updateUserServer: (serverId: string, data: MCPServerUpdate) =>
+    apiClient.patch<MCPServer>(
+      `/v1/mcp-servers/me/${serverId}`,
+      data,
+      { headers: getAuthHeader() }
+    ),
+
+  /** Delete a user's personal MCP server */
+  deleteUserServer: (serverId: string) =>
+    apiClient.delete<void>(
+      `/v1/mcp-servers/me/${serverId}`,
+      { headers: getAuthHeader() }
+    ),
+
+  // ==========================================================================
+  // Effective Servers (combined)
+  // ==========================================================================
+
+  /** Get all effective MCP servers for the current user */
+  listEffectiveServers: (orgId: string, teamId?: string) => {
+    const params = new URLSearchParams({ organization_id: orgId })
+    if (teamId) params.append("team_id", teamId)
+    return apiClient.get<MCPServersPublic>(
+      `/v1/mcp-servers/effective?${params}`,
       { headers: getAuthHeader() }
     )
   },

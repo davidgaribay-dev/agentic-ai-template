@@ -17,13 +17,16 @@ import {
   ChevronDown,
   ChevronRight,
   Brain,
+  Plug,
 } from "lucide-react"
 import { useAuth, authKeys } from "@/lib/auth"
 import {
   authApi,
   promptsApi,
   ApiError,
-  type ChatSettings as ChatSettingsType,
+  type OrganizationChatSettings,
+  type TeamChatSettings,
+  type UserChatSettings,
 } from "@/lib/api"
 import { useWorkspace } from "@/lib/workspace"
 import {
@@ -35,7 +38,7 @@ import {
 import { ChatSettings } from "@/components/chat-settings"
 import { MemorySettings } from "@/components/settings/memory-settings"
 import { MemoryViewer } from "@/components/settings/memory-viewer"
-import { PromptRow, CreatePromptDialog } from "@/components/settings"
+import { PromptRow, CreatePromptDialog, MCPSettings, MCPServersList } from "@/components/settings"
 import { getInitials, isValidImageUrl } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -510,36 +513,99 @@ function PreferencesSection() {
     updateMutation.mutate({ chat_panel_enabled: enabled })
   }
 
-  const currentSettings: ChatSettingsType = userSettings ?? {
-    chat_enabled: true,
-    chat_panel_enabled: true,
-  }
-
   const chatDisabledByOrg = orgSettings ? !orgSettings.chat_enabled : false
   const chatDisabledByTeam = teamSettings ? !teamSettings.chat_enabled : false
   const chatPanelDisabledByOrg = orgSettings ? !orgSettings.chat_panel_enabled : false
   const chatPanelDisabledByTeam = teamSettings ? !teamSettings.chat_panel_enabled : false
 
   return (
+    <div className="space-y-6">
+      <div>
+        <div className="flex items-center gap-2 py-2">
+          <MessageSquare className="size-4" />
+          <span className="text-sm font-medium">Chat Features</span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Organization and team settings take precedence over your preferences.
+        </p>
+        <ChatSettings
+          settings={userSettings ?? { chat_enabled: true, chat_panel_enabled: true, memory_enabled: true, mcp_enabled: true }}
+          onChatEnabledChange={handleChatEnabledChange}
+          onChatPanelEnabledChange={handleChatPanelEnabledChange}
+          chatDisabledByOrg={chatDisabledByOrg}
+          chatDisabledByTeam={chatDisabledByTeam}
+          chatPanelDisabledByOrg={chatPanelDisabledByOrg}
+          chatPanelDisabledByTeam={chatPanelDisabledByTeam}
+          isLoading={isLoadingOrg || isLoadingTeam || isLoadingUser || updateMutation.isPending}
+          level="user"
+        />
+      </div>
+
+      <div className="border-t pt-4">
+        <UserMCPSection
+          orgId={currentOrg?.id}
+          teamId={currentTeam?.id}
+          orgSettings={orgSettings}
+          teamSettings={teamSettings}
+          userSettings={userSettings}
+          updateMutation={updateMutation}
+          isLoading={isLoadingOrg || isLoadingTeam || isLoadingUser}
+        />
+      </div>
+    </div>
+  )
+}
+
+function UserMCPSection({
+  orgId,
+  teamId,
+  orgSettings,
+  teamSettings,
+  userSettings,
+  updateMutation,
+  isLoading,
+}: {
+  orgId: string | undefined
+  teamId: string | undefined
+  orgSettings: OrganizationChatSettings | undefined
+  teamSettings: TeamChatSettings | undefined
+  userSettings: UserChatSettings | undefined
+  updateMutation: ReturnType<typeof useUpdateUserChatSettings>
+  isLoading: boolean
+}) {
+  const mcpDisabledByOrg = orgSettings ? !orgSettings.mcp_enabled : false
+  const mcpDisabledByTeam = teamSettings ? !teamSettings.mcp_enabled : false
+  const customServersDisabledByOrg = orgSettings ? !orgSettings.mcp_allow_custom_servers : false
+  const customServersDisabledByTeam = teamSettings ? !teamSettings.mcp_allow_custom_servers : false
+
+  const canAddServers = orgId && teamId && !mcpDisabledByOrg && !mcpDisabledByTeam && !customServersDisabledByOrg && !customServersDisabledByTeam
+
+  // Determine who disabled MCP
+  const mcpDisabledBy = mcpDisabledByOrg ? "org" : mcpDisabledByTeam ? "team" : null
+
+  return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 py-2">
-        <MessageSquare className="size-4" />
-        <span className="text-sm font-medium">Chat Features</span>
+        <Plug className="size-4" />
+        <span className="text-sm font-medium">MCP Integration</span>
       </div>
       <p className="text-xs text-muted-foreground">
-        Organization and team settings take precedence over your preferences.
+        Add your own MCP servers for personal AI tool integrations.
       </p>
-      <ChatSettings
-        settings={currentSettings}
-        onChatEnabledChange={handleChatEnabledChange}
-        onChatPanelEnabledChange={handleChatPanelEnabledChange}
-        chatDisabledByOrg={chatDisabledByOrg}
-        chatDisabledByTeam={chatDisabledByTeam}
-        chatPanelDisabledByOrg={chatPanelDisabledByOrg}
-        chatPanelDisabledByTeam={chatPanelDisabledByTeam}
-        isLoading={isLoadingOrg || isLoadingTeam || isLoadingUser || updateMutation.isPending}
+
+      <MCPSettings
+        mcpEnabled={userSettings?.mcp_enabled ?? true}
+        onMCPEnabledChange={(enabled) => updateMutation.mutate({ mcp_enabled: enabled })}
+        disabledBy={mcpDisabledBy}
+        isLoading={isLoading || updateMutation.isPending}
         level="user"
       />
+
+      {canAddServers && (
+        <div className="mt-4">
+          <MCPServersList scope={{ type: "user", orgId, teamId }} />
+        </div>
+      )}
     </div>
   )
 }

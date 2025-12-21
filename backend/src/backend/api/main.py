@@ -8,6 +8,7 @@ from backend.api.routes import (
     conversations,
     invitations,
     items,
+    mcp,
     memory,
     organizations,
     prompts,
@@ -32,3 +33,6 @@ api_router.include_router(prompts.user_router)
 api_router.include_router(audit.router, tags=["audit"])
 api_router.include_router(settings.router)
 api_router.include_router(memory.router)
+api_router.include_router(mcp.org_router)
+api_router.include_router(mcp.team_router)
+api_router.include_router(mcp.user_router)

@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils"
 import { useChat, type ChatMessage } from "@/hooks/useChat"
 import { ChatContainer } from "./ChatContainer"
 import { ChatInput } from "./ChatInput"
+import { ToolApprovalCard } from "./ToolApprovalCard"
 
 interface ChatProps {
   /** Unique identifier for this chat instance (e.g., "page" or "panel") */
@@ -36,6 +37,8 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
       isStreaming,
       error,
       conversationId: currentConversationId,
+      pendingToolApproval,
+      resumeWithApproval,
     } = useChat({
       instanceId,
       conversationId,
@@ -45,6 +48,26 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
       onTitleUpdate,
       onStreamEnd,
     })
+
+    const [isResuming, setIsResuming] = React.useState(false)
+
+    const handleApprove = React.useCallback(async () => {
+      setIsResuming(true)
+      try {
+        await resumeWithApproval(true)
+      } finally {
+        setIsResuming(false)
+      }
+    }, [resumeWithApproval])
+
+    const handleReject = React.useCallback(async () => {
+      setIsResuming(true)
+      try {
+        await resumeWithApproval(false)
+      } finally {
+        setIsResuming(false)
+      }
+    }, [resumeWithApproval])
 
     const hasMessages = messages.length > 0
 
@@ -89,6 +112,17 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-3xl px-4">
             <ChatContainer messages={messages} className="py-4" />
+            {/* Tool Approval Card - shown inline after messages when waiting for approval */}
+            {pendingToolApproval && (
+              <div className="pb-4">
+                <ToolApprovalCard
+                  data={pendingToolApproval}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                  isLoading={isResuming}
+                />
+              </div>
+            )}
           </div>
         </div>
         <div className="shrink-0 bg-background pb-4 pt-2">
@@ -96,9 +130,9 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
             <ChatInput
               onSubmit={sendMessage}
               onStop={stopStreaming}
-              disabled={isStreaming}
+              disabled={isStreaming || !!pendingToolApproval}
               isStreaming={isStreaming}
-              placeholder="Ask something..."
+              placeholder={pendingToolApproval ? "Waiting for tool approval..." : "Ask something..."}
               organizationId={organizationId}
               teamId={teamId}
             />

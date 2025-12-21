@@ -6,19 +6,20 @@
  * - SSE streaming for real-time responses
  * - Abort controller for canceling requests
  * - Loading and error states
+ * - Human-in-the-loop (HITL) tool approval for MCP tools
  *
  * Usage:
- *   const { messages, sendMessage, isStreaming, error } = useChat({ instanceId: "page" })
+ *   const { messages, sendMessage, isStreaming, error, pendingToolApproval, resumeWithApproval } = useChat({ instanceId: "page" })
  */
 
 import { useCallback, useRef, useMemo, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { agentApi } from "@/lib/api"
 import { queryKeys } from "@/lib/queries"
-import { useChatMessagesStore, type ChatMessage } from "@/lib/chat-store"
+import { useChatMessagesStore, type ChatMessage, type PendingToolApproval } from "@/lib/chat-store"
 import { useShallow } from "zustand/react/shallow"
 
-export type { ChatMessage }
+export type { ChatMessage, PendingToolApproval }
 
 interface UseChatOptions {
   /** Unique identifier for this chat instance (e.g., "page" or "panel") */
@@ -41,6 +42,10 @@ interface UseChatReturn {
   isStreaming: boolean
   error: Error | null
   conversationId: string | null
+  /** Pending tool approval request (HITL for MCP tools) */
+  pendingToolApproval: PendingToolApproval | null
+  /** Resume conversation after approving/rejecting a tool call */
+  resumeWithApproval: (approved: boolean) => Promise<void>
 }
 
 const defaultSession = {
@@ -48,6 +53,7 @@ const defaultSession = {
   isStreaming: false,
   error: null as Error | null,
   conversationId: null as string | null,
+  pendingToolApproval: null as PendingToolApproval | null,
 }
 
 export function useChat(options: UseChatOptions = {}): UseChatReturn {
@@ -75,12 +81,13 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       setIsStreaming: state.setIsStreaming,
       setError: state.setError,
       setConversationId: state.setConversationId,
+      setPendingToolApproval: state.setPendingToolApproval,
       clearSession: state.clearSession,
       syncConversation: state.syncConversation,
     }))
   )
 
-  const { messages, isStreaming, error, conversationId: sessionConversationId } = session
+  const { messages, isStreaming, error, conversationId: sessionConversationId, pendingToolApproval } = session
   const conversationId = sessionConversationId ?? initialConversationId ?? null
 
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -169,6 +176,20 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
               actions.setConversationId(instanceId, newConversationId)
               break
 
+            case "tool_approval":
+              // Store the pending tool approval and pause streaming
+              actions.setPendingToolApproval(instanceId, {
+                tool_name: event.data.tool_name,
+                tool_args: event.data.tool_args,
+                tool_call_id: event.data.tool_call_id,
+                tool_description: event.data.tool_description,
+              })
+              newConversationId = event.data.conversation_id
+              actions.setConversationId(instanceId, newConversationId)
+              // Don't mark as not streaming - we're waiting for user input
+              actions.updateMessage(instanceId, assistantMessageId, { isStreaming: false })
+              return // Exit early, user needs to approve/reject
+
             case "error":
               throw new Error(event.data)
           }
@@ -226,6 +247,108 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     [instanceId, actions]
   )
 
+  const resumeWithApproval = useCallback(
+    async (approved: boolean) => {
+      if (!conversationId || !organizationId) {
+        console.error("Cannot resume: missing conversationId or organizationId")
+        return
+      }
+
+      // Clear the pending approval immediately
+      actions.setPendingToolApproval(instanceId, null)
+      actions.setError(instanceId, null)
+
+      // Create an assistant message to show streaming response
+      const assistantMessageId = crypto.randomUUID()
+      const assistantMessage: ChatMessage = {
+        id: assistantMessageId,
+        role: "assistant",
+        content: approved ? "" : "Tool call was cancelled.",
+        isStreaming: approved, // Only stream if approved
+      }
+
+      if (approved) {
+        actions.addMessages(instanceId, [assistantMessage])
+        actions.setIsStreaming(instanceId, true)
+      }
+
+      abortControllerRef.current = new AbortController()
+
+      try {
+        let streamedContent = ""
+
+        for await (const event of agentApi.resumeStream(
+          {
+            conversation_id: conversationId,
+            organization_id: organizationId,
+            team_id: teamId,
+            approved,
+          },
+          abortControllerRef.current.signal
+        )) {
+          switch (event.type) {
+            case "token":
+              streamedContent += event.data
+              actions.updateMessage(instanceId, assistantMessageId, { content: streamedContent })
+              break
+
+            case "done":
+              break
+
+            case "tool_approval":
+              // Another tool needs approval
+              actions.setPendingToolApproval(instanceId, {
+                tool_name: event.data.tool_name,
+                tool_args: event.data.tool_args,
+                tool_call_id: event.data.tool_call_id,
+                tool_description: event.data.tool_description,
+              })
+              actions.updateMessage(instanceId, assistantMessageId, { isStreaming: false })
+              return // Exit early, user needs to approve/reject again
+
+            case "error":
+              throw new Error(event.data)
+          }
+        }
+
+        if (approved) {
+          actions.updateMessage(instanceId, assistantMessageId, { isStreaming: false })
+        }
+
+        // Invalidate queries
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.agent.history(conversationId),
+        })
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.conversations.list(teamId),
+        })
+        onStreamEnd?.(conversationId)
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          if (approved) {
+            actions.removeMessage(instanceId, assistantMessageId)
+          }
+          return
+        }
+
+        const error = err instanceof Error ? err : new Error("Resume failed")
+        actions.setError(instanceId, error)
+        onError?.(error)
+
+        if (approved) {
+          actions.updateMessage(instanceId, assistantMessageId, {
+            content: "Failed to continue. Please try again.",
+            isStreaming: false,
+          })
+        }
+      } finally {
+        actions.setIsStreaming(instanceId, false)
+        abortControllerRef.current = null
+      }
+    },
+    [conversationId, organizationId, teamId, onError, onStreamEnd, queryClient, instanceId, actions]
+  )
+
   return useMemo(() => ({
     messages,
     sendMessage,
@@ -235,5 +358,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     isStreaming,
     error,
     conversationId,
-  }), [messages, sendMessage, stopStreaming, clearMessages, loadConversation, isStreaming, error, conversationId])
+    pendingToolApproval,
+    resumeWithApproval,
+  }), [messages, sendMessage, stopStreaming, clearMessages, loadConversation, isStreaming, error, conversationId, pendingToolApproval, resumeWithApproval])
 }

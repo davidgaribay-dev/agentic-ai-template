@@ -17,10 +17,15 @@ import {
   chatSettingsApi,
   conversationsApi,
   memoryApi,
+  mcpServersApi,
   type ChatRequest,
   type ChatMessage,
+  type OrgSettingsUpdate,
+  type TeamSettingsUpdate,
   type ChatSettingsUpdate,
   type ConversationUpdate,
+  type MCPServerCreate,
+  type MCPServerUpdate,
 } from "./api"
 
 export const queryKeys = {
@@ -45,6 +50,15 @@ export const queryKeys = {
   memory: {
     user: (orgId?: string, teamId?: string) =>
       ["memory", "user", orgId, teamId] as const,
+  },
+  mcpServers: {
+    org: (orgId: string) => ["mcpServers", "org", orgId] as const,
+    team: (orgId: string, teamId: string) =>
+      ["mcpServers", "team", orgId, teamId] as const,
+    user: (orgId: string, teamId?: string) =>
+      ["mcpServers", "user", orgId, teamId] as const,
+    effective: (orgId: string, teamId?: string) =>
+      ["mcpServers", "effective", orgId, teamId] as const,
   },
 }
 
@@ -166,7 +180,7 @@ export function useUpdateOrgChatSettings(orgId: string | undefined) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (settings: ChatSettingsUpdate) =>
+    mutationFn: (settings: OrgSettingsUpdate) =>
       chatSettingsApi.updateOrgSettings(orgId!, settings),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.chatSettings.org(orgId!) })
@@ -192,7 +206,7 @@ export function useUpdateTeamChatSettings(
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (settings: ChatSettingsUpdate) =>
+    mutationFn: (settings: TeamSettingsUpdate) =>
       chatSettingsApi.updateTeamSettings(orgId!, teamId!, settings),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -276,6 +290,157 @@ export function useClearAllMemories(orgId?: string, teamId?: string) {
     },
     onError: (error) => {
       console.error("Failed to clear memories:", error)
+    },
+  })
+}
+
+// =============================================================================
+// MCP Server Hooks
+// =============================================================================
+
+/** Hook to fetch organization-level MCP servers. */
+export function useOrgMCPServers(orgId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.mcpServers.org(orgId ?? ""),
+    queryFn: () => mcpServersApi.listOrgServers(orgId!),
+    enabled: !!orgId,
+  })
+}
+
+/** Hook to fetch team-level MCP servers. */
+export function useTeamMCPServers(orgId: string | undefined, teamId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.mcpServers.team(orgId ?? "", teamId ?? ""),
+    queryFn: () => mcpServersApi.listTeamServers(orgId!, teamId!),
+    enabled: !!orgId && !!teamId,
+  })
+}
+
+/** Hook to fetch user-level MCP servers. */
+export function useUserMCPServers(orgId: string | undefined, teamId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.mcpServers.user(orgId ?? "", teamId),
+    queryFn: () => mcpServersApi.listUserServers(orgId!, teamId!),
+    enabled: !!orgId && !!teamId,
+  })
+}
+
+/** Hook to fetch effective (combined) MCP servers for a user. */
+export function useEffectiveMCPServers(orgId: string | undefined, teamId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.mcpServers.effective(orgId ?? "", teamId),
+    queryFn: () => mcpServersApi.listEffectiveServers(orgId!, teamId),
+    enabled: !!orgId,
+  })
+}
+
+/** Mutation hook for creating an org-level MCP server. */
+export function useCreateOrgMCPServer(orgId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: MCPServerCreate) => mcpServersApi.createOrgServer(orgId!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.org(orgId!) })
+    },
+  })
+}
+
+/** Mutation hook for updating an org-level MCP server. */
+export function useUpdateOrgMCPServer(orgId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ serverId, data }: { serverId: string; data: MCPServerUpdate }) =>
+      mcpServersApi.updateOrgServer(orgId!, serverId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.org(orgId!) })
+    },
+  })
+}
+
+/** Mutation hook for deleting an org-level MCP server. */
+export function useDeleteOrgMCPServer(orgId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (serverId: string) => mcpServersApi.deleteOrgServer(orgId!, serverId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.org(orgId!) })
+    },
+  })
+}
+
+/** Mutation hook for creating a team-level MCP server. */
+export function useCreateTeamMCPServer(orgId: string | undefined, teamId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: MCPServerCreate) => mcpServersApi.createTeamServer(orgId!, teamId!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.team(orgId!, teamId!) })
+    },
+  })
+}
+
+/** Mutation hook for updating a team-level MCP server. */
+export function useUpdateTeamMCPServer(orgId: string | undefined, teamId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ serverId, data }: { serverId: string; data: MCPServerUpdate }) =>
+      mcpServersApi.updateTeamServer(orgId!, teamId!, serverId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.team(orgId!, teamId!) })
+    },
+  })
+}
+
+/** Mutation hook for deleting a team-level MCP server. */
+export function useDeleteTeamMCPServer(orgId: string | undefined, teamId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (serverId: string) => mcpServersApi.deleteTeamServer(orgId!, teamId!, serverId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.team(orgId!, teamId!) })
+    },
+  })
+}
+
+/** Mutation hook for creating a user-level MCP server. */
+export function useCreateUserMCPServer(orgId: string | undefined, teamId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (data: MCPServerCreate) => mcpServersApi.createUserServer(orgId!, teamId!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.user(orgId!, teamId) })
+    },
+  })
+}
+
+/** Mutation hook for updating a user-level MCP server. */
+export function useUpdateUserMCPServer(orgId: string | undefined, teamId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ serverId, data }: { serverId: string; data: MCPServerUpdate }) =>
+      mcpServersApi.updateUserServer(serverId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.user(orgId!, teamId) })
+    },
+  })
+}
+
+/** Mutation hook for deleting a user-level MCP server. */
+export function useDeleteUserMCPServer(orgId: string | undefined, teamId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (serverId: string) => mcpServersApi.deleteUserServer(serverId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.user(orgId!, teamId) })
     },
   })
 }

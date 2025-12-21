@@ -23,6 +23,7 @@ import {
   ChevronDown,
   ChevronRight,
   Brain,
+  Plug,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import {
@@ -39,7 +40,7 @@ import {
   type TeamCreate,
   type InvitationCreate,
   type OrgRole,
-  type ChatSettings as ChatSettingsType,
+  type OrganizationChatSettings,
   type LLMProvider,
   ApiError,
 } from "@/lib/api"
@@ -53,6 +54,8 @@ import {
   DefaultProviderSelector,
   OrgDangerZone,
   OrgDetailsSection,
+  MCPSettings,
+  MCPServersList,
 } from "@/components/settings"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -988,8 +991,6 @@ function ChatFeaturesSection({ orgId }: { orgId: string }) {
   const { data: settings, isLoading } = useOrgChatSettings(orgId)
   const updateMutation = useUpdateOrgChatSettings(orgId)
 
-  const currentSettings: ChatSettingsType = settings ?? { chat_enabled: true, chat_panel_enabled: true, memory_enabled: true }
-
   return (
     <div className="space-y-6">
       <div>
@@ -998,7 +999,7 @@ function ChatFeaturesSection({ orgId }: { orgId: string }) {
           <span className="text-sm font-medium">Chat Features</span>
         </div>
         <ChatSettings
-          settings={currentSettings}
+          settings={settings ?? { chat_enabled: true, chat_panel_enabled: true, memory_enabled: true, mcp_enabled: true }}
           onChatEnabledChange={(enabled) => updateMutation.mutate({ chat_enabled: enabled })}
           onChatPanelEnabledChange={(enabled) => updateMutation.mutate({ chat_panel_enabled: enabled })}
           isLoading={isLoading || updateMutation.isPending}
@@ -1020,6 +1021,47 @@ function ChatFeaturesSection({ orgId }: { orgId: string }) {
           isLoading={isLoading || updateMutation.isPending}
           level="org"
         />
+      </div>
+
+      <div className="border-t pt-4">
+        <MCPSection orgId={orgId} settings={settings} updateMutation={updateMutation} isLoading={isLoading} />
+      </div>
+    </div>
+  )
+}
+
+function MCPSection({
+  orgId,
+  settings,
+  updateMutation,
+  isLoading,
+}: {
+  orgId: string
+  settings: OrganizationChatSettings | undefined
+  updateMutation: ReturnType<typeof useUpdateOrgChatSettings>
+  isLoading: boolean
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 py-2">
+        <Plug className="size-4" />
+        <span className="text-sm font-medium">MCP Integration</span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Configure Model Context Protocol (MCP) servers to extend AI capabilities with external tools.
+      </p>
+
+      <MCPSettings
+        mcpEnabled={settings?.mcp_enabled ?? true}
+        mcpAllowCustomServers={settings?.mcp_allow_custom_servers ?? true}
+        onMCPEnabledChange={(enabled) => updateMutation.mutate({ mcp_enabled: enabled })}
+        onMCPAllowCustomServersChange={(allowed) => updateMutation.mutate({ mcp_allow_custom_servers: allowed })}
+        isLoading={isLoading || updateMutation.isPending}
+        level="org"
+      />
+
+      <div className="mt-4">
+        <MCPServersList scope={{ type: "org", orgId }} />
       </div>
     </div>
   )

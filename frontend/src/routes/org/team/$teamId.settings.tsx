@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Plus,
   Brain,
+  Plug,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import {
@@ -30,7 +31,8 @@ import {
   apiKeysApi,
   type TeamRole,
   type TeamMember,
-  type ChatSettings as ChatSettingsType,
+  type OrganizationChatSettings,
+  type TeamChatSettings,
   type LLMProvider,
   ApiError,
 } from "@/lib/api"
@@ -48,6 +50,8 @@ import {
   DefaultProviderSelector,
   TeamDangerZone,
   TeamDetailsSection,
+  MCPSettings,
+  MCPServersList,
 } from "@/components/settings"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -738,7 +742,6 @@ function ChatFeaturesSection({ orgId, teamId }: { orgId: string; teamId: string 
   const { data: teamSettings, isLoading: isLoadingTeam } = useTeamChatSettings(orgId, teamId)
   const updateMutation = useUpdateTeamChatSettings(orgId, teamId)
 
-  const currentSettings: ChatSettingsType = teamSettings ?? { chat_enabled: true, chat_panel_enabled: true, memory_enabled: true }
   const chatDisabledByOrg = orgSettings ? !orgSettings.chat_enabled : false
   const chatPanelDisabledByOrg = orgSettings ? !orgSettings.chat_panel_enabled : false
   const memoryDisabledByOrg = orgSettings ? !orgSettings.memory_enabled : false
@@ -754,7 +757,7 @@ function ChatFeaturesSection({ orgId, teamId }: { orgId: string; teamId: string 
           Organization settings take precedence over team preferences.
         </p>
         <ChatSettings
-          settings={currentSettings}
+          settings={teamSettings ?? { chat_enabled: true, chat_panel_enabled: true, memory_enabled: true, mcp_enabled: true }}
           onChatEnabledChange={(enabled) => updateMutation.mutate({ chat_enabled: enabled })}
           onChatPanelEnabledChange={(enabled) => updateMutation.mutate({ chat_panel_enabled: enabled })}
           chatDisabledByOrg={chatDisabledByOrg}
@@ -780,6 +783,65 @@ function ChatFeaturesSection({ orgId, teamId }: { orgId: string; teamId: string 
           level="team"
         />
       </div>
+
+      <div className="border-t pt-4">
+        <TeamMCPSection
+          orgId={orgId}
+          teamId={teamId}
+          orgSettings={orgSettings}
+          teamSettings={teamSettings}
+          updateMutation={updateMutation}
+          isLoading={isLoadingOrg || isLoadingTeam}
+        />
+      </div>
+    </div>
+  )
+}
+
+function TeamMCPSection({
+  orgId,
+  teamId,
+  orgSettings,
+  teamSettings,
+  updateMutation,
+  isLoading,
+}: {
+  orgId: string
+  teamId: string
+  orgSettings: OrganizationChatSettings | undefined
+  teamSettings: TeamChatSettings | undefined
+  updateMutation: ReturnType<typeof useUpdateTeamChatSettings>
+  isLoading: boolean
+}) {
+  const mcpDisabledByOrg = orgSettings ? !orgSettings.mcp_enabled : false
+  const customServersDisabledByOrg = orgSettings ? !orgSettings.mcp_allow_custom_servers : false
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 py-2">
+        <Plug className="size-4" />
+        <span className="text-sm font-medium">MCP Integration</span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Configure Model Context Protocol (MCP) servers for this team.
+      </p>
+
+      <MCPSettings
+        mcpEnabled={teamSettings?.mcp_enabled ?? true}
+        mcpAllowCustomServers={teamSettings?.mcp_allow_custom_servers ?? true}
+        onMCPEnabledChange={(enabled) => updateMutation.mutate({ mcp_enabled: enabled })}
+        onMCPAllowCustomServersChange={(allowed) => updateMutation.mutate({ mcp_allow_custom_servers: allowed })}
+        disabledBy={mcpDisabledByOrg ? "org" : null}
+        customServersDisabledBy={customServersDisabledByOrg ? "org" : null}
+        isLoading={isLoading || updateMutation.isPending}
+        level="team"
+      />
+
+      {!mcpDisabledByOrg && !customServersDisabledByOrg && (
+        <div className="mt-4">
+          <MCPServersList scope={{ type: "team", orgId, teamId }} />
+        </div>
+      )}
     </div>
   )
 }

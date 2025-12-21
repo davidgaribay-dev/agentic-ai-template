@@ -9,12 +9,22 @@ export interface ChatMessage {
   isStreaming?: boolean
 }
 
+/** Pending tool approval data */
+export interface PendingToolApproval {
+  tool_name: string
+  tool_args: Record<string, unknown>
+  tool_call_id: string | null
+  tool_description: string
+}
+
 /** State for a single chat session */
 interface ChatSession {
   messages: ChatMessage[]
   isStreaming: boolean
   error: Error | null
   conversationId: string | null
+  /** Pending tool approval request (HITL) */
+  pendingToolApproval: PendingToolApproval | null
 }
 
 /** Global chat state - supports multiple concurrent sessions keyed by instanceId */
@@ -46,6 +56,9 @@ interface ChatMessagesState {
   /** Set conversation ID */
   setConversationId: (instanceId: string, conversationId: string | null) => void
 
+  /** Set pending tool approval */
+  setPendingToolApproval: (instanceId: string, approval: PendingToolApproval | null) => void
+
   /** Clear a session */
   clearSession: (instanceId: string) => void
 
@@ -58,6 +71,7 @@ const defaultSession: ChatSession = {
   isStreaming: false,
   error: null,
   conversationId: null,
+  pendingToolApproval: null,
 }
 
 /** Helper to update all sessions with the same conversationId */
@@ -145,6 +159,13 @@ export const useChatMessagesStore = create<ChatMessagesState>()((set, get) => ({
         conversationId,
       },
     },
+  })),
+
+  setPendingToolApproval: (instanceId, approval) => set((state) => ({
+    sessions: updateMatchingSessions(state.sessions, instanceId, (session) => ({
+      ...session,
+      pendingToolApproval: approval,
+    })),
   })),
 
   clearSession: (instanceId) => set((state) => ({
