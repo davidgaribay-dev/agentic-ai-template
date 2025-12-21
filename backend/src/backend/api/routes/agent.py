@@ -3,19 +3,30 @@ import json
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.params import Depends
 from sse_starlette.sse import EventSourceResponse
 
 from backend.agents.base import (
     get_conversation_history,
+    get_interrupted_tool_call,
+    resume_agent_with_context,
     run_agent,
     run_agent_with_context,
     stream_agent,
     stream_agent_with_context,
 )
 from backend.agents.llm import generate_conversation_title
-from backend.agents.schemas import ChatMessage, ChatRequest, ChatResponse, HealthResponse
+from backend.agents.schemas import (
+    ChatMessage,
+    ChatRequest,
+    ChatResponse,
+    HealthResponse,
+    ToolApprovalInfo,
+    ToolApprovalRequest,
+)
+from backend.audit import audit_service
+from backend.audit.schemas import AuditAction, Target
 from backend.auth import CurrentUser, SessionDep
 from backend.conversations import (
     Conversation,
@@ -172,6 +183,7 @@ async def chat(
                 org_id=request.organization_id,
                 team_id=request.team_id,
                 user_id=str(current_user.id),
+                current_user=current_user,
             ),
             media_type="text/event-stream",
         )
@@ -327,9 +339,19 @@ async def stream_response(
     org_id: str | None = None,
     team_id: str | None = None,
     user_id: str | None = None,
+    current_user=None,
 ):
-    """Generate SSE events for streaming response."""
+    """Generate SSE events for streaming response.
+
+    Events:
+    - message: Token chunks from the LLM response
+    - tool_approval: Agent is waiting for user approval of an MCP tool call
+    - title: Generated conversation title (for new conversations)
+    - done: Streaming completed successfully
+    - error: An error occurred
+    """
     full_response = ""
+    is_interrupted = False
     try:
         if org_id:
             stream_gen = stream_agent_with_context(
@@ -342,59 +364,102 @@ async def stream_response(
         else:
             stream_gen = stream_agent(message, thread_id=conversation_id, user_id=user_id)
 
-        async for token in stream_gen:
-            full_response += token
-            yield {
-                "event": "message",
-                "data": json.dumps({"token": token, "conversation_id": conversation_id}),
-            }
+        async for chunk in stream_gen:
+            # Check if this is a tool approval interrupt (dict) or a token (str)
+            if isinstance(chunk, dict) and chunk.get("type") == "tool_approval":
+                # Emit tool approval event with interrupt data
+                is_interrupted = True
+                tool_name = chunk["data"].get("tool_name")
+                tool_args = chunk["data"].get("tool_args", {})
+                tool_call_id = chunk["data"].get("tool_call_id")
 
-        if is_new_conversation and full_response:
-            title = await _update_conversation_title(
-                conversation_id=conversation_id,
-                user_message=message,
-                assistant_response=full_response,
-                org_id=org_id,
-                team_id=team_id,
-            )
-            if title:
                 yield {
-                    "event": "title",
-                    "data": json.dumps({"title": title, "conversation_id": conversation_id}),
+                    "event": "tool_approval",
+                    "data": json.dumps({
+                        "conversation_id": conversation_id,
+                        "tool_name": tool_name,
+                        "tool_args": tool_args,
+                        "tool_call_id": tool_call_id,
+                        "tool_description": chunk["data"].get("tool_description", ""),
+                    }),
+                }
+                logger.info(
+                    "tool_approval_event_sent",
+                    conversation_id=conversation_id,
+                    tool_name=tool_name,
+                )
+
+                # Audit log the tool approval request
+                await audit_service.log(
+                    AuditAction.TOOL_APPROVAL_REQUESTED,
+                    actor=current_user,
+                    organization_id=uuid.UUID(org_id) if org_id else None,
+                    team_id=uuid.UUID(team_id) if team_id else None,
+                    targets=[
+                        Target(type="conversation", id=conversation_id),
+                        Target(type="tool", id=tool_call_id, name=tool_name),
+                    ],
+                    metadata={
+                        "tool_name": tool_name,
+                        "tool_args": tool_args,
+                    },
+                )
+            else:
+                # Regular token
+                full_response += chunk
+                yield {
+                    "event": "message",
+                    "data": json.dumps({"token": chunk, "conversation_id": conversation_id}),
                 }
 
-        # Extract and store memories in background (don't block response)
-        if full_response and org_id and user_id:
-            logger.info(
-                "memory_extraction_task_creating",
-                org_id=org_id,
-                team_id=team_id,
-                user_id=user_id,
-                conversation_id=conversation_id,
-                response_length=len(full_response),
-            )
-            asyncio.create_task(
-                _extract_memories_background(
+        # Only do post-processing if we weren't interrupted
+        if not is_interrupted:
+            if is_new_conversation and full_response:
+                title = await _update_conversation_title(
+                    conversation_id=conversation_id,
                     user_message=message,
                     assistant_response=full_response,
                     org_id=org_id,
                     team_id=team_id,
+                )
+                if title:
+                    yield {
+                        "event": "title",
+                        "data": json.dumps({"title": title, "conversation_id": conversation_id}),
+                    }
+
+            # Extract and store memories in background (don't block response)
+            if full_response and org_id and user_id:
+                logger.info(
+                    "memory_extraction_task_creating",
+                    org_id=org_id,
+                    team_id=team_id,
                     user_id=user_id,
                     conversation_id=conversation_id,
+                    response_length=len(full_response),
                 )
-            )
-        else:
-            logger.info(
-                "memory_extraction_skipped_no_context",
-                has_response=bool(full_response),
-                has_org_id=bool(org_id),
-                has_user_id=bool(user_id),
-            )
+                asyncio.create_task(
+                    _extract_memories_background(
+                        user_message=message,
+                        assistant_response=full_response,
+                        org_id=org_id,
+                        team_id=team_id,
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                    )
+                )
+            else:
+                logger.info(
+                    "memory_extraction_skipped_no_context",
+                    has_response=bool(full_response),
+                    has_org_id=bool(org_id),
+                    has_user_id=bool(user_id),
+                )
 
-        yield {
-            "event": "done",
-            "data": json.dumps({"conversation_id": conversation_id}),
-        }
+            yield {
+                "event": "done",
+                "data": json.dumps({"conversation_id": conversation_id}),
+            }
 
     except (AgentError, LLMError) as e:
         logger.error("stream_agent_error", error=str(e), error_type=type(e).__name__)
@@ -475,3 +540,247 @@ async def get_history(
 
     history = await get_conversation_history(conversation_id)
     return [ChatMessage(**msg) for msg in history]
+
+
+@router.get("/conversations/{conversation_id}/pending-approval", response_model=ToolApprovalInfo | None)
+async def get_pending_approval(
+    conversation_id: str,
+    session: SessionDep,
+    current_user: CurrentUser,
+    organization_id: Annotated[str, Query(description="Organization ID")],
+    team_id: Annotated[str | None, Query(description="Team ID")] = None,
+) -> ToolApprovalInfo | None:
+    """Get pending tool approval info for a conversation.
+
+    Returns the tool call details if the conversation is waiting for user approval,
+    or null if no approval is pending.
+    """
+    existing = get_conversation(session=session, conversation_id=uuid.UUID(conversation_id))
+    if existing:
+        is_owner = existing.user_id == current_user.id or existing.created_by_id == current_user.id
+        if not is_owner:
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized to access this conversation",
+            )
+
+    interrupt_data = await get_interrupted_tool_call(
+        thread_id=conversation_id,
+        org_id=organization_id,
+        team_id=team_id,
+        user_id=str(current_user.id),
+    )
+
+    if not interrupt_data:
+        return None
+
+    return ToolApprovalInfo(
+        conversation_id=conversation_id,
+        tool_name=interrupt_data.get("tool_name", ""),
+        tool_args=interrupt_data.get("tool_args", {}),
+        tool_call_id=interrupt_data.get("tool_call_id"),
+        tool_description=interrupt_data.get("tool_description", ""),
+    )
+
+
+@router.post("/resume", response_model=None)
+async def resume_conversation(
+    approval_request: ToolApprovalRequest,
+    session: SessionDep,
+    current_user: CurrentUser,
+    settings: Annotated[Settings, Depends(get_settings)],
+):
+    """Resume a conversation after tool approval decision.
+
+    This endpoint is called after the user approves or rejects a pending MCP tool call.
+    The agent will continue execution based on the user's decision.
+
+    Supports both streaming (SSE) and non-streaming responses.
+    """
+    # Verify conversation exists and user owns it
+    existing = get_conversation(session=session, conversation_id=uuid.UUID(approval_request.conversation_id))
+    if not existing:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    is_owner = existing.user_id == current_user.id or existing.created_by_id == current_user.id
+    if not is_owner:
+        raise HTTPException(
+            status_code=403,
+            detail="Not authorized to access this conversation",
+        )
+
+    # Verify organization membership
+    org_id = uuid.UUID(approval_request.organization_id)
+    statement = select(OrganizationMember).where(
+        OrganizationMember.organization_id == org_id,
+        OrganizationMember.user_id == current_user.id,
+    )
+    membership = session.exec(statement).first()
+    if not membership:
+        raise HTTPException(
+            status_code=403,
+            detail="Not a member of this organization",
+        )
+
+    logger.info(
+        "resume_request",
+        conversation_id=approval_request.conversation_id,
+        approved=approval_request.approved,
+        stream=approval_request.stream,
+        user_id=str(current_user.id),
+    )
+
+    # Get pending tool info for audit logging
+    pending_tool = await get_interrupted_tool_call(
+        thread_id=approval_request.conversation_id,
+        org_id=approval_request.organization_id,
+        team_id=approval_request.team_id,
+        user_id=str(current_user.id),
+    )
+
+    # Audit log the approval/denial decision
+    audit_action = AuditAction.TOOL_APPROVAL_GRANTED if approval_request.approved else AuditAction.TOOL_APPROVAL_DENIED
+    await audit_service.log(
+        audit_action,
+        actor=current_user,
+        organization_id=org_id,
+        team_id=uuid.UUID(approval_request.team_id) if approval_request.team_id else None,
+        targets=[
+            Target(type="conversation", id=approval_request.conversation_id),
+            Target(
+                type="tool",
+                id=pending_tool.get("tool_call_id") if pending_tool else None,
+                name=pending_tool.get("tool_name") if pending_tool else "unknown",
+            ),
+        ],
+        metadata={
+            "tool_name": pending_tool.get("tool_name") if pending_tool else "unknown",
+            "tool_args": pending_tool.get("tool_args", {}) if pending_tool else {},
+            "approved": approval_request.approved,
+        },
+    )
+
+    if approval_request.stream:
+        return EventSourceResponse(
+            stream_resume_response(
+                conversation_id=approval_request.conversation_id,
+                org_id=approval_request.organization_id,
+                team_id=approval_request.team_id,
+                user_id=str(current_user.id),
+                approved=approval_request.approved,
+                current_user=current_user,
+            ),
+            media_type="text/event-stream",
+        )
+
+    # Non-streaming resume (less common for HITL)
+    try:
+        full_response = ""
+        async for chunk in resume_agent_with_context(
+            thread_id=approval_request.conversation_id,
+            org_id=approval_request.organization_id,
+            team_id=approval_request.team_id,
+            user_id=str(current_user.id),
+            approved=approval_request.approved,
+        ):
+            if isinstance(chunk, str):
+                full_response += chunk
+
+        return ChatResponse(
+            message=full_response,
+            conversation_id=approval_request.conversation_id,
+        )
+    except Exception as e:
+        logger.exception("resume_error", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to resume conversation") from e
+
+
+async def stream_resume_response(
+    conversation_id: str,
+    org_id: str,
+    team_id: str | None,
+    user_id: str,
+    approved: bool,
+    current_user=None,
+):
+    """Generate SSE events for resume streaming response.
+
+    Events are the same as stream_response:
+    - message: Token chunks from the LLM response
+    - tool_approval: Another tool call needs approval (if agent calls more tools)
+    - done: Streaming completed successfully
+    - error: An error occurred
+    """
+    full_response = ""
+    is_interrupted = False
+    try:
+        async for chunk in resume_agent_with_context(
+            thread_id=conversation_id,
+            org_id=org_id,
+            team_id=team_id,
+            user_id=user_id,
+            approved=approved,
+        ):
+            # Check if this is a tool approval interrupt (dict) or a token (str)
+            if isinstance(chunk, dict) and chunk.get("type") == "tool_approval":
+                is_interrupted = True
+                tool_name = chunk["data"].get("tool_name")
+                tool_args = chunk["data"].get("tool_args", {})
+                tool_call_id = chunk["data"].get("tool_call_id")
+
+                yield {
+                    "event": "tool_approval",
+                    "data": json.dumps({
+                        "conversation_id": conversation_id,
+                        "tool_name": tool_name,
+                        "tool_args": tool_args,
+                        "tool_call_id": tool_call_id,
+                        "tool_description": chunk["data"].get("tool_description", ""),
+                    }),
+                }
+                logger.info(
+                    "tool_approval_event_sent_on_resume",
+                    conversation_id=conversation_id,
+                    tool_name=tool_name,
+                )
+
+                # Audit log the tool approval request
+                await audit_service.log(
+                    AuditAction.TOOL_APPROVAL_REQUESTED,
+                    actor=current_user,
+                    organization_id=uuid.UUID(org_id) if org_id else None,
+                    team_id=uuid.UUID(team_id) if team_id else None,
+                    targets=[
+                        Target(type="conversation", id=conversation_id),
+                        Target(type="tool", id=tool_call_id, name=tool_name),
+                    ],
+                    metadata={
+                        "tool_name": tool_name,
+                        "tool_args": tool_args,
+                    },
+                )
+            else:
+                full_response += chunk
+                yield {
+                    "event": "message",
+                    "data": json.dumps({"token": chunk, "conversation_id": conversation_id}),
+                }
+
+        if not is_interrupted:
+            # Extract memories in background if we have a complete response
+            if full_response and org_id and user_id:
+                # Note: We don't have the original user message here, so we skip memory extraction
+                # The memory was already extracted from the initial message
+                pass
+
+            yield {
+                "event": "done",
+                "data": json.dumps({"conversation_id": conversation_id}),
+            }
+
+    except Exception as e:
+        logger.exception("stream_resume_error", error=str(e), conversation_id=conversation_id)
+        yield {
+            "event": "error",
+            "data": json.dumps({"error": "Failed to resume conversation", "type": "resume_error"}),
+        }

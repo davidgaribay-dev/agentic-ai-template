@@ -50,3 +50,38 @@ class HealthResponse(BaseModel):
 
 class Message(BaseModel):
     message: str = Field(..., description="Response message")
+
+
+class ToolApprovalRequest(BaseModel):
+    """Request to approve or reject a pending MCP tool call."""
+
+    conversation_id: str = Field(
+        ...,
+        description="Conversation ID with the pending tool call",
+    )
+    organization_id: str = Field(
+        ...,
+        description="Organization ID for multi-tenant scoping",
+    )
+    team_id: str | None = Field(
+        default=None,
+        description="Team ID for multi-tenant scoping",
+    )
+    approved: bool = Field(
+        ...,
+        description="Whether the user approves the tool call",
+    )
+    stream: bool = Field(
+        default=True,
+        description="Whether to stream the response via SSE",
+    )
+
+
+class ToolApprovalInfo(BaseModel):
+    """Information about a pending tool call requiring approval."""
+
+    conversation_id: str = Field(..., description="Conversation ID")
+    tool_name: str = Field(..., description="Name of the tool being called")
+    tool_args: dict = Field(default_factory=dict, description="Arguments passed to the tool")
+    tool_call_id: str | None = Field(default=None, description="Unique ID for this tool call")
+    tool_description: str = Field(default="", description="Description of what the tool does")
