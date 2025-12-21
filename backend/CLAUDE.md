@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-FastAPI backend for a multi-tenant AI agent platform. Features LangGraph agents with PostgreSQL checkpointing, hierarchical RBAC (Organizations → Teams), multi-provider LLMs (Anthropic/OpenAI/Google), and enterprise features (audit logging, secrets management, rate limiting).
+FastAPI backend for a multi-tenant AI agent platform. Features LangGraph agents with PostgreSQL checkpointing, hierarchical RBAC (Organizations → Teams), multi-provider LLMs (Anthropic/OpenAI/Google), MCP (Model Context Protocol) tool integration, and enterprise features (audit logging, secrets management, rate limiting).
 
 ## Commands
 
@@ -42,6 +42,7 @@ src/backend/
 ├── conversations/       # Soft-delete, multi-tenant scoped
 ├── prompts/             # Hierarchical system prompts (org/team/user)
 ├── memory/              # Long-term memory with semantic search
+├── mcp/                 # MCP server registry, client, tool loading
 ├── settings/            # Hierarchical settings (org/team/user)
 ├── core/
 │   ├── config.py        # Pydantic settings with computed fields
@@ -110,6 +111,46 @@ Checkpointing: Thread ID = conversation_id. LangGraph stores history in PostgreS
 Tools: Add `@tool` functions to `agents/tools.py` - automatically available to ReAct agent.
 
 Tracing: Langfuse integration via `build_langfuse_config()` - include in all agent calls.
+
+## MCP (Model Context Protocol)
+
+External tool integration via MCP servers. Located in `mcp/` module.
+
+Architecture:
+```
+mcp/
+├── models.py    # MCPServer SQLModel, transport/auth enums, schemas
+├── service.py   # CRUD operations, effective server resolution, limit checks
+├── client.py    # Tool loading via langchain-mcp-adapters, auth handling
+```
+
+Scoping levels:
+- **Organization**: `team_id=NULL, user_id=NULL` - all org members can use
+- **Team**: `team_id=set, user_id=NULL` - team members only
+- **User**: `team_id=set, user_id=set` - personal servers
+
+Key functions:
+- `get_effective_mcp_servers(session, org_id, team_id, user_id)` - returns all servers user can access
+- `get_mcp_tools_for_context(session, org_id, team_id, user_id)` - loads tools from all effective servers
+- `test_mcp_server_connection(url, transport, auth_config)` - connection testing
+
+Transport types: `HTTP`, `SSE`, `STREAMABLE_HTTP`
+
+Auth types: `NONE`, `BEARER`, `API_KEY` (with custom header name)
+
+Tool approval (human-in-the-loop):
+- Enabled via `mcp_tool_approval_required` setting (default: true)
+- Uses `create_agent_graph_with_tool_approval()` instead of standard graph
+- `tool_approval_node` pauses execution, sends `tool_approval` SSE event
+- Agent resumes after user approval or cancels on rejection
+
+Settings in hierarchy (org → team → user):
+- `mcp_enabled` - master toggle
+- `mcp_tool_approval_required` - require human approval for tool calls
+- `mcp_allow_custom_servers` - allow adding servers (org/team only)
+- `mcp_max_servers_per_team/user` - limits (org only)
+
+Auth secrets: Stored in Infisical at `/organizations/{org_id}/[teams/{team_id}/][users/{user_id}/]mcp/mcp_server_{server_id}`
 
 ## Memory System
 
@@ -195,6 +236,7 @@ Configured in `core/rate_limit.py`:
 - Prompts: org/team/user scopes with separate routers
 - Memory: `/v1/memory/*` (list, delete, clear)
 - Settings: `/v1/settings/*` (effective settings with hierarchy)
+- MCP: `/v1/organizations/{id}/mcp-servers/*`, `/v1/organizations/{id}/teams/{id}/mcp-servers/*`, `/v1/mcp-servers/me/*`
 
 ## Code Style
 

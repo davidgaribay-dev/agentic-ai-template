@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-React 19 + TypeScript + Vite 7 frontend for an agentic AI template with FastAPI backend. Features multi-tenant workspace management (Organizations → Teams), SSE streaming chat, hierarchical settings, LLM API key management, and system prompts at org/team/user levels.
+React 19 + TypeScript + Vite 7 frontend for an agentic AI template with FastAPI backend. Features multi-tenant workspace management (Organizations → Teams), SSE streaming chat, hierarchical settings, LLM API key management, MCP (Model Context Protocol) server management, and system prompts at org/team/user levels.
 
 ## Commands
 
@@ -115,7 +115,9 @@ const { messages, sendMessage, stopStreaming, clearMessages, isStreaming, conver
 })
 ```
 
-Stream events: `token` (content), `title`, `done`, `error`. Uses Streamdown for markdown with custom CodeBlock (Shiki syntax highlighting).
+Stream events: `token` (content), `title`, `tool_approval` (MCP), `done`, `error`. Uses Streamdown for markdown with custom CodeBlock (Shiki syntax highlighting).
+
+Tool approval: When `tool_approval` event received, renders `ToolApprovalCard` inline showing tool name, description, and arguments. User can approve or reject, resuming agent execution.
 
 ## Memory System
 
@@ -145,6 +147,28 @@ Settings integration:
 - `memory_enabled` in `EffectiveChatSettings`
 - Hierarchical control: org → team → user
 - Higher level can disable for all below
+
+## MCP (Model Context Protocol)
+
+External tool integration via MCP servers. Managed at org/team/user levels.
+
+Components (`components/settings/`):
+- `MCPServersList` - Display/add/edit/delete MCP servers with full form (transport, auth, etc.)
+- `MCPSettings` - Toggle MCP enabled/disabled, allow custom servers
+- `ToolApprovalCard` (`components/chat/`) - Inline approval UI for MCP tool calls
+
+API (`lib/api.ts`):
+```typescript
+mcpServersApi.listOrgServers(orgId)
+mcpServersApi.listTeamServers(orgId, teamId)
+mcpServersApi.listUserServers()
+mcpServersApi.listEffectiveServers(orgId, teamId)  // All servers user can use
+```
+
+Settings fields:
+- `mcp_enabled` - Master toggle (respects hierarchy)
+- `mcp_tool_approval_required` - Require approval for tool calls
+- `mcp_allow_custom_servers` - Allow adding servers (org/team only)
 
 ## Layout System
 
@@ -221,6 +245,8 @@ const { sidebarOpen, sidePanelOpen, sidePanelWidth, toggleSidebar, toggleSidePan
 /org/team/:teamId/settings # Team settings
 /org/team/:teamId/api-keys # Team LLM API keys
 /org/team/:teamId/prompts  # Team prompts
+/org/mcp-servers           # Org MCP servers
+/org/team/:teamId/mcp-servers  # Team MCP servers
 ```
 
 ## Common Tasks

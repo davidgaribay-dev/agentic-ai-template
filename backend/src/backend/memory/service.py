@@ -18,8 +18,129 @@ logger = get_logger(__name__)
 class MemoryService:
     """Service for memory CRUD operations."""
 
+    # Similarity threshold for deduplication (0.0-1.0, higher = more similar required)
+    # Lowered to 0.75 to catch more semantic duplicates like variations of the same fact
+    DEDUP_SIMILARITY_THRESHOLD = 0.75
+
+    # Minimum word overlap ratio to consider as duplicate (0.0-1.0)
+    # If >60% of significant words overlap, likely duplicate even with lower embedding score
+    WORD_OVERLAP_THRESHOLD = 0.6
+
     def __init__(self, store: BaseStore):
         self.store = store
+
+    def _extract_significant_words(self, text: str) -> set[str]:
+        """Extract significant words for overlap comparison.
+
+        Filters out common stop words and keeps meaningful content words.
+        """
+        stop_words = {
+            "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
+            "have", "has", "had", "do", "does", "did", "will", "would", "could",
+            "should", "may", "might", "must", "shall", "can", "need", "to", "of",
+            "in", "for", "on", "with", "at", "by", "from", "as", "into", "through",
+            "during", "before", "after", "above", "below", "between", "under",
+            "again", "further", "then", "once", "here", "there", "when", "where",
+            "why", "how", "all", "each", "few", "more", "most", "other", "some",
+            "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too",
+            "very", "just", "and", "but", "if", "or", "because", "until", "while",
+            "about", "against", "this", "that", "these", "those", "am", "it", "its",
+            "user", "prefers", "likes", "wants", "needs", "interested",
+        }
+        words = set(text.lower().split())
+        # Keep words that are not stop words and have 3+ characters
+        return {w.strip(".,!?;:'\"()[]{}") for w in words if w not in stop_words and len(w) >= 3}
+
+    def _calculate_word_overlap(self, text1: str, text2: str) -> float:
+        """Calculate word overlap ratio between two texts."""
+        words1 = self._extract_significant_words(text1)
+        words2 = self._extract_significant_words(text2)
+
+        if not words1 or not words2:
+            return 0.0
+
+        intersection = words1 & words2
+        # Use the smaller set as denominator to catch when one is subset of other
+        smaller_set_size = min(len(words1), len(words2))
+        return len(intersection) / smaller_set_size if smaller_set_size > 0 else 0.0
+
+    async def _find_duplicate(
+        self,
+        org_id: str,
+        team_id: str,
+        user_id: str,
+        content: str,
+        memory_type: str,
+    ) -> dict | None:
+        """Check if a semantically similar memory already exists.
+
+        Uses embedding-based search combined with word overlap to find near-duplicates.
+
+        Args:
+            org_id: Organization ID for isolation
+            team_id: Team ID for isolation
+            user_id: User ID for isolation
+            content: The memory content to check
+            memory_type: Type of memory (must match for deduplication)
+
+        Returns:
+            The existing memory dict if a duplicate is found, None otherwise
+        """
+        namespace = get_memory_namespace(org_id, team_id, user_id)
+
+        # Search for similar memories using the content as query
+        results = await self.store.asearch(
+            namespace,
+            query=content,
+            limit=10,  # Check more candidates for better dedup
+        )
+
+        for item in results:
+            # Check if this is a potential duplicate
+            existing_type = item.value.get("type", "")
+            existing_content = item.value.get("content", "")
+
+            # Must be same type
+            if existing_type != memory_type:
+                continue
+
+            # Check similarity score if available
+            similarity_score = None
+            if hasattr(item, "score") and item.score is not None:
+                similarity_score = item.score
+                if similarity_score >= self.DEDUP_SIMILARITY_THRESHOLD:
+                    logger.debug(
+                        "duplicate_memory_found_by_embedding",
+                        existing_id=item.key,
+                        similarity_score=similarity_score,
+                        existing_content=existing_content[:100],
+                        new_content=content[:100],
+                    )
+                    return {"id": item.key, **item.value}
+
+            # Check word overlap - catches variations of same fact
+            word_overlap = self._calculate_word_overlap(content, existing_content)
+            if word_overlap >= self.WORD_OVERLAP_THRESHOLD:
+                logger.debug(
+                    "duplicate_memory_found_by_word_overlap",
+                    existing_id=item.key,
+                    word_overlap=word_overlap,
+                    similarity_score=similarity_score,
+                    existing_content=existing_content[:100],
+                    new_content=content[:100],
+                )
+                return {"id": item.key, **item.value}
+
+            # Fallback: exact content match (for stores without score)
+            if existing_content.strip().lower() == content.strip().lower():
+                logger.debug(
+                    "exact_duplicate_memory_found",
+                    existing_id=item.key,
+                    content=content[:100],
+                )
+                return {"id": item.key, **item.value}
+
+        return None
 
     async def store_memory(
         self,
@@ -29,8 +150,10 @@ class MemoryService:
         content: str,
         memory_type: str,
         metadata: dict | None = None,
-    ) -> str:
+    ) -> str | None:
         """Store a memory using LangGraph's put() pattern.
+
+        Performs deduplication check before storing to avoid duplicates.
 
         Args:
             org_id: Organization ID for isolation
@@ -41,8 +164,28 @@ class MemoryService:
             metadata: Optional additional metadata
 
         Returns:
-            The generated memory ID
+            The generated memory ID, or None if a duplicate was found
         """
+        # Check for duplicates before storing
+        existing = await self._find_duplicate(
+            org_id=org_id,
+            team_id=team_id,
+            user_id=user_id,
+            content=content,
+            memory_type=memory_type,
+        )
+
+        if existing:
+            logger.info(
+                "memory_duplicate_skipped",
+                existing_id=existing["id"],
+                memory_type=memory_type,
+                org_id=org_id,
+                team_id=team_id,
+                user_id=user_id,
+            )
+            return None
+
         namespace = get_memory_namespace(org_id, team_id, user_id)
         memory_id = str(uuid.uuid4())
 

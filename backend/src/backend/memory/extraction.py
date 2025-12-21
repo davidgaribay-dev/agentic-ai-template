@@ -77,7 +77,7 @@ async def extract_and_store_memories(
 
         # Format the prompt using string concatenation to avoid issues with
         # curly braces in user/assistant messages being interpreted as format specifiers
-        prompt = f"""Analyze this conversation and extract information worth remembering long-term.
+        prompt = f"""Analyze this conversation and extract NEW information worth remembering long-term.
 
 Focus on:
 1. User preferences (communication style, technical preferences, tools, languages)
@@ -99,6 +99,9 @@ Important:
 - Be specific and concrete, not vague
 - Prefer facts over opinions
 - Only extract things explicitly stated or strongly implied
+- Do NOT extract generic or commonly repeated information
+- Each memory should capture a distinct, specific piece of information
+- Avoid extracting the same information in different phrasings
 
 Conversation:
 User: {user_message[:2000]}
@@ -157,7 +160,8 @@ JSON response:"""
             if not memory.get("content") or not memory.get("type"):
                 continue
 
-            await service.store_memory(
+            # store_memory returns None if a duplicate was found and skipped
+            memory_id = await service.store_memory(
                 org_id=org_id,
                 team_id=team_id,
                 user_id=user_id,
@@ -168,7 +172,8 @@ JSON response:"""
                     "source": "extraction",
                 },
             )
-            stored_count += 1
+            if memory_id is not None:
+                stored_count += 1
 
         # Audit log the extraction
         if stored_count > 0:

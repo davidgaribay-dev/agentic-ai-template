@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Full-stack AI agent platform with FastAPI + LangGraph backend and React 19 + TanStack frontend. Features JWT authentication, multi-tenant architecture (Organizations → Teams → Users), SSE streaming chat, and enterprise integrations (Infisical secrets, OpenSearch audit logging, Langfuse LLM tracing).
+Full-stack AI agent platform with FastAPI + LangGraph backend and React 19 + TanStack frontend. Features JWT authentication, multi-tenant architecture (Organizations → Teams → Users), SSE streaming chat, MCP (Model Context Protocol) tool integration, and enterprise integrations (Infisical secrets, OpenSearch audit logging, Langfuse LLM tracing).
 
 See also: [backend/CLAUDE.md](backend/CLAUDE.md) for API patterns, [frontend/CLAUDE.md](frontend/CLAUDE.md) for UI patterns.
 
@@ -42,7 +42,7 @@ Organization (tenant boundary)
 ├── OrganizationMember (user ←→ org with OrgRole: owner/admin/member)
 ├── Team (sub-group within org)
 │   └── TeamMember (org_member ←→ team with TeamRole: admin/member/viewer)
-└── Resources (conversations, prompts, API keys) scoped to org + team
+└── Resources (conversations, prompts, API keys, MCP servers) scoped to org + team + user
 ```
 
 Critical: TeamMember links to `org_member_id` (not user directly). User must be org member before joining teams.
@@ -61,13 +61,36 @@ Key API groups: See `backend/api/main.py` for all routers. Frontend client at `f
 ## Chat/Agent System
 
 SSE streaming: `POST /v1/agent/chat` with `stream: true`
-- Events: `token` (content), `title` (generated), `done`, `error`
+- Events: `token` (content), `title` (generated), `tool_approval` (MCP), `done`, `error`
 - Frontend: `useChat()` hook with Streamdown markdown rendering
 - Backend: LangGraph ReAct agent with PostgreSQL checkpointing
 
 System prompts: Hierarchical concatenation (org → team → user) prepended to messages.
 
 LLM key resolution: team-level → org-level → environment variable (via Infisical)
+
+## MCP (Model Context Protocol)
+
+External tool integration via MCP servers. Supports HTTP, SSE, and Streamable HTTP transports.
+
+Scoping (same hierarchy as other resources):
+- **Organization-level**: Available to all org members (`team_id=NULL, user_id=NULL`)
+- **Team-level**: Available to team members only (`team_id=set, user_id=NULL`)
+- **User-level**: Personal servers (`team_id=set, user_id=set`)
+
+Settings hierarchy (org → team → user):
+- `mcp_enabled` - Master toggle for MCP tools
+- `mcp_tool_approval_required` - Human-in-the-loop approval (default: true)
+- `mcp_allow_custom_servers` - Allow adding custom servers (org/team only)
+- `mcp_max_servers_per_team/user` - Configurable limits (org only)
+
+Tool approval flow:
+1. Agent calls MCP tool → execution pauses
+2. SSE sends `tool_approval` event with tool details
+3. Frontend shows `ToolApprovalCard` inline in chat
+4. User approves/rejects → agent resumes or cancels
+
+Auth secrets stored in Infisical (never exposed in API responses).
 
 ## Infrastructure Services
 
@@ -80,7 +103,11 @@ LLM key resolution: team-level → org-level → environment variable (via Infis
 | OpenSearch Dashboards | 5601 | Log visualization | - |
 | Langfuse | 3001 | LLM tracing | `backend/agents/tracing.py` |
 
-Infisical secrets path: `/organizations/{org_id}/[teams/{team_id}/]{provider}_api_key`
+Infisical secrets paths (auto-managed via `SecretsService`):
+- LLM API keys: `/organizations/{org_id}/[teams/{team_id}/]{provider}_api_key`
+- MCP auth secrets: `/organizations/{org_id}/[teams/{team_id}/][users/{user_id}/]mcp/mcp_server_{server_id}`
+
+All secrets are entered directly in the UI and automatically stored/retrieved via `backend/core/secrets.py`. Never manually create secrets in Infisical for features that have UI configuration.
 
 OpenSearch indices: `audit-logs-YYYY.MM.DD` (90-day retention), `app-logs-YYYY.MM.DD` (30-day retention)
 
@@ -94,6 +121,7 @@ OpenSearch indices: `audit-logs-YYYY.MM.DD` (90-day retention), `app-logs-YYYY.M
 ├── backend/
 │   ├── src/backend/
 │   │   ├── agents/         # LangGraph agent, tools, tracing
+│   │   ├── mcp/            # MCP server registry, client, tool loading
 │   │   ├── api/routes/     # REST endpoints (/v1 prefix)
 │   │   ├── auth/           # User model, JWT, dependencies
 │   │   ├── rbac/           # Permissions, role mappings
@@ -169,6 +197,8 @@ New frontend page: Add file to `frontend/src/routes/` (auto-generates to routeTr
 New database model: Add SQLModel class, import in `alembic/env.py`, run migrations
 
 New agent tool: Add `@tool` function in `backend/agents/tools.py`
+
+New MCP server: Add via UI at org/team/user settings pages, or via API (`/v1/organizations/{id}/mcp-servers`, `/v1/organizations/{id}/teams/{id}/mcp-servers`, `/v1/mcp-servers/me`)
 
 ## Code Style
 
