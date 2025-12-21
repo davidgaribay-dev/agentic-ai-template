@@ -359,9 +359,9 @@ def load_ndjson_file() -> str | None:
     """Load NDJSON from file if it exists."""
     # Check multiple possible locations
     possible_paths = [
-        Path(__file__).parent.parent.parent.parent.parent / "opensearch" / "default-dashboards.ndjson",
+        Path(__file__).parent.parent.parent.parent / "opensearch" / "default-dashboards.ndjson",
         Path("/config/default-dashboards.ndjson"),
-        Path("opensearch/default-dashboards.ndjson"),
+        Path("backend/opensearch/default-dashboards.ndjson"),
     ]
 
     for path in possible_paths:

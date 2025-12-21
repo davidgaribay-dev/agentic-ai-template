@@ -1,4 +1,18 @@
+# Local Development Docker Compose
+# Starts only infrastructure services - run backend and frontend manually for hot reload
+#
+# Usage:
+#   docker compose -f docker-compose-local.yml up -d
+#
+# Or use the setup script:
+#   ./setup-local.sh
+
 services:
+  # =============================================================================
+  # Core Infrastructure
+  # =============================================================================
+
+  # S3-compatible object storage for file uploads
   seaweedfs:
     image: chrislusf/seaweedfs:latest
     restart: always
@@ -16,6 +30,7 @@ services:
       retries: 5
       start_period: 10s
 
+  # Main application database
   db:
     image: postgres:17
     restart: always
@@ -34,7 +49,10 @@ services:
       retries: 5
       start_period: 30s
 
-  # Infisical - Self-hosted secrets management
+  # =============================================================================
+  # Infisical - Secrets Management
+  # =============================================================================
+
   infisical-db:
     image: postgres:17
     restart: always
@@ -88,59 +106,10 @@ services:
       retries: 5
       start_period: 60s
 
-  # prestart:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile
-  #   env_file:
-  #     - ./backend/.env
-  #   environment:
-  #     - POSTGRES_SERVER=db
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #   command: bash scripts/prestart.sh
+  # =============================================================================
+  # OpenSearch - Audit Logs and Application Logs
+  # =============================================================================
 
-  # backend:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile
-  #   restart: always
-  #   ports:
-  #     - "8000:8000"
-  #   env_file:
-  #     - ./backend/.env
-  #   environment:
-  #     - POSTGRES_SERVER=db
-  #     - S3_ENDPOINT_URL=http://seaweedfs:8333
-  #     - S3_ACCESS_KEY=any
-  #     - S3_SECRET_KEY=any
-  #     - S3_BUCKET_NAME=uploads
-  #     - S3_PUBLIC_URL=http://localhost:8333
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #     prestart:
-  #       condition: service_completed_successfully
-  #   volumes:
-  #     - ./backend/src:/app/src:ro
-  #   command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
-
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   restart: always
-  #   ports:
-  #     - "5173:5173"
-  #   environment:
-  #     - VITE_API_URL=http://localhost:8000
-  #   volumes:
-  #     - ./frontend/src:/app/src:ro
-  #     - ./frontend/index.html:/app/index.html:ro
-  #   command: npm run dev -- --host 0.0.0.0
-
-  # OpenSearch - Audit logs and application logs
   opensearch:
     image: opensearchproject/opensearch:2.18.0
     restart: always
@@ -151,7 +120,7 @@ services:
       - bootstrap.memory_lock=true
       - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
       - DISABLE_INSTALL_DEMO_CONFIG=true
-      - DISABLE_SECURITY_PLUGIN=true  # Disable for local dev, enable in production
+      - DISABLE_SECURITY_PLUGIN=true
     ulimits:
       memlock:
         soft: -1
@@ -162,8 +131,8 @@ services:
     volumes:
       - opensearch-data:/usr/share/opensearch/data
     ports:
-      - "9200:9200"  # REST API
-      - "9600:9600"  # Performance Analyzer
+      - "9200:9200"
+      - "9600:9600"
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
       interval: 30s
@@ -178,11 +147,11 @@ services:
       opensearch:
         condition: service_healthy
     ports:
-      - "5601:5601"  # Dashboards UI
+      - "5601:5601"
     environment:
       - OPENSEARCH_HOSTS=["http://opensearch:9200"]
-      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true  # Disable for local dev
-      - SERVER_MAXPAYLOADBYTES=8388608  # 8MB for large dashboard imports
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+      - SERVER_MAXPAYLOADBYTES=8388608
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:5601/api/status | grep -q '\"state\":\"green\"'"]
       interval: 30s
@@ -190,27 +159,10 @@ services:
       retries: 5
       start_period: 60s
 
-  # OpenSearch initialization - creates index patterns and default dashboards
-  opensearch-init:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    depends_on:
-      opensearch-dashboards:
-        condition: service_healthy
-    env_file:
-      - ./backend/.env
-    environment:
-      - OPENSEARCH_URL=http://opensearch:9200
-    volumes:
-      - ./backend/opensearch/default-dashboards.ndjson:/config/default-dashboards.ndjson:ro
-    command: uv run python -m backend.scripts.init_opensearch
-    restart: "no"
-
   # =============================================================================
   # Langfuse - LLM Observability Platform
   # =============================================================================
-  # ClickHouse - OLAP database for Langfuse analytics
+
   langfuse-clickhouse:
     image: clickhouse/clickhouse-server:24.3
     restart: always
@@ -229,12 +181,10 @@ services:
       retries: 10
       start_period: 5s
 
-  # MinIO - S3-compatible blob storage for Langfuse
   langfuse-minio:
     image: minio/minio:latest
     restart: always
     entrypoint: sh
-    # Create the 'langfuse' bucket before starting the service
     command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
     environment:
       - MINIO_ROOT_USER=langfuse
@@ -242,8 +192,8 @@ services:
     volumes:
       - langfuse-minio-data:/data
     ports:
-      - "9090:9000"  # S3 API
-      - "9091:9001"  # MinIO Console
+      - "9090:9000"
+      - "9091:9001"
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s
@@ -251,7 +201,6 @@ services:
       retries: 5
       start_period: 5s
 
-  # Langfuse Redis - Caching and queues (separate from Infisical Redis)
   langfuse-redis:
     image: redis:7-alpine
     restart: always
@@ -264,7 +213,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Langfuse PostgreSQL - Separate database for Langfuse
   langfuse-db:
     image: postgres:17
     restart: always
@@ -282,8 +230,6 @@ services:
       retries: 5
       start_period: 30s
 
-  # Langfuse Worker - Background job processing
-  # IMPORTANT: Uses the dedicated worker image, not the web image
   langfuse-worker:
     image: langfuse/langfuse-worker:3
     restart: always
@@ -299,7 +245,6 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://langfuse:${LANGFUSE_DB_PASSWORD:-langfuse_db_dev}@langfuse-db:5432/langfuse
-      # Auth secrets required by worker process
       - NEXTAUTH_SECRET=${LANGFUSE_NEXTAUTH_SECRET:-your-nextauth-secret-change-me}
       - NEXTAUTH_URL=${LANGFUSE_URL:-http://localhost:3001}
       - SALT=${LANGFUSE_SALT:-0000000000000000000000000000000000000000000000000000000000000000}
@@ -327,7 +272,6 @@ services:
       - REDIS_PORT=6379
       - REDIS_AUTH=${LANGFUSE_REDIS_PASSWORD:-langfuse_redis_dev}
 
-  # Langfuse Web - Main application UI and API
   langfuse-web:
     image: langfuse/langfuse:3
     restart: always
@@ -345,9 +289,9 @@ services:
       langfuse-worker:
         condition: service_started
     ports:
-      - "3001:3000"  # Langfuse UI (3001 to avoid conflict with frontend)
+      - "3001:3000"
     environment:
-      - PORT=3000  # Override backend's PORT from env_file
+      - PORT=3000
       - NODE_ENV=production
       - DATABASE_URL=postgresql://langfuse:${LANGFUSE_DB_PASSWORD:-langfuse_db_dev}@langfuse-db:5432/langfuse
       - NEXTAUTH_URL=${LANGFUSE_URL:-http://localhost:3001}
@@ -376,11 +320,8 @@ services:
       - REDIS_HOST=langfuse-redis
       - REDIS_PORT=6379
       - REDIS_AUTH=${LANGFUSE_REDIS_PASSWORD:-langfuse_redis_dev}
-      # Optional: Enable public sign-up for development
       - LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=true
       - TELEMETRY_ENABLED=false
-      # Headless initialization variables are loaded from env_file (./backend/.env)
-      # These auto-create org, project, user, and API keys on first startup
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/public/health"]
       interval: 30s
