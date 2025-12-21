@@ -228,6 +228,7 @@ export function useEffectiveChatSettings(
   return useQuery({
     queryKey: queryKeys.chatSettings.effective(orgId, teamId),
     queryFn: () => chatSettingsApi.getEffectiveSettings(orgId, teamId),
+    enabled: !!orgId,
     staleTime: 1000 * 60, // 1 minute
   })
 }

@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useLogin, authKeys } from "@/lib/auth"
+import { useLogin, authQueryOptions, isLoggedIn } from "@/lib/auth"
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
   beforeLoad: ({ context }) => {
-    if (context.auth.isAuthenticated) {
+    // Check both router context AND localStorage token for immediate redirect
+    if (context.auth.isAuthenticated || isLoggedIn()) {
       throw redirect({ to: "/chat" })
     }
   },
@@ -28,7 +29,9 @@ function LoginPage() {
     e.preventDefault()
     try {
       await login.mutateAsync({ email, password })
-      await queryClient.refetchQueries({ queryKey: authKeys.user })
+      // Wait for the user query to fully resolve before navigating
+      // This ensures the auth context is updated before route guards run
+      await queryClient.fetchQuery(authQueryOptions.user)
       navigate({ to: "/chat" })
     } catch {
       // Mutation handles error display

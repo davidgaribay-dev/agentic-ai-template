@@ -50,8 +50,45 @@ State Split:
 Tokens in localStorage: `auth_token`, `auth_refresh_token`, `auth_token_expiry`. Auto-refresh every 60s when expiring within 60s.
 
 ```typescript
-const { user, isAuthenticated, login, register, logout } = useAuth()
+const { user, isAuthenticated, isLoading, login, register, logout } = useAuth()
 ```
+
+### Reactive Auth State
+
+Auth state uses `useSyncExternalStore` for reactive localStorage changes. This ensures immediate UI updates on login/logout without requiring page refresh.
+
+Key exports from `lib/auth.ts`:
+- `useAuth()` - Combined hook with user, auth state, and mutations
+- `useHasToken()` - Reactive boolean for token presence (uses `useSyncExternalStore`)
+- `logout()` - Async function that clears tokens, cache, and navigates to login
+- `isLoggedIn()` - Synchronous check (non-reactive, use `useHasToken()` in components)
+
+### Logout Flow
+
+```typescript
+// In auth.ts - logout() handles everything:
+export async function logout() {
+  const { router, queryClient } = await import("@/main")
+  removeToken()                    // Clears localStorage, notifies listeners
+  await queryClient.cancelQueries() // Prevents 401s from in-flight requests
+  queryClient.clear()              // Clears all cached data
+  await router.invalidate()        // Re-evaluates route guards
+  await router.navigate({ to: "/login" })
+}
+```
+
+### Root Layout Auth
+
+The root layout (`__root.tsx`) uses `useAuth()` directly (not router context) for reactive auth state:
+
+```typescript
+function RootComponent() {
+  const { isAuthenticated, isLoading } = useAuth()
+  return isAuthenticated || isLoading ? <AuthenticatedLayout /> : <UnauthenticatedLayout />
+}
+```
+
+Router context is still used for `beforeLoad` guards on individual routes, but layout rendering is driven by the reactive `useAuth()` hook.
 
 ## Workspace Context
 

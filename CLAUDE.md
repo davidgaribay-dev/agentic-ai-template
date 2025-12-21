@@ -9,19 +9,27 @@ See also: [backend/CLAUDE.md](backend/CLAUDE.md) for API patterns, [frontend/CLA
 ## Quick Start
 
 ```bash
-# Start infrastructure services
-docker compose up -d
+# Option 1: Automated setup (recommended for first-time)
+./setup-local.sh   # Infrastructure + migrations + Infisical/Langfuse setup
 
-# Terminal 1 - Backend
+# Option 2: Manual setup
+docker compose -f docker-compose-local.yml up -d
 cd backend && uv sync && uv run alembic upgrade head
-uv run uvicorn backend.main:app --reload  # port 8000
+cd backend && uv run python scripts/setup-infisical.py
+cd backend && uv run python scripts/setup-langfuse.py
+
+# Then start dev servers in separate terminals:
+# Terminal 1 - Backend
+cd backend && uv run uvicorn backend.main:app --reload  # port 8000
 
 # Terminal 2 - Frontend
 cd frontend && npm install && npm run dev  # port 5173
-
-# First-time Infisical setup
-cd backend && ./scripts/setup_infisical.sh
 ```
+
+Setup Scripts:
+- `setup.sh` - Full setup including dependency installation (CI/first-time)
+- `setup-local.sh` - Infrastructure only, for local dev with hot reload
+- `docker-compose-local.yml` - Infrastructure services without backend/frontend containers
 
 Services: Frontend (5173), Backend API (8000), API Docs (8000/v1/docs), Infisical (8081), OpenSearch Dashboards (5601), Langfuse (3001)
 
@@ -79,8 +87,11 @@ OpenSearch indices: `audit-logs-YYYY.MM.DD` (90-day retention), `app-logs-YYYY.M
 ## Project Structure
 
 ```
-├── docker-compose.yml      # All infrastructure services
-├── backend/                # FastAPI + LangGraph + SQLModel
+├── setup.sh                # Full automated setup script
+├── setup-local.sh          # Local dev setup (infrastructure only)
+├── docker-compose.yml      # Full stack (including backend/frontend containers)
+├── docker-compose-local.yml # Infrastructure only (for local dev)
+├── backend/
 │   ├── src/backend/
 │   │   ├── agents/         # LangGraph agent, tools, tracing
 │   │   ├── api/routes/     # REST endpoints (/v1 prefix)
@@ -91,14 +102,15 @@ OpenSearch indices: `audit-logs-YYYY.MM.DD` (90-day retention), `app-logs-YYYY.M
 │   │   ├── conversations/  # Multi-tenant chat history
 │   │   ├── audit/          # OpenSearch logging
 │   │   └── core/           # Config, DB, security, secrets
+│   ├── scripts/            # Setup scripts (setup-infisical.py, setup-langfuse.py, etc.)
+│   ├── opensearch/         # Default dashboards config
 │   └── alembic/            # Database migrations
-├── frontend/               # React 19 + TanStack + Tailwind v4
-│   └── src/
-│       ├── routes/         # File-based routing
-│       ├── components/     # UI (shadcn/ui) + chat
-│       ├── hooks/          # useChat SSE streaming
-│       └── lib/            # API client, auth, workspace context
-└── opensearch/             # Default dashboards config
+└── frontend/               # React 19 + TanStack + Tailwind v4
+    └── src/
+        ├── routes/         # File-based routing
+        ├── components/     # UI (shadcn/ui) + chat
+        ├── hooks/          # useChat SSE streaming
+        └── lib/            # API client, auth, workspace context
 ```
 
 ## Development Commands

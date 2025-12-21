@@ -8,6 +8,7 @@
  * - TanStack Query for API calls and caching
  */
 
+import { useSyncExternalStore } from "react"
 import {
   useMutation,
   useQuery,
@@ -47,6 +48,19 @@ const REFRESH_BUFFER_MS = 60 * 1000
 
 const API_URL = import.meta.env.VITE_API_URL || ""
 
+// Auth state change listeners for reactive updates
+type AuthListener = () => void
+const authListeners = new Set<AuthListener>()
+
+function notifyAuthChange() {
+  authListeners.forEach((listener) => listener())
+}
+
+export function subscribeToAuth(listener: AuthListener): () => void {
+  authListeners.add(listener)
+  return () => authListeners.delete(listener)
+}
+
 export function getToken(): string | null {
   return localStorage.getItem(ACCESS_TOKEN_KEY)
 }
@@ -66,21 +80,32 @@ export function setTokens(tokenData: Token): void {
   // Store expiry time in milliseconds
   const expiryTime = Date.now() + tokenData.expires_in * 1000
   localStorage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString())
+  notifyAuthChange()
 }
 
 /** @deprecated Use setTokens() instead. Kept for backwards compatibility. */
 export function setToken(token: string): void {
   localStorage.setItem(ACCESS_TOKEN_KEY, token)
+  notifyAuthChange()
 }
 
 export function removeToken(): void {
   localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
   localStorage.removeItem(TOKEN_EXPIRY_KEY)
+  notifyAuthChange()
 }
 
 export function isLoggedIn(): boolean {
   return !!getToken()
+}
+
+/**
+ * React hook that reactively tracks whether user has a token.
+ * Uses useSyncExternalStore for proper React 18 concurrent mode support.
+ */
+export function useHasToken(): boolean {
+  return useSyncExternalStore(subscribeToAuth, isLoggedIn, isLoggedIn)
 }
 
 /**
@@ -238,6 +263,13 @@ export const authKeys = {
   user: ["auth", "user"] as const,
 }
 
+export const authQueryOptions = {
+  user: {
+    queryKey: authKeys.user,
+    queryFn: fetchCurrentUser,
+  },
+}
+
 export function useCurrentUser(): UseQueryResult<User, Error> {
   return useQuery({
     queryKey: authKeys.user,
@@ -339,17 +371,35 @@ export function useRegisterWithInvitation() {
 }
 
 /**
+ * Logout function that clears auth state and redirects to login.
+ * Uses router.invalidate() to force re-evaluation of route guards.
+ */
+export async function logout() {
+  // Import dynamically to avoid circular dependency
+  const { router, queryClient } = await import("@/main")
+
+  // Clear tokens first
+  removeToken()
+
+  // Cancel any in-flight queries to prevent 401s
+  await queryClient.cancelQueries()
+
+  // Clear all cached data
+  queryClient.clear()
+
+  // Invalidate router to force beforeLoad re-evaluation
+  await router.invalidate()
+
+  // Navigate to login
+  await router.navigate({ to: "/login" })
+}
+
+/**
  * Hook for logout.
- * Clears all tokens and user data.
+ * Returns the logout function for use in components.
  */
 export function useLogout() {
-  const queryClient = useQueryClient()
-
-  return () => {
-    removeToken()
-    queryClient.setQueryData(authKeys.user, null)
-    queryClient.invalidateQueries({ queryKey: authKeys.user })
-  }
+  return logout
 }
 
 /**
@@ -360,12 +410,17 @@ export function useAuth() {
   const loginMutation = useLogin()
   const registerMutation = useRegister()
   const refreshMutation = useRefreshToken()
-  const logout = useLogout()
+
+  // Use reactive token state - this will trigger re-render when token changes
+  const hasToken = useHasToken()
+
+  // User is authenticated only if we have BOTH a token AND user data
+  const isAuthenticated = hasToken && !!user
 
   return {
-    user,
-    isLoading,
-    isAuthenticated: !!user,
+    user: hasToken ? user : null,
+    isLoading: hasToken && isLoading,
+    isAuthenticated,
     error,
     login: loginMutation.mutateAsync,
     loginError: loginMutation.error,

@@ -3,7 +3,7 @@ import { SidePanelProvider, SidePanel, useSidePanel } from "@/components/side-pa
 import { WorkspaceProvider } from "@/lib/workspace"
 import { SettingsProvider, useEffectiveSettings } from "@/lib/settings-context"
 import { ThemeProvider } from "@/components/theme-provider"
-import { isLoggedIn } from "@/lib/auth"
+import { useAuth } from "@/lib/auth"
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppSkeleton } from "@/components/app-skeleton"
@@ -93,13 +93,9 @@ function UnauthenticatedLayout() {
 }
 
 function RootComponent() {
-  const { auth } = Route.useRouteContext()
-  const { isAuthenticated } = auth
-  const hasToken = isLoggedIn()
-
-  // Show authenticated layout if user is authenticated OR we have a token
-  // This prevents flash of unauthenticated layout when redirecting after login
-  const showAuthenticatedLayout = isAuthenticated || hasToken
+  // Use useAuth directly instead of router context to ensure reactivity
+  // Router context doesn't re-render components when it changes
+  const { isAuthenticated, isLoading } = useAuth()
 
   return (
     <ErrorBoundary>
@@ -107,7 +103,7 @@ function RootComponent() {
         <WorkspaceProvider>
           <SettingsProvider>
             <SidePanelProvider>
-              {showAuthenticatedLayout ? (
+              {isAuthenticated || isLoading ? (
                 <AuthenticatedLayout />
               ) : (
                 <UnauthenticatedLayout />
