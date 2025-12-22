@@ -1,21 +1,29 @@
 import { createContext, useContext, useEffect, useState, useMemo, useCallback } from "react"
-
-type Theme = "dark" | "light" | "system"
+import { useEffectiveThemeSettings } from "@/lib/queries"
+import { useWorkspace } from "@/lib/workspace"
+import { isLoggedIn } from "@/lib/auth"
+import type { ThemeMode, ThemeColors } from "@/lib/api"
 
 type ThemeProviderProps = {
   children: React.ReactNode
-  defaultTheme?: Theme
+  defaultTheme?: ThemeMode
   storageKey?: string
 }
 
 type ThemeProviderState = {
-  theme: Theme
-  setTheme: (theme: Theme) => void
+  theme: ThemeMode
+  setTheme: (theme: ThemeMode) => void
+  effectiveColors: ThemeColors | null
+  customizationAllowed: boolean
+  isLoading: boolean
 }
 
 const initialState: ThemeProviderState = {
   theme: "system",
   setTheme: () => null,
+  effectiveColors: null,
+  customizationAllowed: true,
+  isLoading: false,
 }
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
@@ -25,50 +33,80 @@ export function ThemeProvider({
   defaultTheme = "system",
   storageKey = "ui-theme",
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
+  const [localTheme, setLocalTheme] = useState<ThemeMode>(
+    () => (localStorage.getItem(storageKey) as ThemeMode) || defaultTheme
   )
+  const [systemPrefersDark, setSystemPrefersDark] = useState(() =>
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  )
+
+  const { currentOrg, currentTeam } = useWorkspace()
+
+  const {
+    data: effectiveSettings,
+    isLoading,
+  } = useEffectiveThemeSettings(
+    isLoggedIn() ? currentOrg?.id : undefined,
+    isLoggedIn() ? currentTeam?.id : undefined,
+    systemPrefersDark
+  )
+
+  const theme = effectiveSettings?.theme_mode ?? localTheme
+  const effectiveColors = effectiveSettings?.active_theme_colors ?? null
+  const customizationAllowed = effectiveSettings?.customization_allowed ?? true
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      setSystemPrefersDark(e.matches)
+    }
+
+    mediaQuery.addEventListener("change", handleChange)
+    return () => mediaQuery.removeEventListener("change", handleChange)
+  }, [])
 
   useEffect(() => {
     const root = window.document.documentElement
 
     root.classList.remove("light", "dark")
 
+    let resolvedTheme: "light" | "dark"
     if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-        .matches
-        ? "dark"
-        : "light"
-      root.classList.add(systemTheme)
-      return
+      resolvedTheme = systemPrefersDark ? "dark" : "light"
+    } else {
+      resolvedTheme = theme
     }
 
-    root.classList.add(theme)
-  }, [theme])
+    root.classList.add(resolvedTheme)
 
-  useEffect(() => {
-    if (theme !== "system") return
+    if (effectiveColors) {
+      // Cache theme colors in localStorage for immediate application on next page load
+      localStorage.setItem('ui-theme-colors', JSON.stringify(effectiveColors))
 
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
-
-    const handleChange = (e: MediaQueryListEvent) => {
-      const root = window.document.documentElement
-      root.classList.remove("light", "dark")
-      root.classList.add(e.matches ? "dark" : "light")
+      Object.entries(effectiveColors).forEach(([key, value]) => {
+        const cssVar = key.replace(/_/g, "-")
+        root.style.setProperty(`--${cssVar}`, value)
+      })
     }
+  }, [theme, systemPrefersDark, effectiveColors])
 
-    mediaQuery.addEventListener("change", handleChange)
-    return () => mediaQuery.removeEventListener("change", handleChange)
-  }, [theme])
-
-  const setTheme = useCallback((newTheme: Theme) => {
-    localStorage.setItem(storageKey, newTheme)
-    setThemeState(newTheme)
+  const setTheme = useCallback((newTheme: ThemeMode) => {
+    if (!isLoggedIn()) {
+      localStorage.setItem(storageKey, newTheme)
+      setLocalTheme(newTheme)
+    }
   }, [storageKey])
 
   const value = useMemo<ThemeProviderState>(
-    () => ({ theme, setTheme }),
-    [theme, setTheme]
+    () => ({
+      theme,
+      setTheme,
+      effectiveColors,
+      customizationAllowed,
+      isLoading
+    }),
+    [theme, setTheme, effectiveColors, customizationAllowed, isLoading]
   )
 
   return (

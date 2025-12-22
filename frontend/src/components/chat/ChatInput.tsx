@@ -86,7 +86,7 @@ export function ChatInput({
   return (
     <div
       className={cn(
-        "flex flex-col rounded-xl border border-input bg-chat-input-bg",
+        "flex flex-col rounded-xl bg-chat-input-bg",
         className
       )}
     >
@@ -97,7 +97,7 @@ export function ChatInput({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        className="flex-1 border-0 focus-visible:ring-0 focus-visible:border-0 resize-none px-3 pt-3 pb-0 !min-h-0 bg-chat-input-bg max-h-[7.5rem] [field-sizing:content]"
+        className="flex-1 border-0 focus-visible:ring-0 focus-visible:border-0 resize-none px-3 pt-3 pb-0 !min-h-0 bg-transparent max-h-[7.5rem] [field-sizing:content]"
         rows={2}
       />
       <div className="flex items-center justify-between px-2 pb-2 pt-1">

@@ -113,7 +113,7 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
 
     if (!hasMessages) {
       return (
-        <div className={cn("flex h-full flex-col items-center justify-center", className)}>
+        <div className={cn("flex h-full flex-col items-center justify-start pt-[25vh]", className)}>
           <div className="w-full max-w-2xl px-4">
             <h1 className="mb-8 text-center text-2xl font-medium text-foreground">
               {welcomeMessage}

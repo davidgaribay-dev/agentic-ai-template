@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from backend.items.models import Item
     from backend.organizations.models import OrganizationMember
     from backend.settings.models import UserSettings
+    from backend.theme_settings.models import UserThemeSettings
 
 
 class UserBase(SQLModel):
@@ -51,6 +52,11 @@ class User(UserBase, BaseTable, table=True):
     )
 
     settings: "UserSettings" = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan", "uselist": False},
+    )
+
+    theme_settings: "UserThemeSettings" = Relationship(
         back_populates="user",
         sa_relationship_kwargs={"cascade": "all, delete-orphan", "uselist": False},
     )
@@ -135,5 +141,6 @@ from backend.invitations.models import Invitation  # noqa: E402, F401
 from backend.items.models import Item  # noqa: E402, F401
 from backend.organizations.models import OrganizationMember  # noqa: E402, F401
 from backend.settings.models import UserSettings  # noqa: E402, F401
+from backend.theme_settings.models import UserThemeSettings  # noqa: E402, F401
 
 User.model_rebuild()

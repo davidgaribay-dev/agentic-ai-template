@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from backend.invitations.models import Invitation
     from backend.organizations.models import Organization, OrganizationMember
     from backend.settings.models import TeamSettings
+    from backend.theme_settings.models import TeamThemeSettings
 
 
 class TeamRole(str, Enum):
@@ -59,6 +60,10 @@ class Team(TeamBase, OptionalAuditedTable, OrgScopedMixin, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
     settings: "TeamSettings" = Relationship(
+        back_populates="team",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan", "uselist": False},
+    )
+    theme_settings: "TeamThemeSettings" = Relationship(
         back_populates="team",
         sa_relationship_kwargs={"cascade": "all, delete-orphan", "uselist": False},
     )
@@ -146,6 +151,7 @@ from backend.conversations.models import Conversation  # noqa: E402, F401
 from backend.invitations.models import Invitation  # noqa: E402, F401
 from backend.organizations.models import Organization, OrganizationMember  # noqa: E402, F401
 from backend.settings.models import TeamSettings  # noqa: E402, F401
+from backend.theme_settings.models import TeamThemeSettings  # noqa: E402, F401
 
 Team.model_rebuild()
 TeamMember.model_rebuild()

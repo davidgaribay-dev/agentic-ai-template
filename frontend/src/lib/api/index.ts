@@ -176,3 +176,18 @@ export {
   type MCPToolsList,
   type ToolConfigUpdate,
 } from "./mcp-servers"
+
+// Theme Settings module
+export {
+  themeSettingsApi,
+  type ThemeColors,
+  type ThemeMode,
+  type ThemeSettingsBase,
+  type OrganizationThemeSettings,
+  type TeamThemeSettings,
+  type UserThemeSettings,
+  type OrganizationThemeSettingsUpdate,
+  type TeamThemeSettingsUpdate,
+  type UserThemeSettingsUpdate,
+  type EffectiveThemeSettings,
+} from "./theme-settings"

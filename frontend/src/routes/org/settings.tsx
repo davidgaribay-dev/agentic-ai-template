@@ -24,6 +24,7 @@ import {
   ChevronRight,
   Brain,
   Plug,
+  Palette,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import {
@@ -57,6 +58,7 @@ import {
   MCPSettings,
   MCPServersList,
 } from "@/components/settings"
+import { OrgThemeSettings } from "@/components/settings/org-theme-settings"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -108,7 +110,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import { DataTable } from "@/components/ui/data-table"
 
 const orgSettingsSearchSchema = z.object({
-  tab: z.enum(["general", "people", "ai", "preferences"]).optional(),
+  tab: z.enum(["general", "people", "ai", "preferences", "theme"]).optional(),
 })
 
 export const Route = createFileRoute("/org/settings")({
@@ -144,6 +146,7 @@ function OrgSettingsPage() {
     { value: "people", label: "People", icon: Users },
     { value: "ai", label: "AI Configuration", icon: Sparkles },
     { value: "preferences", label: "Preferences", icon: Settings2 },
+    { value: "theme", label: "Theme", icon: Palette },
   ]
 
   if (!currentOrg || currentOrgRole === null) {
@@ -246,6 +249,10 @@ function OrgSettingsPage() {
 
             <TabsContent value="preferences" className="mt-0 space-y-4">
               <ChatFeaturesSection orgId={currentOrg.id} />
+            </TabsContent>
+
+            <TabsContent value="theme" className="mt-0">
+              <OrgThemeSettings orgId={currentOrg.id} />
             </TabsContent>
           </div>
         </Tabs>

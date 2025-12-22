@@ -7,6 +7,21 @@
       var t = localStorage.getItem('ui-theme') || 'system';
       var d = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme:dark)').matches);
       if (d) document.documentElement.classList.add('dark');
+
+      // Apply cached theme colors immediately to prevent flash
+      var cachedColors = localStorage.getItem('ui-theme-colors');
+      if (cachedColors) {
+        try {
+          var colors = JSON.parse(cachedColors);
+          var root = document.documentElement;
+          Object.keys(colors).forEach(function(key) {
+            var cssVar = key.replace(/_/g, '-');
+            root.style.setProperty('--' + cssVar, colors[key]);
+          });
+        } catch (e) {
+          console.warn('Failed to apply cached theme colors:', e);
+        }
+      }
     })();
   </script>
   <style>

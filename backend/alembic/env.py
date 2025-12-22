@@ -11,6 +11,11 @@ from backend.mcp.models import MCPServer  # noqa: F401 - Import models for autog
 from backend.organizations.models import Organization, OrganizationMember  # noqa: F401 - Import models for autogenerate
 from backend.teams.models import Team, TeamMember  # noqa: F401 - Import models for autogenerate
 from backend.invitations.models import Invitation  # noqa: F401 - Import models for autogenerate
+from backend.theme_settings.models import (  # noqa: F401 - Import models for autogenerate
+    OrganizationThemeSettings,
+    TeamThemeSettings,
+    UserThemeSettings,
+)
 from backend.core.config import settings
 
 config = context.config

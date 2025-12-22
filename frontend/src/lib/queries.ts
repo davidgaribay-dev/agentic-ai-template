@@ -18,6 +18,7 @@ import {
   conversationsApi,
   memoryApi,
   mcpServersApi,
+  themeSettingsApi,
   type ChatRequest,
   type ChatMessage,
   type OrgSettingsUpdate,
@@ -26,6 +27,9 @@ import {
   type ConversationUpdate,
   type MCPServerCreate,
   type MCPServerUpdate,
+  type OrganizationThemeSettingsUpdate,
+  type TeamThemeSettingsUpdate,
+  type UserThemeSettingsUpdate,
 } from "./api"
 
 export const queryKeys = {
@@ -46,6 +50,15 @@ export const queryKeys = {
     user: ["chatSettings", "user"] as const,
     effective: (orgId?: string, teamId?: string) =>
       ["chatSettings", "effective", orgId, teamId] as const,
+  },
+  themeSettings: {
+    org: (orgId: string) => ["themeSettings", "org", orgId] as const,
+    team: (orgId: string, teamId: string) =>
+      ["themeSettings", "team", orgId, teamId] as const,
+    user: ["themeSettings", "user"] as const,
+    effective: (orgId?: string, teamId?: string, systemPrefersDark?: boolean) =>
+      ["themeSettings", "effective", orgId, teamId, systemPrefersDark] as const,
+    predefined: ["themeSettings", "predefined"] as const,
   },
   memory: {
     user: (orgId?: string, teamId?: string) =>
@@ -466,5 +479,104 @@ export function useUpdateUserToolConfig() {
       queryClient.invalidateQueries({ queryKey: queryKeys.chatSettings.user })
       queryClient.invalidateQueries({ queryKey: ["chatSettings", "effective"] })
     },
+  })
+}
+
+// ============================================================================
+// Theme Settings Hooks
+// ============================================================================
+
+/** Hook to fetch organization theme settings. */
+export function useOrgThemeSettings(orgId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.themeSettings.org(orgId ?? ""),
+    queryFn: () => themeSettingsApi.getOrgSettings(orgId!),
+    enabled: !!orgId,
+  })
+}
+
+/** Mutation hook for updating organization theme settings. */
+export function useUpdateOrgThemeSettings(orgId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (settings: OrganizationThemeSettingsUpdate) =>
+      themeSettingsApi.updateOrgSettings(orgId!, settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.themeSettings.org(orgId!) })
+      queryClient.invalidateQueries({ queryKey: ["themeSettings", "effective"] })
+    },
+  })
+}
+
+/** Hook to fetch team theme settings. */
+export function useTeamThemeSettings(orgId: string | undefined, teamId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.themeSettings.team(orgId ?? "", teamId ?? ""),
+    queryFn: () => themeSettingsApi.getTeamSettings(orgId!, teamId!),
+    enabled: !!orgId && !!teamId,
+  })
+}
+
+/** Mutation hook for updating team theme settings. */
+export function useUpdateTeamThemeSettings(
+  orgId: string | undefined,
+  teamId: string | undefined
+) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (settings: TeamThemeSettingsUpdate) =>
+      themeSettingsApi.updateTeamSettings(orgId!, teamId!, settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.themeSettings.team(orgId!, teamId!),
+      })
+      queryClient.invalidateQueries({ queryKey: ["themeSettings", "effective"] })
+    },
+  })
+}
+
+/** Hook to fetch user theme settings. */
+export function useUserThemeSettings() {
+  return useQuery({
+    queryKey: queryKeys.themeSettings.user,
+    queryFn: () => themeSettingsApi.getUserSettings(),
+  })
+}
+
+/** Mutation hook for updating user theme settings. */
+export function useUpdateUserThemeSettings() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (settings: UserThemeSettingsUpdate) =>
+      themeSettingsApi.updateUserSettings(settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.themeSettings.user })
+      queryClient.invalidateQueries({ queryKey: ["themeSettings", "effective"] })
+    },
+  })
+}
+
+/** Hook to fetch effective (computed) theme settings. */
+export function useEffectiveThemeSettings(
+  orgId: string | undefined,
+  teamId: string | undefined,
+  systemPrefersDark?: boolean
+) {
+  return useQuery({
+    queryKey: queryKeys.themeSettings.effective(orgId, teamId, systemPrefersDark),
+    queryFn: () => themeSettingsApi.getEffectiveSettings(orgId, teamId, systemPrefersDark),
+    enabled: !!orgId,
+  })
+}
+
+/** Hook to fetch all predefined theme color palettes. */
+export function usePredefinedThemes() {
+  return useQuery({
+    queryKey: queryKeys.themeSettings.predefined,
+    queryFn: () => themeSettingsApi.getPredefinedThemes(),
+    staleTime: Infinity, // Predefined themes never change
   })
 }

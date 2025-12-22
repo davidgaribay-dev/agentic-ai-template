@@ -99,8 +99,8 @@ function RootComponent() {
 
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="system" storageKey="ui-theme">
-        <WorkspaceProvider>
+      <WorkspaceProvider>
+        <ThemeProvider defaultTheme="system" storageKey="ui-theme">
           <SettingsProvider>
             <SidePanelProvider>
               {isAuthenticated || isLoading ? (
@@ -110,8 +110,8 @@ function RootComponent() {
               )}
             </SidePanelProvider>
           </SettingsProvider>
-        </WorkspaceProvider>
-      </ThemeProvider>
+        </ThemeProvider>
+      </WorkspaceProvider>
     </ErrorBoundary>
   )
 }

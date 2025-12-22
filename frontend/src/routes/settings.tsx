@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Brain,
   Plug,
+  Palette,
 } from "lucide-react"
 import { useAuth, authKeys } from "@/lib/auth"
 import {
@@ -38,6 +39,7 @@ import {
 import { ChatSettings } from "@/components/chat-settings"
 import { MemorySettings } from "@/components/settings/memory-settings"
 import { MemoryViewer } from "@/components/settings/memory-viewer"
+import { UserThemeSettings } from "@/components/settings/user-theme-settings"
 import { PromptRow, CreatePromptDialog, MCPSettings, MCPServersList } from "@/components/settings"
 import { getInitials, isValidImageUrl } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -57,7 +59,7 @@ import {
 } from "@/components/ui/collapsible"
 
 const settingsSearchSchema = z.object({
-  tab: z.enum(["profile", "ai", "memory", "preferences"]).optional(),
+  tab: z.enum(["profile", "ai", "memory", "preferences", "theme"]).optional(),
 })
 
 type SettingsTab = z.infer<typeof settingsSearchSchema>["tab"]
@@ -87,6 +89,7 @@ function SettingsPage() {
     { value: "ai", label: "AI Configuration", icon: Sparkles },
     { value: "memory", label: "Memory", icon: Brain },
     { value: "preferences", label: "Preferences", icon: Settings2 },
+    { value: "theme", label: "Theme", icon: Palette },
   ]
 
   return (
@@ -126,6 +129,10 @@ function SettingsPage() {
 
             <TabsContent value="preferences" className="mt-0">
               <PreferencesSection />
+            </TabsContent>
+
+            <TabsContent value="theme" className="mt-0">
+              <UserThemeSettings />
             </TabsContent>
           </div>
         </Tabs>
