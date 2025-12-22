@@ -503,7 +503,7 @@ function RecentChats() {
 
   const handleNewChat = () => {
     setSelectedConversation(null, null)
-    navigate({ to: "/chat" })
+    navigate({ to: "/chat", search: {} })
   }
 
   const handleOpenRename = (conversation: Conversation) => {
@@ -721,7 +721,7 @@ function RecentChats() {
 function DisabledChatSection() {
   const { state } = useSidebar()
   const effectiveSettings = useEffectiveSettings()
-  const disabledBy = effectiveSettings.sidebar_chat_disabled_by
+  const disabledBy = effectiveSettings.chat_disabled_by
 
   const tooltipMessage =
     disabledBy === "org"
@@ -804,7 +804,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {chatEnabled && <RecentChats />}
+        {chatEnabled ? <RecentChats /> : <DisabledChatSection />}
       </SidebarContent>
       <SidebarFooter className={cn(state === "collapsed" && "items-center")}>
         <NavUser />

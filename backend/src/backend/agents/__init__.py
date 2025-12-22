@@ -4,6 +4,23 @@ from backend.agents.base import (
     run_agent,
     stream_agent,
 )
+from backend.agents.context import (
+    LLMContext,
+    RequestContext,
+    get_llm_context,
+    get_llm_context_dict,
+    get_request_context,
+    llm_context,
+    request_context,
+)
+from backend.agents.factory import (
+    AgentConfig,
+    AgentFactory,
+    AgentInstance,
+    get_agent_factory,
+    init_agent_factory,
+    reset_agent_factory,
+)
 from backend.agents.react_agent import (
     get_react_agent,
     run_react_agent,
@@ -25,6 +42,21 @@ __all__ = [
     "run_agent",
     "stream_agent",
     "get_conversation_history",
+    # Agent factory (preferred for new code)
+    "AgentConfig",
+    "AgentFactory",
+    "AgentInstance",
+    "get_agent_factory",
+    "init_agent_factory",
+    "reset_agent_factory",
+    # Context management
+    "LLMContext",
+    "RequestContext",
+    "llm_context",
+    "request_context",
+    "get_llm_context",
+    "get_llm_context_dict",
+    "get_request_context",
     # ReAct agent with tools
     "get_react_agent",
     "run_react_agent",

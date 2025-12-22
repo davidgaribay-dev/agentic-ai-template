@@ -2,7 +2,8 @@ import re
 import uuid
 from datetime import UTC, datetime
 
-from sqlmodel import Session, select, func
+from sqlalchemy.orm import selectinload
+from sqlmodel import Session, func, select
 
 from backend.auth.models import User
 from backend.organizations.models import OrganizationMember

@@ -17,14 +17,15 @@ from backend.agents.tracing import (
     flush_langfuse,
     shutdown_langfuse,
 )
-from backend.memory.store import cleanup_memory_store, init_memory_store
 from backend.api.main import api_router
 from backend.audit.client import opensearch_lifespan
 from backend.audit.middleware import AuditLoggingMiddleware
 from backend.audit.service import audit_service
 from backend.core.config import settings
+from backend.core.exceptions import AppException
 from backend.core.logging import get_logger, setup_logging
 from backend.core.rate_limit import limiter
+from backend.memory.store import cleanup_memory_store, init_memory_store
 
 setup_logging()
 logger = get_logger(__name__)
@@ -98,6 +99,22 @@ def create_app() -> FastAPI:
 
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    @app.exception_handler(AppException)
+    async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+        """Handle all AppException subclasses with consistent JSON format."""
+        logger.warning(
+            "app_exception",
+            error_code=exc.error_code,
+            message=exc.message,
+            status_code=exc.status_code,
+            details=exc.details,
+            path=str(request.url.path),
+        )
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=exc.to_dict(),
+        )
 
     @app.middleware("http")
     async def add_request_id(request: Request, call_next):
