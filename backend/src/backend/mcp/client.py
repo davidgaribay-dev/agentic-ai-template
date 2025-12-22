@@ -89,6 +89,24 @@ async def get_mcp_tools_for_context(
         logger.info("no_mcp_servers_configured", org_id=org_id, team_id=team_id)
         return []
 
+    # Filter out disabled servers based on user settings
+    disabled_server_ids = set(effective.disabled_mcp_servers)
+    if disabled_server_ids:
+        original_count = len(servers)
+        servers = [s for s in servers if str(s.id) not in disabled_server_ids]
+        filtered_count = original_count - len(servers)
+        logger.info(
+            "mcp_servers_filtered_by_settings",
+            original_count=original_count,
+            filtered_count=filtered_count,
+            remaining_count=len(servers),
+            disabled_server_ids=list(disabled_server_ids),
+        )
+
+        if not servers:
+            logger.info("all_mcp_servers_disabled_by_settings")
+            return []
+
     # Build combined config for all servers
     combined_config: dict[str, dict[str, Any]] = {}
     server_prefixes: dict[str, tuple[str, bool]] = {}  # server_name -> (original_name, should_prefix)
@@ -299,40 +317,162 @@ async def test_mcp_server_connection(server: MCPServer, org_id: str) -> dict[str
     Returns:
         Dict with connection status and available tools
     """
+    logger.info(
+        "mcp_test_connection_start",
+        server_id=str(server.id),
+        server_name=server.name,
+        url=server.url,
+        transport=server.transport,
+        auth_type=server.auth_type,
+        has_auth_secret=bool(server.auth_secret_ref),
+    )
+
     try:
         from langchain_mcp_adapters.client import MultiServerMCPClient
-    except ImportError:
+    except ImportError as e:
+        logger.error(
+            "mcp_test_connection_import_error",
+            error="langchain-mcp-adapters not installed",
+            import_error=str(e),
+        )
         return {
             "success": False,
-            "error": "langchain-mcp-adapters not installed",
+            "error": "langchain-mcp-adapters not installed. Please install with: pip install langchain-mcp-adapters",
             "tools": [],
             "tool_count": 0,
         }
 
     config = _build_server_config(server, org_id)
     if not config:
+        logger.error(
+            "mcp_test_connection_config_error",
+            server_id=str(server.id),
+            error="Failed to build server configuration",
+        )
         return {
             "success": False,
-            "error": "Invalid server configuration",
+            "error": "Invalid server configuration. Check URL and authentication settings.",
             "tools": [],
             "tool_count": 0,
         }
 
     server_name = _sanitize_server_name(server.name)
 
+    logger.info(
+        "mcp_test_connection_attempting",
+        server_id=str(server.id),
+        server_name=server_name,
+        transport=config.get("transport"),
+        url=config.get("url"),
+        has_headers=bool(config.get("headers")),
+    )
+
     try:
         # As of 0.1.0, MultiServerMCPClient is no longer a context manager
         client = MultiServerMCPClient({server_name: config})
         tools = await client.get_tools()
+
+        logger.info(
+            "mcp_test_connection_success",
+            server_id=str(server.id),
+            server_name=server_name,
+            tool_count=len(tools),
+            tool_names=[t.name for t in tools],
+        )
+
         return {
             "success": True,
             "tools": [{"name": t.name, "description": t.description} for t in tools],
             "tool_count": len(tools),
         }
-    except Exception as e:
+    except ConnectionError as e:
+        error_msg = f"Connection failed: {e}. Check if the server URL is correct and the server is running."
+        logger.error(
+            "mcp_test_connection_network_error",
+            server_id=str(server.id),
+            server_name=server_name,
+            error=str(e),
+            error_type="ConnectionError",
+        )
         return {
             "success": False,
-            "error": str(e),
+            "error": error_msg,
+            "tools": [],
+            "tool_count": 0,
+        }
+    except TimeoutError as e:
+        error_msg = f"Connection timed out: {e}. The server may be slow or unreachable."
+        logger.error(
+            "mcp_test_connection_timeout",
+            server_id=str(server.id),
+            server_name=server_name,
+            error=str(e),
+            error_type="TimeoutError",
+        )
+        return {
+            "success": False,
+            "error": error_msg,
+            "tools": [],
+            "tool_count": 0,
+        }
+    except Exception as e:
+        error_type = type(e).__name__
+        error_str = str(e)
+
+        # Unwrap ExceptionGroup to get the actual underlying error
+        actual_error = e
+        if isinstance(e, ExceptionGroup):
+            # Get the first sub-exception for a more useful error message
+            if e.exceptions:
+                actual_error = e.exceptions[0]
+                # Recursively unwrap nested ExceptionGroups
+                while isinstance(actual_error, ExceptionGroup) and actual_error.exceptions:
+                    actual_error = actual_error.exceptions[0]
+                error_type = type(actual_error).__name__
+                error_str = str(actual_error)
+
+        logger.info(
+            "mcp_test_connection_unwrapped_error",
+            server_id=str(server.id),
+            original_error=str(e),
+            unwrapped_error=error_str,
+            unwrapped_type=error_type,
+        )
+
+        # Provide more helpful error messages for common issues
+        if "401" in error_str or "Unauthorized" in error_str:
+            error_msg = f"Authentication failed (401): {error_str}. Check your API key or bearer token."
+        elif "403" in error_str or "Forbidden" in error_str:
+            error_msg = f"Access denied (403): {error_str}. Your credentials may lack required permissions."
+        elif "404" in error_str or "Not Found" in error_str:
+            error_msg = f"Server not found (404): {error_str}. Check the URL path is correct."
+        elif "500" in error_str or "Internal Server Error" in error_str:
+            error_msg = f"Server error (500): {error_str}. The MCP server encountered an internal error."
+        elif "ssl" in error_str.lower() or "certificate" in error_str.lower():
+            error_msg = f"SSL/TLS error: {error_str}. Check the server's SSL certificate."
+        elif "dns" in error_str.lower() or "resolve" in error_str.lower():
+            error_msg = f"DNS resolution failed: {error_str}. Check the server hostname."
+        elif "connect" in error_str.lower() or "refused" in error_str.lower():
+            error_msg = f"Connection refused: {error_str}. The server may not be running or is blocking connections."
+        elif "timeout" in error_str.lower():
+            error_msg = f"Connection timed out: {error_str}. The server may be slow or unreachable."
+        elif "name or service not known" in error_str.lower() or "getaddrinfo" in error_str.lower():
+            error_msg = f"DNS resolution failed: {error_str}. Check the server hostname is correct."
+        else:
+            error_msg = f"{error_type}: {error_str}"
+
+        logger.error(
+            "mcp_test_connection_error",
+            server_id=str(server.id),
+            server_name=server_name,
+            error=error_str,
+            error_type=error_type,
+            parsed_error=error_msg,
+        )
+
+        return {
+            "success": False,
+            "error": error_msg,
             "tools": [],
             "tool_count": 0,
         }

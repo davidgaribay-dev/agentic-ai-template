@@ -234,6 +234,26 @@ def get_effective_settings(
         mcp_allow_custom_servers = False
         mcp_custom_servers_disabled_by = "team"
 
+    # Disabled MCP servers - merge from all hierarchy levels (union)
+    # If a server is disabled at ANY level, it's disabled for the user
+    disabled_mcp_servers: set[str] = set()
+    if org_settings and org_settings.disabled_mcp_servers:
+        disabled_mcp_servers.update(org_settings.disabled_mcp_servers)
+    if team_settings and team_settings.disabled_mcp_servers:
+        disabled_mcp_servers.update(team_settings.disabled_mcp_servers)
+    if user_settings.disabled_mcp_servers:
+        disabled_mcp_servers.update(user_settings.disabled_mcp_servers)
+
+    # Disabled tools - merge from all hierarchy levels (union)
+    # If a tool is disabled at ANY level, it's disabled for the user
+    disabled_tools: set[str] = set()
+    if org_settings and org_settings.disabled_tools:
+        disabled_tools.update(org_settings.disabled_tools)
+    if team_settings and team_settings.disabled_tools:
+        disabled_tools.update(team_settings.disabled_tools)
+    if user_settings.disabled_tools:
+        disabled_tools.update(user_settings.disabled_tools)
+
     return EffectiveSettings(
         chat_enabled=chat_enabled,
         chat_disabled_by=chat_disabled_by,
@@ -247,4 +267,6 @@ def get_effective_settings(
         mcp_tool_approval_required_by=mcp_tool_approval_required_by,
         mcp_allow_custom_servers=mcp_allow_custom_servers,
         mcp_custom_servers_disabled_by=mcp_custom_servers_disabled_by,
+        disabled_mcp_servers=list(disabled_mcp_servers),
+        disabled_tools=list(disabled_tools),
     )

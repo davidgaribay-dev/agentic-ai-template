@@ -8,6 +8,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
+from sqlmodel import SQLModel
 
 from backend.audit import audit_service
 from backend.audit.schemas import AuditAction, Target
@@ -18,7 +19,11 @@ from backend.mcp.models import (
     MCPServerList,
     MCPServerPublic,
     MCPServerUpdate,
+    MCPServerWithTools,
+    MCPToolPublic,
+    MCPToolsList,
 )
+from backend.mcp.client import test_mcp_server_connection
 from backend.mcp.service import (
     check_server_limits,
     create_mcp_server,
@@ -112,7 +117,7 @@ async def create_org_mcp_server(
         request=request,
         organization_id=org_context.org_id,
         targets=[Target(type="mcp_server", id=str(server.id), name=server.name)],
-        metadata={"scope": "organization", "transport": server.transport.value},
+        metadata={"scope": "organization", "transport": server.transport},
     )
 
     return MCPServerPublic.from_model(server)
@@ -299,7 +304,7 @@ async def create_team_mcp_server(
         organization_id=team_context.org_id,
         team_id=team_context.team_id,
         targets=[Target(type="mcp_server", id=str(server.id), name=server.name)],
-        metadata={"scope": "team", "transport": server.transport.value},
+        metadata={"scope": "team", "transport": server.transport},
     )
 
     return MCPServerPublic.from_model(server)
@@ -487,7 +492,7 @@ async def create_user_mcp_server(
         organization_id=organization_id,
         team_id=team_id,
         targets=[Target(type="mcp_server", id=str(server.id), name=server.name)],
-        metadata={"scope": "user", "transport": server.transport.value},
+        metadata={"scope": "user", "transport": server.transport},
     )
 
     return MCPServerPublic.from_model(server)
@@ -618,4 +623,242 @@ def list_effective_mcp_servers(
     return MCPServerList(
         data=[MCPServerPublic.from_model(s) for s in servers],
         count=len(servers),
+    )
+
+
+class MCPTestResult(SQLModel):
+    """Result of testing an MCP server connection."""
+
+    success: bool
+    message: str
+    tools: list[MCPToolPublic]
+    tool_count: int
+    connection_time_ms: float | None = None
+    error_details: str | None = None
+
+
+@org_router.post(
+    "/{server_id}/test",
+    response_model=MCPTestResult,
+    dependencies=[Depends(require_org_permission(OrgPermission.ORG_READ))],
+)
+async def test_org_mcp_server(
+    session: SessionDep,
+    org_context: OrgContextDep,
+    server_id: Annotated[uuid.UUID, Path()],
+) -> MCPTestResult:
+    """Test connection to an organization-level MCP server.
+
+    Attempts to connect to the server and discover available tools.
+    Returns detailed connection status and any errors encountered.
+    """
+    import time
+
+    server = get_mcp_server(session, server_id)
+    if not server or server.organization_id != org_context.org_id:
+        raise HTTPException(status_code=404, detail="MCP server not found")
+    if server.team_id is not None or server.user_id is not None:
+        raise HTTPException(status_code=404, detail="MCP server not found at org level")
+
+    start_time = time.time()
+    result = await test_mcp_server_connection(server, str(org_context.org_id))
+    elapsed_ms = (time.time() - start_time) * 1000
+
+    if result["success"]:
+        return MCPTestResult(
+            success=True,
+            message=f"Successfully connected and discovered {result['tool_count']} tools",
+            tools=[MCPToolPublic(name=t["name"], description=t["description"]) for t in result["tools"]],
+            tool_count=result["tool_count"],
+            connection_time_ms=round(elapsed_ms, 2),
+        )
+    else:
+        return MCPTestResult(
+            success=False,
+            message="Failed to connect to MCP server",
+            tools=[],
+            tool_count=0,
+            connection_time_ms=round(elapsed_ms, 2),
+            error_details=result.get("error", "Unknown error"),
+        )
+
+
+@team_router.post(
+    "/{server_id}/test",
+    response_model=MCPTestResult,
+    dependencies=[Depends(require_team_permission(TeamPermission.TEAM_READ))],
+)
+async def test_team_mcp_server(
+    session: SessionDep,
+    team_context: TeamContextDep,
+    server_id: Annotated[uuid.UUID, Path()],
+) -> MCPTestResult:
+    """Test connection to a team-level MCP server."""
+    import time
+
+    server = get_mcp_server(session, server_id)
+    if not server or server.team_id != team_context.team_id:
+        raise HTTPException(status_code=404, detail="MCP server not found")
+    if server.user_id is not None:
+        raise HTTPException(status_code=404, detail="MCP server not found at team level")
+
+    start_time = time.time()
+    result = await test_mcp_server_connection(server, str(team_context.org_id))
+    elapsed_ms = (time.time() - start_time) * 1000
+
+    if result["success"]:
+        return MCPTestResult(
+            success=True,
+            message=f"Successfully connected and discovered {result['tool_count']} tools",
+            tools=[MCPToolPublic(name=t["name"], description=t["description"]) for t in result["tools"]],
+            tool_count=result["tool_count"],
+            connection_time_ms=round(elapsed_ms, 2),
+        )
+    else:
+        return MCPTestResult(
+            success=False,
+            message="Failed to connect to MCP server",
+            tools=[],
+            tool_count=0,
+            connection_time_ms=round(elapsed_ms, 2),
+            error_details=result.get("error", "Unknown error"),
+        )
+
+
+@user_router.post(
+    "/me/{server_id}/test",
+    response_model=MCPTestResult,
+)
+async def test_user_mcp_server(
+    session: SessionDep,
+    current_user: CurrentUser,
+    server_id: Annotated[uuid.UUID, Path()],
+) -> MCPTestResult:
+    """Test connection to a personal MCP server."""
+    import time
+
+    server = get_mcp_server(session, server_id)
+    if not server or server.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="MCP server not found")
+
+    start_time = time.time()
+    result = await test_mcp_server_connection(server, str(server.organization_id))
+    elapsed_ms = (time.time() - start_time) * 1000
+
+    if result["success"]:
+        return MCPTestResult(
+            success=True,
+            message=f"Successfully connected and discovered {result['tool_count']} tools",
+            tools=[MCPToolPublic(name=t["name"], description=t["description"]) for t in result["tools"]],
+            tool_count=result["tool_count"],
+            connection_time_ms=round(elapsed_ms, 2),
+        )
+    else:
+        return MCPTestResult(
+            success=False,
+            message="Failed to connect to MCP server",
+            tools=[],
+            tool_count=0,
+            connection_time_ms=round(elapsed_ms, 2),
+            error_details=result.get("error", "Unknown error"),
+        )
+
+
+@user_router.get(
+    "/effective/tools",
+    response_model=MCPToolsList,
+)
+async def list_effective_mcp_tools(
+    session: SessionDep,
+    current_user: CurrentUser,
+    organization_id: Annotated[uuid.UUID, Query()],
+    team_id: Annotated[uuid.UUID | None, Query()] = None,
+) -> MCPToolsList:
+    """Get all tools from effective MCP servers.
+
+    Connects to each enabled MCP server to discover available tools.
+    Returns tools grouped by server with scope information.
+
+    This endpoint is used by the tool configuration UI to show
+    which tools are available for enabling/disabling.
+    """
+    # Check if MCP is enabled
+    effective = get_effective_settings(
+        session=session,
+        user_id=current_user.id,
+        organization_id=organization_id,
+        team_id=team_id,
+    )
+
+    if not effective.mcp_enabled:
+        return MCPToolsList(
+            servers=[],
+            total_tools=0,
+            total_servers=0,
+            error_count=0,
+        )
+
+    # Get effective servers
+    servers = get_effective_mcp_servers(
+        session=session,
+        organization_id=organization_id,
+        team_id=team_id,
+        user_id=current_user.id,
+    )
+
+    if not servers:
+        return MCPToolsList(
+            servers=[],
+            total_tools=0,
+            total_servers=0,
+            error_count=0,
+        )
+
+    # Discover tools from each server
+    servers_with_tools: list[MCPServerWithTools] = []
+    total_tools = 0
+    error_count = 0
+
+    for server in servers:
+        result = await test_mcp_server_connection(server, str(organization_id))
+
+        if result["success"]:
+            tools = [
+                MCPToolPublic(name=t["name"], description=t["description"])
+                for t in result["tools"]
+            ]
+            servers_with_tools.append(
+                MCPServerWithTools(
+                    server_id=str(server.id),
+                    server_name=server.name,
+                    server_description=server.description,
+                    scope=server.scope,
+                    enabled=server.enabled,
+                    tools=tools,
+                    tool_count=len(tools),
+                    error=None,
+                )
+            )
+            total_tools += len(tools)
+        else:
+            # Include server even if connection failed
+            servers_with_tools.append(
+                MCPServerWithTools(
+                    server_id=str(server.id),
+                    server_name=server.name,
+                    server_description=server.description,
+                    scope=server.scope,
+                    enabled=server.enabled,
+                    tools=[],
+                    tool_count=0,
+                    error=result.get("error", "Connection failed"),
+                )
+            )
+            error_count += 1
+
+    return MCPToolsList(
+        servers=servers_with_tools,
+        total_tools=total_tools,
+        total_servers=len(servers),
+        error_count=error_count,
     )

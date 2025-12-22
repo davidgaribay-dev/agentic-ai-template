@@ -183,6 +183,40 @@ def _is_tool_approval_required(
         return True  # Default to requiring approval on error
 
 
+def _get_disabled_tools_config(
+    org_id: str | None,
+    team_id: str | None,
+    user_id: str | None,
+) -> tuple[set[str], set[str]]:
+    """Get disabled MCP servers and tools for the given context.
+
+    Returns a tuple of (disabled_server_ids, disabled_tool_names).
+    Merges disabled lists from all hierarchy levels (org -> team -> user).
+    """
+    if not org_id or not user_id:
+        return set(), set()
+
+    try:
+        from backend.core.db import engine
+        from backend.settings.service import get_effective_settings
+        from sqlmodel import Session
+
+        with Session(engine) as session:
+            effective = get_effective_settings(
+                session=session,
+                user_id=uuid.UUID(user_id),
+                organization_id=uuid.UUID(org_id) if org_id else None,
+                team_id=uuid.UUID(team_id) if team_id else None,
+            )
+            return (
+                set(effective.disabled_mcp_servers),
+                set(effective.disabled_tools),
+            )
+    except Exception as e:
+        logger.warning("failed_to_get_disabled_tools_config", error=str(e))
+        return set(), set()
+
+
 async def _get_mcp_tools(
     org_id: str | None,
     team_id: str | None,
@@ -351,6 +385,207 @@ def create_agent_graph(checkpointer: AsyncPostgresSaver | None = None) -> Any:
     return graph.compile(checkpointer=checkpointer)
 
 
+def _get_orphaned_tool_calls(messages: list) -> list[dict]:
+    """Find orphaned tool_use blocks that lack corresponding ToolMessages.
+
+    Anthropic requires every tool_use block to have a corresponding tool_result.
+    This function detects orphaned tool calls from cancelled/abandoned approvals.
+
+    Args:
+        messages: List of messages from the state
+
+    Returns:
+        List of orphaned tool call dicts (with id, name, args)
+    """
+    # Build set of tool_call_ids that have responses
+    responded_ids = set()
+    for msg in messages:
+        if isinstance(msg, ToolMessage):
+            responded_ids.add(msg.tool_call_id)
+
+    # Log message structure for debugging
+    logger.info(
+        "orphan_check_message_structure",
+        total_messages=len(messages),
+        message_types=[type(m).__name__ for m in messages],
+        responded_tool_call_ids=list(responded_ids),
+    )
+
+    # Find orphaned tool calls
+    orphaned = []
+    for idx, msg in enumerate(messages):
+        if isinstance(msg, AIMessage):
+            # Log AIMessage details for debugging - check all possible tool call locations
+            tool_calls_from_attr = msg.tool_calls if msg.tool_calls else []
+            tool_calls_from_additional = (
+                msg.additional_kwargs.get("tool_calls", [])
+                if hasattr(msg, "additional_kwargs") and msg.additional_kwargs
+                else []
+            )
+
+            # Also check content for tool_use blocks (Anthropic format)
+            tool_use_in_content = []
+            if isinstance(msg.content, list):
+                for block in msg.content:
+                    if isinstance(block, dict) and block.get("type") == "tool_use":
+                        tool_use_in_content.append(block)
+
+            logger.info(
+                "orphan_check_ai_message",
+                msg_index=idx,
+                has_tool_calls_attr=bool(tool_calls_from_attr),
+                tool_calls_attr_count=len(tool_calls_from_attr),
+                tool_calls_attr=tool_calls_from_attr,
+                has_tool_calls_additional=bool(tool_calls_from_additional),
+                tool_calls_additional_count=len(tool_calls_from_additional),
+                has_tool_use_in_content=bool(tool_use_in_content),
+                tool_use_content_count=len(tool_use_in_content),
+                content_type=type(msg.content).__name__,
+                content_preview=str(msg.content)[:200] if msg.content else "",
+            )
+
+            # Merge all sources of tool calls
+            all_tool_calls = list(tool_calls_from_attr)
+            # Add from additional_kwargs if not already present
+            existing_ids = {tc.get("id") for tc in all_tool_calls if tc.get("id")}
+            for tc in tool_calls_from_additional:
+                if tc.get("id") and tc.get("id") not in existing_ids:
+                    all_tool_calls.append(tc)
+                    existing_ids.add(tc.get("id"))
+            # Add from content blocks if not already present
+            for block in tool_use_in_content:
+                if block.get("id") and block.get("id") not in existing_ids:
+                    all_tool_calls.append({
+                        "id": block.get("id"),
+                        "name": block.get("name"),
+                        "args": block.get("input", {}),
+                    })
+                    existing_ids.add(block.get("id"))
+
+            if all_tool_calls:
+                for tc in all_tool_calls:
+                    tc_id = tc.get("id")
+                    if tc_id and tc_id not in responded_ids:
+                        orphaned.append(tc)
+                        logger.info(
+                            "orphan_found",
+                            tool_call_id=tc_id,
+                            tool_name=tc.get("name"),
+                        )
+
+    return orphaned
+
+
+def _create_rejection_messages(orphaned_tool_calls: list[dict]) -> list[ToolMessage]:
+    """Create rejection ToolMessages for orphaned tool calls.
+
+    Args:
+        orphaned_tool_calls: List of orphaned tool call dicts
+
+    Returns:
+        List of ToolMessages rejecting each orphaned call
+    """
+    return [
+        ToolMessage(
+            content="Tool call was cancelled by the user.",
+            tool_call_id=tc.get("id"),
+        )
+        for tc in orphaned_tool_calls
+    ]
+
+
+def _get_all_tool_calls_from_message(msg: AIMessage) -> list[dict]:
+    """Extract all tool calls from an AIMessage, checking all possible locations.
+
+    Tool calls can be in:
+    1. msg.tool_calls (LangChain standard)
+    2. msg.additional_kwargs["tool_calls"] (some providers)
+    3. msg.content (as tool_use blocks for Anthropic format)
+
+    Args:
+        msg: AIMessage to extract tool calls from
+
+    Returns:
+        List of tool call dicts with id, name, and args
+    """
+    all_tool_calls = []
+    existing_ids = set()
+
+    # Check msg.tool_calls
+    if msg.tool_calls:
+        for tc in msg.tool_calls:
+            if tc.get("id") and tc.get("id") not in existing_ids:
+                all_tool_calls.append(tc)
+                existing_ids.add(tc.get("id"))
+
+    # Check additional_kwargs
+    if hasattr(msg, "additional_kwargs") and msg.additional_kwargs:
+        for tc in msg.additional_kwargs.get("tool_calls", []):
+            if tc.get("id") and tc.get("id") not in existing_ids:
+                all_tool_calls.append(tc)
+                existing_ids.add(tc.get("id"))
+
+    # Check content for tool_use blocks (Anthropic format)
+    if isinstance(msg.content, list):
+        for block in msg.content:
+            if isinstance(block, dict) and block.get("type") == "tool_use":
+                if block.get("id") and block.get("id") not in existing_ids:
+                    all_tool_calls.append({
+                        "id": block.get("id"),
+                        "name": block.get("name"),
+                        "args": block.get("input", {}),
+                    })
+                    existing_ids.add(block.get("id"))
+
+    return all_tool_calls
+
+
+def _fix_orphaned_tool_calls_in_messages(messages: list) -> list:
+    """Fix orphaned tool calls by inserting rejection ToolMessages in the correct position.
+
+    Anthropic requires ToolMessages to immediately follow the AIMessage containing
+    the tool_use. This function rebuilds the message list, inserting rejection
+    ToolMessages right after the AIMessage that contains orphaned tool calls.
+
+    Args:
+        messages: List of messages that may have orphaned tool calls
+
+    Returns:
+        New list of messages with rejection ToolMessages inserted correctly
+    """
+    # Build set of tool_call_ids that have responses
+    responded_ids = set()
+    for msg in messages:
+        if isinstance(msg, ToolMessage):
+            responded_ids.add(msg.tool_call_id)
+
+    # Rebuild messages with rejection ToolMessages inserted in correct position
+    fixed_messages = []
+    for msg in messages:
+        fixed_messages.append(msg)
+
+        # After each AIMessage, check for orphaned tool calls and insert rejections
+        if isinstance(msg, AIMessage):
+            all_tool_calls = _get_all_tool_calls_from_message(msg)
+            orphaned_in_msg = [
+                tc for tc in all_tool_calls
+                if tc.get("id") and tc.get("id") not in responded_ids
+            ]
+            if orphaned_in_msg:
+                # Insert rejection ToolMessages immediately after this AIMessage
+                for tc in orphaned_in_msg:
+                    fixed_messages.append(
+                        ToolMessage(
+                            content="Tool call was cancelled by the user.",
+                            tool_call_id=tc.get("id"),
+                        )
+                    )
+                    # Mark as responded so we don't duplicate
+                    responded_ids.add(tc.get("id"))
+
+    return fixed_messages
+
+
 def create_agent_graph_with_tools(
     tools: list,
     checkpointer: AsyncPostgresSaver | None = None,
@@ -359,7 +594,40 @@ def create_agent_graph_with_tools(
 
     This agent can use tools (including MCP tools) to accomplish tasks.
     Uses conditional edges to loop between the LLM and tool execution.
+
+    Includes an orphan cleanup node that runs at the start to handle
+    any orphaned tool_use blocks from abandoned approvals.
     """
+
+    def cleanup_orphans_node(state: MessagesState) -> dict:
+        """Clean up orphaned tool calls from abandoned approvals.
+
+        This node runs at graph entry to ensure the message history is valid
+        before invoking the LLM. Anthropic requires every tool_use to have
+        a corresponding tool_result.
+        """
+        messages = state["messages"]
+
+        logger.info(
+            "cleanup_orphans_node_called",
+            message_count=len(messages),
+            message_types=[type(m).__name__ for m in messages],
+        )
+
+        orphaned = _get_orphaned_tool_calls(messages)
+
+        if not orphaned:
+            logger.info("cleanup_orphans_node_no_orphans")
+            return {}
+
+        logger.info(
+            "cleaning_orphaned_tool_calls",
+            count=len(orphaned),
+            tool_call_ids=[tc.get("id") for tc in orphaned],
+        )
+
+        # Return rejection messages for orphaned calls
+        return {"messages": _create_rejection_messages(orphaned)}
 
     async def chat_node(state: MessagesState) -> dict:
         """Process messages and generate a response, potentially with tool calls."""
@@ -379,6 +647,40 @@ def create_agent_graph_with_tools(
 
         # Build messages list with optional system prompt
         messages = list(state["messages"])
+
+        logger.info(
+            "chat_node_state_messages",
+            message_count=len(messages),
+            message_types=[type(m).__name__ for m in messages],
+        )
+
+        # Fix orphaned tool calls by inserting rejection ToolMessages in correct position
+        # Anthropic API requires every tool_use to have a corresponding tool_result
+        # IMMEDIATELY AFTER it (not at the end of the message list).
+        # See: https://github.com/langchain-ai/langgraph/issues/5109
+        orphaned = _get_orphaned_tool_calls(messages)
+        if orphaned:
+            logger.info(
+                "chat_node_fixing_orphaned_tool_calls",
+                count=len(orphaned),
+                tool_call_ids=[tc.get("id") for tc in orphaned],
+            )
+            messages = _fix_orphaned_tool_calls_in_messages(messages)
+
+            # Verify fix was applied
+            still_orphaned = _get_orphaned_tool_calls(messages)
+            if still_orphaned:
+                logger.error(
+                    "chat_node_orphan_fix_failed",
+                    original_count=len(orphaned),
+                    remaining_count=len(still_orphaned),
+                    remaining_ids=[tc.get("id") for tc in still_orphaned],
+                )
+            else:
+                logger.info(
+                    "chat_node_orphan_fix_verified",
+                    fixed_count=len(orphaned),
+                )
 
         # Add system prompt if we have context and it's configured
         if ctx:
@@ -435,15 +737,37 @@ def create_agent_graph_with_tools(
                 except Exception as e:
                     logger.warning("memory_injection_failed", error=str(e))
 
+        # Log final messages being sent to LLM for debugging orphan issues
+        logger.info(
+            "chat_node_invoking_llm_tools_graph",
+            message_count=len(messages),
+            message_types=[type(m).__name__ for m in messages],
+            # Log tool_calls for each AIMessage to verify orphan fix
+            ai_message_tool_calls=[
+                {"idx": i, "tool_calls": m.tool_calls if hasattr(m, "tool_calls") and m.tool_calls else []}
+                for i, m in enumerate(messages)
+                if isinstance(m, AIMessage)
+            ],
+            # Log ToolMessage ids to verify they're present
+            tool_message_ids=[
+                m.tool_call_id
+                for m in messages
+                if isinstance(m, ToolMessage)
+            ],
+        )
+
         response = await llm.ainvoke(messages)
         return {"messages": [response]}
 
     # Build graph with tools
     graph = StateGraph(MessagesState)
+    graph.add_node("cleanup_orphans", cleanup_orphans_node)
     graph.add_node("chat", chat_node)
     graph.add_node("tools", ToolNode(tools))
 
-    graph.add_edge(START, "chat")
+    # Start with cleanup, then proceed to chat
+    graph.add_edge(START, "cleanup_orphans")
+    graph.add_edge("cleanup_orphans", "chat")
     graph.add_conditional_edges("chat", tools_condition)
     graph.add_edge("tools", "chat")
 
@@ -461,11 +785,44 @@ def create_agent_graph_with_tool_approval(
     via interrupt() when an MCP tool is called, send details to the user,
     and wait for approval before proceeding.
 
+    Includes an orphan cleanup node that runs at the start to handle
+    any orphaned tool_use blocks from abandoned approvals.
+
     Args:
         tools: List of all tools (built-in + MCP)
         mcp_tool_names: Set of tool names that require approval (MCP tools)
         checkpointer: Optional checkpointer for persistence
     """
+
+    def cleanup_orphans_node(state: MessagesState) -> dict:
+        """Clean up orphaned tool calls from abandoned approvals.
+
+        This node runs at graph entry to ensure the message history is valid
+        before invoking the LLM. Anthropic requires every tool_use to have
+        a corresponding tool_result.
+        """
+        messages = state["messages"]
+
+        logger.info(
+            "cleanup_orphans_node_called_approval_graph",
+            message_count=len(messages),
+            message_types=[type(m).__name__ for m in messages],
+        )
+
+        orphaned = _get_orphaned_tool_calls(messages)
+
+        if not orphaned:
+            logger.info("cleanup_orphans_node_no_orphans_approval_graph")
+            return {}
+
+        logger.info(
+            "cleaning_orphaned_tool_calls",
+            count=len(orphaned),
+            tool_call_ids=[tc.get("id") for tc in orphaned],
+        )
+
+        # Return rejection messages for orphaned calls
+        return {"messages": _create_rejection_messages(orphaned)}
 
     async def chat_node(state: MessagesState) -> dict:
         """Process messages and generate a response, potentially with tool calls."""
@@ -485,6 +842,42 @@ def create_agent_graph_with_tool_approval(
 
         # Build messages list with optional system prompt
         messages = list(state["messages"])
+
+        logger.info(
+            "chat_node_state_messages_approval_graph",
+            message_count=len(messages),
+            message_types=[type(m).__name__ for m in messages],
+        )
+
+        # Fix orphaned tool calls by inserting rejection ToolMessages in correct position
+        # This is critical for handling abandoned interrupts where a user sends
+        # a new message instead of approving/rejecting a pending tool call.
+        # Anthropic API requires every tool_use to have a corresponding tool_result
+        # IMMEDIATELY AFTER it (not at the end of the message list).
+        # See: https://github.com/langchain-ai/langgraph/issues/5109
+        orphaned = _get_orphaned_tool_calls(messages)
+        if orphaned:
+            logger.info(
+                "chat_node_fixing_orphaned_tool_calls_approval_graph",
+                count=len(orphaned),
+                tool_call_ids=[tc.get("id") for tc in orphaned],
+            )
+            messages = _fix_orphaned_tool_calls_in_messages(messages)
+
+            # Verify fix was applied
+            still_orphaned = _get_orphaned_tool_calls(messages)
+            if still_orphaned:
+                logger.error(
+                    "chat_node_orphan_fix_failed",
+                    original_count=len(orphaned),
+                    remaining_count=len(still_orphaned),
+                    remaining_ids=[tc.get("id") for tc in still_orphaned],
+                )
+            else:
+                logger.info(
+                    "chat_node_orphan_fix_verified",
+                    fixed_count=len(orphaned),
+                )
 
         # Add system prompt if we have context and it's configured
         if ctx:
@@ -540,6 +933,25 @@ def create_agent_graph_with_tool_approval(
                                 )
                 except Exception as e:
                     logger.warning("memory_injection_failed", error=str(e))
+
+        # Log final messages being sent to LLM for debugging orphan issues
+        logger.info(
+            "chat_node_invoking_llm_approval_graph",
+            message_count=len(messages),
+            message_types=[type(m).__name__ for m in messages],
+            # Log tool_calls for each AIMessage to verify orphan fix
+            ai_message_tool_calls=[
+                {"idx": i, "tool_calls": m.tool_calls if hasattr(m, "tool_calls") and m.tool_calls else []}
+                for i, m in enumerate(messages)
+                if isinstance(m, AIMessage)
+            ],
+            # Log ToolMessage ids to verify they're present
+            tool_message_ids=[
+                m.tool_call_id
+                for m in messages
+                if isinstance(m, ToolMessage)
+            ],
+        )
 
         response = await llm.ainvoke(messages)
         return {"messages": [response]}
@@ -586,11 +998,16 @@ def create_agent_graph_with_tool_approval(
                         tool_name=tool_name,
                         tool_call_id=tool_call.get("id"),
                     )
-                    # Return a tool message indicating rejection
+                    # Return a tool message indicating rejection with context
+                    # The LLM will see this and can explain why it needed the tool
                     return {
                         "messages": [
                             ToolMessage(
-                                content=f"Tool '{tool_name}' was not approved by the user.",
+                                content=(
+                                    f"The user declined permission to use the '{tool_name}' tool. "
+                                    f"Please acknowledge this, explain what you were trying to accomplish, "
+                                    f"and ask if they'd like you to proceed differently or try an alternative approach."
+                                ),
                                 tool_call_id=tool_call.get("id"),
                             )
                         ]
@@ -618,11 +1035,14 @@ def create_agent_graph_with_tool_approval(
 
     # Build graph with approval flow
     graph = StateGraph(MessagesState)
+    graph.add_node("cleanup_orphans", cleanup_orphans_node)
     graph.add_node("chat", chat_node)
     graph.add_node("tool_approval", tool_approval_node)
     graph.add_node("tools", ToolNode(tools))
 
-    graph.add_edge(START, "chat")
+    # Start with cleanup, then proceed to chat
+    graph.add_edge(START, "cleanup_orphans")
+    graph.add_edge("cleanup_orphans", "chat")
 
     # After chat, check if tools are needed
     graph.add_conditional_edges(
@@ -640,7 +1060,7 @@ def create_agent_graph_with_tool_approval(
         route_after_approval,
         {
             "tools": "tools",
-            "chat": "chat",
+            "chat": "cleanup_orphans",  # Route through cleanup in case of rejection
         }
     )
 
@@ -702,6 +1122,25 @@ async def get_agent_with_tools(
             logger.info("no_mcp_tools_returned")
     else:
         logger.info("skipping_mcp_tools", reason="missing_org_or_user_id")
+
+    # Filter out disabled tools based on user settings
+    if org_id and user_id:
+        disabled_servers, disabled_tools = _get_disabled_tools_config(
+            org_id, team_id, user_id
+        )
+        if disabled_tools:
+            original_count = len(all_tools)
+            all_tools = [t for t in all_tools if t.name not in disabled_tools]
+            # Also update mcp_tool_names to reflect filtered tools
+            mcp_tool_names = mcp_tool_names - disabled_tools
+            filtered_count = original_count - len(all_tools)
+            logger.info(
+                "tools_filtered_by_user_settings",
+                original_count=original_count,
+                filtered_count=filtered_count,
+                remaining_count=len(all_tools),
+                disabled_tools=list(disabled_tools),
+            )
 
     if not all_tools:
         return create_agent_graph(checkpointer=checkpointer)
@@ -990,6 +1429,44 @@ async def stream_agent_with_context(
             langfuse_enabled=settings.langfuse_enabled,
         )
 
+        # Check and fix orphaned tool calls in the checkpoint BEFORE invoking
+        # This is critical because LangGraph may not go through our cleanup_orphans node
+        # when continuing an existing conversation (it may jump directly to chat node)
+        if thread_id:
+            try:
+                existing_state = await agent.aget_state(config)
+                if existing_state.values and "messages" in existing_state.values:
+                    existing_messages = existing_state.values["messages"]
+                    logger.info(
+                        "stream_existing_checkpoint_state",
+                        thread_id=thread_id,
+                        message_count=len(existing_messages),
+                        message_types=[type(m).__name__ for m in existing_messages],
+                        next_nodes=list(existing_state.next) if existing_state.next else [],
+                    )
+                    # Check for orphaned tool calls in the checkpoint
+                    existing_orphans = _get_orphaned_tool_calls(existing_messages)
+                    if existing_orphans:
+                        logger.warning(
+                            "stream_checkpoint_has_orphans_fixing",
+                            thread_id=thread_id,
+                            orphan_count=len(existing_orphans),
+                            orphan_ids=[tc.get("id") for tc in existing_orphans],
+                        )
+                        # Fix the checkpoint by updating state with rejection messages
+                        rejection_messages = _create_rejection_messages(existing_orphans)
+                        await agent.aupdate_state(
+                            config,
+                            {"messages": rejection_messages},
+                        )
+                        logger.info(
+                            "stream_checkpoint_orphans_fixed",
+                            thread_id=thread_id,
+                            fixed_count=len(existing_orphans),
+                        )
+            except Exception as e:
+                logger.warning("stream_get_state_failed", error=str(e))
+
         async for event in agent.astream_events(
             {"messages": [HumanMessage(content=message)]},
             config=config if config else None,
@@ -1035,9 +1512,71 @@ async def stream_agent_with_context(
 
         logger.info("streaming_complete_with_context", thread_id=thread_id)
     except Exception as e:
+        error_str = str(e)
+
+        # Check if this is an orphaned tool_use error from Anthropic
+        if "tool_use" in error_str and "tool_result" in error_str and "immediately after" in error_str:
+            logger.warning(
+                "orphaned_tool_use_error_detected",
+                error=error_str,
+                thread_id=thread_id,
+            )
+
+            # Try to fix the orphaned tool calls in the checkpoint and retry
+            if thread_id:
+                try:
+                    existing_state = await agent.aget_state(config)
+                    if existing_state.values and "messages" in existing_state.values:
+                        existing_messages = existing_state.values["messages"]
+                        existing_orphans = _get_orphaned_tool_calls(existing_messages)
+
+                        if existing_orphans:
+                            logger.info(
+                                "fixing_orphans_after_error",
+                                thread_id=thread_id,
+                                orphan_count=len(existing_orphans),
+                                orphan_ids=[tc.get("id") for tc in existing_orphans],
+                            )
+
+                            # Add rejection messages for each orphan
+                            rejection_messages = _create_rejection_messages(existing_orphans)
+                            await agent.aupdate_state(
+                                config,
+                                {"messages": rejection_messages},
+                            )
+
+                            logger.info(
+                                "orphans_fixed_retrying_stream",
+                                thread_id=thread_id,
+                            )
+
+                            # Retry the stream with the fixed state
+                            async for event in agent.astream_events(
+                                {"messages": [HumanMessage(content=message)]},
+                                config=config if config else None,
+                                version="v2",
+                            ):
+                                if event["event"] == "on_chat_model_stream":
+                                    chunk = event["data"].get("chunk")
+                                    if chunk and chunk.content:
+                                        text = _extract_text_content(chunk.content)
+                                        if text:
+                                            yield text
+
+                            logger.info("retry_streaming_complete", thread_id=thread_id)
+                            return  # Success on retry, return early
+
+                except Exception as retry_error:
+                    logger.error(
+                        "orphan_fix_retry_failed",
+                        original_error=error_str,
+                        retry_error=str(retry_error),
+                        thread_id=thread_id,
+                    )
+
         logger.error(
             "streaming_error_with_context",
-            error=str(e),
+            error=error_str,
             thread_id=thread_id,
             org_id=org_id,
         )
@@ -1166,6 +1705,20 @@ async def resume_agent_with_context(
             team_id=team_id,
             provider=provider,
         )
+
+        # Check if conversation is actually in an interrupted state
+        state = await agent.aget_state(config)
+        if not state.next or "tool_approval" not in state.next:
+            logger.warning(
+                "resume_called_but_not_interrupted",
+                thread_id=thread_id,
+                next_nodes=state.next if state.next else [],
+            )
+            # Conversation is not waiting for approval - this can happen if the user
+            # abandoned the approval and then sent a new message.
+            # Return a message indicating the tool was already handled.
+            yield "The previous tool request is no longer pending. Please continue the conversation."
+            return
 
         logger.info(
             "resuming_agent_with_context",

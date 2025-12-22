@@ -214,6 +214,35 @@ class MCPServerList(SQLModel):
     count: int
 
 
+class MCPToolPublic(SQLModel):
+    """Public schema for an MCP tool."""
+
+    name: str
+    description: str
+
+
+class MCPServerWithTools(SQLModel):
+    """MCP server with its discovered tools."""
+
+    server_id: str
+    server_name: str
+    server_description: str | None
+    scope: str
+    enabled: bool
+    tools: list[MCPToolPublic]
+    tool_count: int
+    error: str | None = None
+
+
+class MCPToolsList(SQLModel):
+    """Response schema for effective tools endpoint."""
+
+    servers: list[MCPServerWithTools]
+    total_tools: int
+    total_servers: int
+    error_count: int
+
+
 # Rebuild models after all imports
 from backend.auth.models import User  # noqa: E402, F401
 from backend.organizations.models import Organization  # noqa: E402, F401

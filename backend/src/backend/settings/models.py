@@ -2,6 +2,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from sqlalchemy.dialects.postgresql import JSON
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
@@ -19,6 +20,10 @@ class ChatSettingsBase(SQLModel):
     - memory_enabled: Controls persistent memory across conversations
     - mcp_enabled: Controls MCP (Model Context Protocol) tool integration
 
+    Tool configuration:
+    - disabled_mcp_servers: List of MCP server UUIDs to disable
+    - disabled_tools: List of tool names to disable (format: server__tool)
+
     Higher-level settings take precedence: Organization > Team > User.
     """
 
@@ -27,6 +32,8 @@ class ChatSettingsBase(SQLModel):
     memory_enabled: bool = Field(default=True)
     mcp_enabled: bool = Field(default=True)
     mcp_tool_approval_required: bool = Field(default=True)
+    disabled_mcp_servers: list[str] = Field(default_factory=list, sa_type=JSON)
+    disabled_tools: list[str] = Field(default_factory=list, sa_type=JSON)
 
 
 class OrganizationSettings(ChatSettingsBase, table=True):
@@ -63,6 +70,8 @@ class OrganizationSettingsUpdate(SQLModel):
     mcp_allow_custom_servers: bool | None = None
     mcp_max_servers_per_team: int | None = None
     mcp_max_servers_per_user: int | None = None
+    disabled_mcp_servers: list[str] | None = None
+    disabled_tools: list[str] | None = None
 
 
 class OrganizationSettingsPublic(ChatSettingsBase):
@@ -105,6 +114,8 @@ class TeamSettingsUpdate(SQLModel):
     mcp_enabled: bool | None = None
     mcp_tool_approval_required: bool | None = None
     mcp_allow_custom_servers: bool | None = None
+    disabled_mcp_servers: list[str] | None = None
+    disabled_tools: list[str] | None = None
 
 
 class TeamSettingsPublic(ChatSettingsBase):
@@ -140,6 +151,8 @@ class UserSettingsUpdate(SQLModel):
     memory_enabled: bool | None = None
     mcp_enabled: bool | None = None
     mcp_tool_approval_required: bool | None = None
+    disabled_mcp_servers: list[str] | None = None
+    disabled_tools: list[str] | None = None
 
 
 class UserSettingsPublic(ChatSettingsBase):
@@ -154,6 +167,10 @@ class EffectiveSettings(SQLModel):
 
     Includes both the final enabled/disabled state and information
     about which level disabled each feature.
+
+    For disabled_mcp_servers and disabled_tools, values from all
+    hierarchy levels are merged (union) since disabling at any
+    level should take effect.
     """
 
     chat_enabled: bool
@@ -168,6 +185,8 @@ class EffectiveSettings(SQLModel):
     mcp_tool_approval_required_by: str | None = None
     mcp_allow_custom_servers: bool
     mcp_custom_servers_disabled_by: str | None = None
+    disabled_mcp_servers: list[str] = []
+    disabled_tools: list[str] = []
 
 
 from backend.auth.models import User  # noqa: E402, F401
