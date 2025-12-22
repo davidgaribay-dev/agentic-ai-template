@@ -310,7 +310,88 @@ VITE_PORT=5173
 VITE_API_URL=http://localhost:8000
 ```
 
-## Code Style
+## Code Quality & Development Tools
+
+### Quick Commands
+
+```bash
+# Install dependencies
+npm install
+
+# Lint and auto-fix
+npm run lint
+
+# Build for production (includes type checking)
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+### Tools Stack
+
+| Tool | Purpose | Config Location |
+|------|---------|-----------------|
+| **ESLint** | Linting with TypeScript support | [eslint.config.js](eslint.config.js) |
+| **TypeScript** | Type checking (strict mode) | [tsconfig.json](tsconfig.json) |
+| **Prettier** | Code formatting | Via pre-commit hooks |
+| **Pre-commit** | Git hooks for automated checks | [.pre-commit-config.yaml](../.pre-commit-config.yaml) |
+
+### ESLint Configuration
+
+Uses `typescript-eslint` v8 with recommended rules.
+
+**Enabled rules**:
+- TypeScript-specific linting
+- React hooks rules
+- React refresh rules
+- Unused variable detection
+
+**Disabled rules**:
+- `@typescript-eslint/no-unused-vars` - TypeScript handles this
+
+### TypeScript Configuration
+
+**Strict mode enabled** with:
+- `noUncheckedIndexedAccess` - Safer array/object access
+- `noEmit` - Vite handles compilation
+- Path aliases: `@/*` → `./src/*`
+
+### Pre-commit Hooks
+
+Frontend-specific hooks run automatically:
+- ✅ **Prettier** - Code formatting
+- ✅ **ESLint** - Linting with auto-fix
+- ✅ Trailing whitespace, EOF fixes
+- ✅ JSON/YAML validation
+
+### VS Code Integration
+
+Install recommended extensions (see [.vscode/extensions.json](../.vscode/extensions.json)):
+- ESLint
+- Prettier
+- Tailwind CSS IntelliSense
+- TypeScript
+
+Settings in [.vscode/settings.json](../.vscode/settings.json):
+- Auto-format on save (Prettier)
+- Auto-fix on save (ESLint)
+- Tailwind CSS IntelliSense
+
+Run tasks from Command Palette (`Cmd+Shift+P` → Tasks: Run Task):
+- Frontend: Lint
+- Frontend: Build
+- Frontend: Dev Server
+
+### Best Practices
+
+1. **Enable auto-format on save** - Prettier handles formatting
+2. **Fix ESLint warnings** - Don't ignore linter warnings
+3. **Use TypeScript strict mode** - Helps catch bugs early
+4. **Run build before committing** - Catches type errors
+5. **Use path aliases** - Import with `@/` instead of relative paths
+
+### Code Style
 
 Comments: Keep WHY comments, remove WHAT comments. JSDoc for exported functions only.
 

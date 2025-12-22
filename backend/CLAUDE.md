@@ -253,8 +253,123 @@ Configured in `core/rate_limit.py`:
 - Settings: `/v1/settings/*` (effective settings with hierarchy)
 - MCP: `/v1/organizations/{id}/mcp-servers/*`, `/v1/organizations/{id}/teams/{id}/mcp-servers/*`, `/v1/mcp-servers/me/*`
 
-## Code Style
+## Code Quality & Development Tools
+
+All tooling configuration is in [pyproject.toml](pyproject.toml).
+
+### Quick Commands
+
+```bash
+# Install all dev tools
+uv sync --all-extras --dev
+
+# Format and lint (auto-fix)
+uv run ruff check . --fix
+uv run ruff format .
+
+# Type check
+uv run mypy src/backend
+
+# Security scan
+uv run bandit -r src/backend
+
+# Run tests with coverage
+uv run pytest --cov
+
+# Install pre-commit hooks (one-time)
+uv run pre-commit install
+
+# Run all pre-commit checks
+uv run pre-commit run --all-files
+```
+
+### Tools Stack
+
+| Tool | Purpose | Config Location |
+|------|---------|-----------------|
+| **Ruff** | Linting + Formatting (replaces Flake8, Black, isort) | `[tool.ruff]` |
+| **MyPy** | Type checking (strict mode) | `[tool.mypy]` |
+| **Bandit** | Security vulnerability scanning | CLI only |
+| **Pytest** | Testing with coverage | `[tool.pytest.ini_options]` |
+| **Pre-commit** | Git hooks for automated checks | [.pre-commit-config.yaml](../.pre-commit-config.yaml) |
+| **Gitleaks** | Secret detection | [.gitleaks.toml](../.gitleaks.toml) |
+
+### Ruff Configuration
+
+**800+ rules enabled** across:
+- E/W (pycodestyle), F (pyflakes), I (isort), N (naming)
+- B (bugbear), PL (pylint), TRY (exception handling)
+- ARG (unused args), PTH (use pathlib), ERA (commented code)
+- DTZ (datetime), RET (return), SIM (simplify)
+
+**Key ignores**:
+- `E501` - Line length (formatter handles it)
+- `PLR0913` - Too many function arguments
+- `TRY003/EM101/EM102` - Exception message patterns
+
+**Per-file ignores**: Tests skip `ARG`, `PLR2004`, `S101`
+
+### MyPy Configuration
+
+**Strict mode** with:
+- Full type annotation requirements
+- No implicit Optional
+- Warn on unused type ignores
+- Pydantic plugin integration
+
+**Ignored external libraries** (missing stubs):
+- langchain, langgraph, langmem, opensearch, infisicalsdk
+- passlib, emails, slowapi, sse_starlette, langfuse
+
+### Pre-commit Hooks
+
+Automatically run before every commit:
+- ✅ Trailing whitespace, EOF fixes
+- ✅ YAML/JSON/TOML validation
+- ✅ Large file detection
+- ✅ Private key detection
+- ✅ **Gitleaks** - Secret scanning
+- ✅ **Ruff** - Linting and formatting
+- ✅ **MyPy** - Type checking
+
+### CI/CD
+
+GitHub Actions workflow: [.github/workflows/backend-ci.yml](../.github/workflows/backend-ci.yml)
+
+Jobs:
+1. **Lint & Type Check** - Ruff + MyPy
+2. **Security Scan** - Gitleaks + Bandit
+3. **Build Check** - Package build verification
+
+### VS Code Integration
+
+Install recommended extensions (see [.vscode/extensions.json](../.vscode/extensions.json)):
+- Ruff (official extension)
+- MyPy Type Checker
+- Python
+
+Settings in [.vscode/settings.json](../.vscode/settings.json):
+- Auto-format on save (Ruff)
+- Auto-fix on save (Ruff)
+- Import organization (Ruff)
+
+Run tasks from Command Palette (`Cmd+Shift+P` → Tasks: Run Task):
+- Backend: Lint & Format
+- Backend: Type Check
+- Backend: Run Tests
+- Backend: Security Scan
+
+### Code Style
 
 Keep: Module/function docstrings (generates OpenAPI docs), "why" comments for non-obvious decisions
 
 Avoid: Section separators, "what" comments that repeat code, inline value explanations
+
+### Best Practices
+
+1. **Enable auto-format on save** - Reduces manual work
+2. **Install pre-commit hooks** - Catches issues before commit
+3. **Fix type errors immediately** - Strict typing prevents bugs
+4. **Never commit secrets** - Gitleaks blocks commits with secrets
+5. **Use Ruff auto-fix** - Most issues fixable with `--fix`
+6. **Maintain coverage** - Write tests for new features
