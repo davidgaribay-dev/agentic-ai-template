@@ -16,10 +16,10 @@ import { useCallback, useRef, useMemo, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { agentApi } from "@/lib/api"
 import { queryKeys } from "@/lib/queries"
-import { useChatMessagesStore, type ChatMessage, type PendingToolApproval } from "@/lib/chat-store"
+import { useChatMessagesStore, type ChatMessage, type PendingToolApproval, type RejectedToolCall } from "@/lib/chat-store"
 import { useShallow } from "zustand/react/shallow"
 
-export type { ChatMessage, PendingToolApproval }
+export type { ChatMessage, PendingToolApproval, RejectedToolCall }
 
 interface UseChatOptions {
   /** Unique identifier for this chat instance (e.g., "page" or "panel") */
@@ -38,14 +38,18 @@ interface UseChatReturn {
   sendMessage: (content: string) => Promise<void>
   stopStreaming: () => void
   clearMessages: () => void
-  loadConversation: (conversationId: string, history: { role: "user" | "assistant"; content: string }[]) => void
+  loadConversation: (conversationId: string, history: { role: "user" | "assistant"; content: string }[]) => Promise<void>
   isStreaming: boolean
   error: Error | null
   conversationId: string | null
   /** Pending tool approval request (HITL for MCP tools) */
   pendingToolApproval: PendingToolApproval | null
+  /** Recently rejected tool call (for undo functionality) */
+  rejectedToolCall: RejectedToolCall | null
   /** Resume conversation after approving/rejecting a tool call */
   resumeWithApproval: (approved: boolean) => Promise<void>
+  /** Undo a rejection and re-show approval card */
+  undoRejection: () => void
 }
 
 const defaultSession = {
@@ -54,6 +58,7 @@ const defaultSession = {
   error: null as Error | null,
   conversationId: null as string | null,
   pendingToolApproval: null as PendingToolApproval | null,
+  rejectedToolCall: null as RejectedToolCall | null,
 }
 
 export function useChat(options: UseChatOptions = {}): UseChatReturn {
@@ -82,12 +87,13 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       setError: state.setError,
       setConversationId: state.setConversationId,
       setPendingToolApproval: state.setPendingToolApproval,
+      setRejectedToolCall: state.setRejectedToolCall,
       clearSession: state.clearSession,
       syncConversation: state.syncConversation,
     }))
   )
 
-  const { messages, isStreaming, error, conversationId: sessionConversationId, pendingToolApproval } = session
+  const { messages, isStreaming, error, conversationId: sessionConversationId, pendingToolApproval, rejectedToolCall } = session
   const conversationId = sessionConversationId ?? initialConversationId ?? null
 
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -114,6 +120,39 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const sendMessage = useCallback(
     async (content: string) => {
       if (!content.trim() || isStreaming) return
+
+      // If there's a pending tool approval, auto-reject it before sending new message
+      // This allows users to skip tools by typing a new message
+      if (pendingToolApproval && conversationId && organizationId) {
+        // Clear pending approval and set as rejected (for potential undo)
+        actions.setPendingToolApproval(instanceId, null)
+        actions.setRejectedToolCall(instanceId, {
+          ...pendingToolApproval,
+          rejectedAt: Date.now(),
+        })
+
+        // Send rejection to backend (fire and forget)
+        // Use an async IIFE to consume the generator without blocking
+        ;(async () => {
+          try {
+            // Consume the generator to trigger the rejection
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            for await (const _event of agentApi.resumeStream(
+              {
+                conversation_id: conversationId,
+                organization_id: organizationId,
+                team_id: teamId,
+                approved: false,
+              },
+              new AbortController().signal
+            )) {
+              // Just consume, we don't need the response
+            }
+          } catch (err) {
+            console.warn("Failed to auto-reject pending tool approval:", err)
+          }
+        })()
+      }
 
       actions.setError(instanceId, null)
 
@@ -225,7 +264,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         abortControllerRef.current = null
       }
     },
-    [conversationId, organizationId, teamId, isStreaming, onError, onStreamStart, onStreamEnd, onTitleUpdate, queryClient, instanceId, actions]
+    [conversationId, organizationId, teamId, isStreaming, pendingToolApproval, onError, onStreamStart, onStreamEnd, onTitleUpdate, queryClient, instanceId, actions]
   )
 
   const clearMessages = useCallback(() => {
@@ -233,7 +272,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   }, [instanceId, actions])
 
   const loadConversation = useCallback(
-    (newConversationId: string, history: { role: "user" | "assistant"; content: string }[]) => {
+    async (newConversationId: string, history: { role: "user" | "assistant"; content: string }[]) => {
       const newMessages = history.map((msg) => ({
         id: crypto.randomUUID(),
         role: msg.role,
@@ -243,8 +282,34 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       actions.setError(instanceId, null)
       actions.setMessages(instanceId, newMessages)
       actions.syncConversation(newConversationId, newMessages)
+
+      // Check for pending tool approval on this conversation
+      // This handles the case where user reloads/returns to a conversation with pending approval
+      if (organizationId) {
+        try {
+          const pendingApproval = await agentApi.getPendingApproval(
+            newConversationId,
+            organizationId,
+            teamId
+          )
+          if (pendingApproval) {
+            actions.setPendingToolApproval(instanceId, {
+              tool_name: pendingApproval.tool_name,
+              tool_args: pendingApproval.tool_args,
+              tool_call_id: pendingApproval.tool_call_id,
+              tool_description: pendingApproval.tool_description,
+            })
+          } else {
+            // Clear any stale pending approval
+            actions.setPendingToolApproval(instanceId, null)
+          }
+        } catch (err) {
+          console.warn("Failed to check pending approval:", err)
+          // Non-fatal - just log and continue
+        }
+      }
     },
-    [instanceId, actions]
+    [instanceId, actions, organizationId, teamId]
   )
 
   const resumeWithApproval = useCallback(
@@ -254,16 +319,30 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         return
       }
 
+      // Store the pending approval for potential undo if rejecting
+      const currentApproval = pendingToolApproval
+
       // Clear the pending approval immediately
       actions.setPendingToolApproval(instanceId, null)
       actions.setError(instanceId, null)
+
+      // If rejecting, store for undo capability
+      if (!approved && currentApproval) {
+        actions.setRejectedToolCall(instanceId, {
+          ...currentApproval,
+          rejectedAt: Date.now(),
+        })
+      } else {
+        // Clear any existing rejection if approving
+        actions.setRejectedToolCall(instanceId, null)
+      }
 
       // Create an assistant message to show streaming response
       const assistantMessageId = crypto.randomUUID()
       const assistantMessage: ChatMessage = {
         id: assistantMessageId,
         role: "assistant",
-        content: approved ? "" : "Tool call was cancelled.",
+        content: "", // Don't show "cancelled" - let the agent respond
         isStreaming: approved, // Only stream if approved
       }
 
@@ -346,8 +425,22 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         abortControllerRef.current = null
       }
     },
-    [conversationId, organizationId, teamId, onError, onStreamEnd, queryClient, instanceId, actions]
+    [conversationId, organizationId, teamId, pendingToolApproval, onError, onStreamEnd, queryClient, instanceId, actions]
   )
+
+  const undoRejection = useCallback(() => {
+    if (!rejectedToolCall) return
+
+    // Re-show the approval card with the rejected tool call data
+    actions.setPendingToolApproval(instanceId, {
+      tool_name: rejectedToolCall.tool_name,
+      tool_args: rejectedToolCall.tool_args,
+      tool_call_id: rejectedToolCall.tool_call_id,
+      tool_description: rejectedToolCall.tool_description,
+    })
+    // Clear the rejection
+    actions.setRejectedToolCall(instanceId, null)
+  }, [rejectedToolCall, instanceId, actions])
 
   return useMemo(() => ({
     messages,
@@ -359,6 +452,8 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     error,
     conversationId,
     pendingToolApproval,
+    rejectedToolCall,
     resumeWithApproval,
-  }), [messages, sendMessage, stopStreaming, clearMessages, loadConversation, isStreaming, error, conversationId, pendingToolApproval, resumeWithApproval])
+    undoRejection,
+  }), [messages, sendMessage, stopStreaming, clearMessages, loadConversation, isStreaming, error, conversationId, pendingToolApproval, rejectedToolCall, resumeWithApproval, undoRejection])
 }

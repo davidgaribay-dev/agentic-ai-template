@@ -3,11 +3,16 @@
  *
  * Displays inline in the chat when an MCP tool call requires user approval.
  * Similar to GitHub Copilot / Claude Code tool approval UX.
+ *
+ * States:
+ * - pending: Waiting for user decision (shows approve/reject buttons)
+ * - approved: Brief visual feedback before continuing (green checkmark)
+ * - rejected: Brief visual feedback, then transforms to rejection message with undo
  */
 
 import * as React from "react"
-import { memo, useState } from "react"
-import { Play, X, ChevronDown, ChevronRight, Loader2 } from "lucide-react"
+import { memo, useState, useEffect, useCallback } from "react"
+import { Play, X, ChevronDown, ChevronRight, Loader2, Check, RotateCcw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
@@ -17,6 +22,8 @@ export interface ToolApprovalData {
   tool_call_id: string | null
   tool_description: string
 }
+
+export type ApprovalState = "pending" | "approved" | "rejected"
 
 interface ToolApprovalCardProps {
   data: ToolApprovalData
@@ -96,7 +103,66 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
   className,
 }: ToolApprovalCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [approvalState, setApprovalState] = useState<ApprovalState>("pending")
   const hasArgs = Object.keys(data.tool_args).length > 0
+
+  const handleApprove = useCallback(() => {
+    setApprovalState("approved")
+    // Brief visual feedback before calling handler
+    setTimeout(() => {
+      onApprove()
+    }, 300)
+  }, [onApprove])
+
+  const handleReject = useCallback(() => {
+    setApprovalState("rejected")
+    // Brief visual feedback before calling handler
+    setTimeout(() => {
+      onReject()
+    }, 300)
+  }, [onReject])
+
+  // Visual feedback for approved state (brief green checkmark)
+  if (approvalState === "approved") {
+    return (
+      <div
+        className={cn(
+          "w-full rounded-lg border border-green-500/50 bg-green-500/10 overflow-hidden transition-all duration-300",
+          className
+        )}
+      >
+        <div className="flex items-center gap-2 px-3 py-2.5">
+          <div className="flex size-6 items-center justify-center rounded bg-green-500/20 text-green-500">
+            <Check className="size-3.5" />
+          </div>
+          <div className="text-sm text-green-600 dark:text-green-400">
+            Approved: {data.tool_name}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Visual feedback for rejected state (brief red X)
+  if (approvalState === "rejected") {
+    return (
+      <div
+        className={cn(
+          "w-full rounded-lg border border-destructive/50 bg-destructive/10 overflow-hidden transition-all duration-300",
+          className
+        )}
+      >
+        <div className="flex items-center gap-2 px-3 py-2.5">
+          <div className="flex size-6 items-center justify-center rounded bg-destructive/20 text-destructive">
+            <X className="size-3.5" />
+          </div>
+          <div className="text-sm text-destructive">
+            Rejected: {data.tool_name}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -128,7 +194,7 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
           <Button
             variant="ghost"
             size="sm"
-            onClick={onReject}
+            onClick={handleReject}
             disabled={isLoading}
             className="text-muted-foreground hover:text-destructive"
           >
@@ -138,7 +204,7 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
           <Button
             variant="default"
             size="sm"
-            onClick={onApprove}
+            onClick={handleApprove}
             disabled={isLoading}
             className="bg-green-600 hover:bg-green-700 text-white"
           >
@@ -175,6 +241,61 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
             </div>
           )}
         </div>
+      )}
+    </div>
+  )
+})
+
+/**
+ * Rejection message shown in chat history after a tool call is rejected.
+ * Includes an "Undo" button that allows re-approval within a time window.
+ */
+interface ToolRejectionMessageProps {
+  toolName: string
+  onUndo?: () => void
+  undoTimeoutMs?: number
+  className?: string
+}
+
+export const ToolRejectionMessage = memo(function ToolRejectionMessage({
+  toolName,
+  onUndo,
+  undoTimeoutMs = 30000,
+  className,
+}: ToolRejectionMessageProps) {
+  const [canUndo, setCanUndo] = useState(!!onUndo)
+
+  useEffect(() => {
+    if (!onUndo) return
+
+    const timeout = setTimeout(() => {
+      setCanUndo(false)
+    }, undoTimeoutMs)
+
+    return () => clearTimeout(timeout)
+  }, [onUndo, undoTimeoutMs])
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 text-sm text-muted-foreground",
+        className
+      )}
+    >
+      <X className="size-4 text-destructive shrink-0" />
+      <span>
+        Tool call rejected: <code className="text-xs bg-muted px-1 py-0.5 rounded">{toolName}</code>
+      </span>
+      {canUndo && onUndo && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onUndo}
+          className="ml-auto h-6 px-2 text-xs"
+        >
+          <RotateCcw className="size-3 mr-1" />
+          Undo
+        </Button>
       )}
     </div>
   )

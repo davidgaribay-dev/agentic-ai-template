@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils"
 import { useChat, type ChatMessage } from "@/hooks/useChat"
 import { ChatContainer } from "./ChatContainer"
 import { ChatInput } from "./ChatInput"
-import { ToolApprovalCard } from "./ToolApprovalCard"
+import { ToolApprovalCard, ToolRejectionMessage } from "./ToolApprovalCard"
 
 interface ChatProps {
   /** Unique identifier for this chat instance (e.g., "page" or "panel") */
@@ -21,7 +21,7 @@ interface ChatProps {
 
 export interface ChatHandle {
   clearMessages: () => void
-  loadConversation: (conversationId: string, history: { role: "user" | "assistant"; content: string }[]) => void
+  loadConversation: (conversationId: string, history: { role: "user" | "assistant"; content: string }[]) => Promise<void>
   conversationId: string | null
 }
 
@@ -38,7 +38,9 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
       error,
       conversationId: currentConversationId,
       pendingToolApproval,
+      rejectedToolCall,
       resumeWithApproval,
+      undoRejection,
     } = useChat({
       instanceId,
       conversationId,
@@ -68,6 +70,32 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
         setIsResuming(false)
       }
     }, [resumeWithApproval])
+
+    // Auto-cancel pending tool approval when component unmounts
+    // This prevents orphaned tool_use blocks in the checkpoint
+    // We use refs to avoid re-running the effect when these values change
+    const pendingApprovalRef = React.useRef(pendingToolApproval)
+    const resumeRef = React.useRef(resumeWithApproval)
+    const conversationIdRef = React.useRef(currentConversationId)
+    const orgIdRef = React.useRef(organizationId)
+
+    pendingApprovalRef.current = pendingToolApproval
+    resumeRef.current = resumeWithApproval
+    conversationIdRef.current = currentConversationId
+    orgIdRef.current = organizationId
+
+    React.useEffect(() => {
+      return () => {
+        // If unmounting while there's a pending approval, auto-reject it
+        // This cleans up the checkpoint so the next message doesn't fail
+        if (pendingApprovalRef.current && conversationIdRef.current && orgIdRef.current) {
+          // Fire and forget - we're unmounting so we can't await
+          resumeRef.current(false).catch((err) => {
+            console.warn("Failed to auto-cancel pending tool approval:", err)
+          })
+        }
+      }
+    }, []) // Empty deps - only run cleanup on unmount
 
     const hasMessages = messages.length > 0
 
@@ -123,6 +151,16 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
                 />
               </div>
             )}
+            {/* Rejection message with undo - shown after rejecting a tool call */}
+            {rejectedToolCall && !pendingToolApproval && (
+              <div className="pb-4">
+                <ToolRejectionMessage
+                  toolName={rejectedToolCall.tool_name}
+                  onUndo={undoRejection}
+                  undoTimeoutMs={30000}
+                />
+              </div>
+            )}
           </div>
         </div>
         <div className="shrink-0 bg-background pb-4 pt-2">
@@ -130,9 +168,9 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
             <ChatInput
               onSubmit={sendMessage}
               onStop={stopStreaming}
-              disabled={isStreaming || !!pendingToolApproval}
+              disabled={isStreaming}
               isStreaming={isStreaming}
-              placeholder={pendingToolApproval ? "Waiting for tool approval..." : "Ask something..."}
+              placeholder={pendingToolApproval ? "Type to skip the tool and continue..." : "Ask something..."}
               organizationId={organizationId}
               teamId={teamId}
             />

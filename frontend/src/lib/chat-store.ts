@@ -17,6 +17,15 @@ export interface PendingToolApproval {
   tool_description: string
 }
 
+/** Rejected tool call data (for undo functionality) */
+export interface RejectedToolCall {
+  tool_name: string
+  tool_args: Record<string, unknown>
+  tool_call_id: string | null
+  tool_description: string
+  rejectedAt: number // timestamp for undo timeout
+}
+
 /** State for a single chat session */
 interface ChatSession {
   messages: ChatMessage[]
@@ -25,6 +34,8 @@ interface ChatSession {
   conversationId: string | null
   /** Pending tool approval request (HITL) */
   pendingToolApproval: PendingToolApproval | null
+  /** Recently rejected tool call (for undo within timeout) */
+  rejectedToolCall: RejectedToolCall | null
 }
 
 /** Global chat state - supports multiple concurrent sessions keyed by instanceId */
@@ -59,6 +70,9 @@ interface ChatMessagesState {
   /** Set pending tool approval */
   setPendingToolApproval: (instanceId: string, approval: PendingToolApproval | null) => void
 
+  /** Set rejected tool call (for undo) */
+  setRejectedToolCall: (instanceId: string, rejected: RejectedToolCall | null) => void
+
   /** Clear a session */
   clearSession: (instanceId: string) => void
 
@@ -72,6 +86,7 @@ const defaultSession: ChatSession = {
   error: null,
   conversationId: null,
   pendingToolApproval: null,
+  rejectedToolCall: null,
 }
 
 /** Helper to update all sessions with the same conversationId */
@@ -165,6 +180,13 @@ export const useChatMessagesStore = create<ChatMessagesState>()((set, get) => ({
     sessions: updateMatchingSessions(state.sessions, instanceId, (session) => ({
       ...session,
       pendingToolApproval: approval,
+    })),
+  })),
+
+  setRejectedToolCall: (instanceId, rejected) => set((state) => ({
+    sessions: updateMatchingSessions(state.sessions, instanceId, (session) => ({
+      ...session,
+      rejectedToolCall: rejected,
     })),
   })),
 

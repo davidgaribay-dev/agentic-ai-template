@@ -444,3 +444,27 @@ export function useDeleteUserMCPServer(orgId: string | undefined, teamId: string
     },
   })
 }
+
+/** Hook to fetch all tools from effective MCP servers. */
+export function useEffectiveMCPTools(orgId: string | undefined, teamId: string | undefined) {
+  return useQuery({
+    queryKey: ["mcpTools", "effective", orgId, teamId],
+    queryFn: () => mcpServersApi.listEffectiveTools(orgId!, teamId),
+    enabled: !!orgId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - tools don't change often
+  })
+}
+
+/** Mutation hook for updating user tool configuration. */
+export function useUpdateUserToolConfig() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (settings: ChatSettingsUpdate) =>
+      chatSettingsApi.updateUserSettings(settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.chatSettings.user })
+      queryClient.invalidateQueries({ queryKey: ["chatSettings", "effective"] })
+    },
+  })
+}

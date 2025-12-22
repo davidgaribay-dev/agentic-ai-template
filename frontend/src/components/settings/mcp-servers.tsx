@@ -1,5 +1,6 @@
-import { useState } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import type { ColumnDef } from "@tanstack/react-table"
 import {
   Server,
   Plus,
@@ -13,6 +14,12 @@ import {
   Globe,
   Users,
   User,
+  PlayCircle,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Wrench,
+  AlertTriangle,
 } from "lucide-react"
 
 import {
@@ -22,7 +29,8 @@ import {
   type MCPServerUpdate,
   type MCPTransport,
   type MCPAuthType,
-  ApiError,
+  type MCPTestResult,
+  getApiErrorMessage,
 } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,6 +38,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
+import { DataTable } from "@/components/ui/data-table"
 import {
   Dialog,
   DialogContent,
@@ -70,7 +79,6 @@ type Scope = { type: "org"; orgId: string } | { type: "team"; orgId: string; tea
 interface MCPServersListProps {
   scope: Scope
   allowCreate?: boolean
-  compact?: boolean
 }
 
 function getScopeIcon(scope: MCPServer["scope"]) {
@@ -105,7 +113,138 @@ function getScopeBadge(scope: MCPServer["scope"]) {
   )
 }
 
-export function MCPServersList({ scope, allowCreate = true, compact = false }: MCPServersListProps) {
+function getTransportBadge(transport: string) {
+  return (
+    <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono">
+      {transport.toUpperCase()}
+    </Badge>
+  )
+}
+
+function getAuthBadge(authType: string, hasSecret: boolean) {
+  if (authType === "none") return null
+
+  const label = authType === "bearer" ? "Bearer" : "API Key"
+
+  return (
+    <Badge
+      variant="outline"
+      className={`text-[10px] h-5 px-1.5 ${hasSecret ? "border-green-500 text-green-600 dark:text-green-400" : "border-amber-500 text-amber-600 dark:text-amber-400"}`}
+    >
+      {label}
+      {!hasSecret && " (no secret)"}
+    </Badge>
+  )
+}
+
+function getStatusBadge(enabled: boolean) {
+  if (enabled) {
+    return (
+      <Badge variant="secondary" className="text-xs h-5 px-1.5 border-0 bg-green-500/15 text-green-600 dark:text-green-400">
+        <Power className="size-2.5 mr-1" />
+        Enabled
+      </Badge>
+    )
+  }
+  return (
+    <Badge variant="outline" className="text-xs h-5 px-1.5 text-muted-foreground">
+      <PowerOff className="size-2.5 mr-1" />
+      Disabled
+    </Badge>
+  )
+}
+
+interface ServerActionsCellProps {
+  server: MCPServer
+  scope: Scope
+  onToggle: (enabled: boolean) => void
+  onDelete: () => void
+  isToggling: boolean
+}
+
+function ServerActionsCell({ server, scope, onToggle, onDelete, isToggling }: ServerActionsCellProps) {
+  const [testDialogOpen, setTestDialogOpen] = useState(false)
+
+  return (
+    <div className="flex justify-end">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="size-7">
+            <MoreHorizontal className="size-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem onSelect={() => setTestDialogOpen(true)}>
+            <PlayCircle className="mr-2 size-3.5" />
+            Test Connection
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => window.open(server.url, "_blank")}>
+            <ExternalLink className="mr-2 size-3.5" />
+            Open URL
+          </DropdownMenuItem>
+          <EditServerDialog server={server} scope={scope} />
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => onToggle(!server.enabled)}
+            disabled={isToggling}
+          >
+            {server.enabled ? (
+              <>
+                <PowerOff className="mr-2 size-3.5" />
+                Disable
+              </>
+            ) : (
+              <>
+                <Power className="mr-2 size-3.5" />
+                Enable
+              </>
+            )}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onSelect={(e) => e.preventDefault()}
+              >
+                <Trash2 className="mr-2 size-3.5" />
+                Delete
+              </DropdownMenuItem>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete MCP Server</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete "{server.name}"? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={onDelete}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Test Connection Dialog - rendered outside dropdown to avoid focus conflicts */}
+      <TestConnectionDialog
+        server={server}
+        scope={scope}
+        open={testDialogOpen}
+        onOpenChange={setTestDialogOpen}
+      />
+    </div>
+  )
+}
+
+export function MCPServersList({ scope, allowCreate = true }: MCPServersListProps) {
   const queryClient = useQueryClient()
 
   const queryKey = scope.type === "org"
@@ -159,6 +298,68 @@ export function MCPServersList({ scope, allowCreate = true, compact = false }: M
     },
   })
 
+  const columns: ColumnDef<MCPServer>[] = useMemo(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Server",
+        cell: ({ row }) => {
+          const server = row.original
+          return (
+            <div className="flex items-center gap-2.5">
+              <div className={`flex size-8 items-center justify-center rounded-md ${server.enabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                <Server className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-medium truncate flex items-center gap-2">
+                  {server.name}
+                  {getScopeBadge(server.scope)}
+                </div>
+                <div className="text-xs text-muted-foreground truncate max-w-[300px]">
+                  {server.url}
+                </div>
+              </div>
+            </div>
+          )
+        },
+      },
+      {
+        accessorKey: "transport",
+        header: "Transport",
+        cell: ({ row }) => getTransportBadge(row.original.transport),
+      },
+      {
+        accessorKey: "auth_type",
+        header: "Auth",
+        cell: ({ row }) => getAuthBadge(row.original.auth_type, row.original.has_auth_secret) ?? (
+          <span className="text-xs text-muted-foreground">None</span>
+        ),
+      },
+      {
+        accessorKey: "enabled",
+        header: "Status",
+        cell: ({ row }) => getStatusBadge(row.original.enabled),
+      },
+      {
+        id: "actions",
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => {
+          const server = row.original
+          return (
+            <ServerActionsCell
+              server={server}
+              scope={scope}
+              onToggle={(enabled) => toggleMutation.mutate({ serverId: server.id, enabled })}
+              onDelete={() => deleteMutation.mutate(server.id)}
+              isToggling={toggleMutation.isPending}
+            />
+          )
+        },
+      },
+    ],
+    [scope, toggleMutation, deleteMutation]
+  )
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -168,179 +369,35 @@ export function MCPServersList({ scope, allowCreate = true, compact = false }: M
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Server className="size-4" />
           <span>{servers.length} server{servers.length !== 1 ? "s" : ""}</span>
         </div>
-        {allowCreate && <AddServerDialog scope={scope} compact={compact} />}
+        {allowCreate && <AddServerDialog scope={scope} />}
       </div>
 
       {servers.length === 0 ? (
-        <div className="text-center py-6">
-          <Server className="size-8 mx-auto text-muted-foreground/50 mb-2" />
+        <div className="text-center py-8 border rounded-lg">
+          <Server className="size-10 mx-auto text-muted-foreground/50 mb-3" />
           <p className="text-sm text-muted-foreground">No MCP servers configured</p>
           <p className="text-xs text-muted-foreground/70 mt-1">
             Add a server to enable external tool integrations
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {servers.map((server) => (
-            <ServerRow
-              key={server.id}
-              server={server}
-              scope={scope}
-              onToggle={(enabled) => toggleMutation.mutate({ serverId: server.id, enabled })}
-              onDelete={() => deleteMutation.mutate(server.id)}
-              isToggling={toggleMutation.isPending}
-              isDeleting={deleteMutation.isPending}
-              compact={compact}
-            />
-          ))}
-        </div>
+        <DataTable columns={columns} data={servers} searchKey="name" searchPlaceholder="Search servers..." />
       )}
-    </div>
-  )
-}
-
-interface ServerRowProps {
-  server: MCPServer
-  scope: Scope
-  onToggle: (enabled: boolean) => void
-  onDelete: () => void
-  isToggling?: boolean
-  isDeleting?: boolean
-  compact?: boolean
-}
-
-function ServerRow({
-  server,
-  scope,
-  onToggle,
-  onDelete,
-  isToggling,
-  isDeleting,
-  compact,
-}: ServerRowProps) {
-  return (
-    <div className={`flex items-center justify-between rounded-lg border p-3 ${!server.enabled ? "opacity-60" : ""}`}>
-      <div className="flex items-center gap-3 min-w-0 flex-1">
-        <div className={`flex items-center justify-center rounded-md ${server.enabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`} style={{ width: compact ? 28 : 32, height: compact ? 28 : 32 }}>
-          <Server className={compact ? "size-3.5" : "size-4"} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className={`font-medium truncate ${compact ? "text-sm" : ""}`}>{server.name}</span>
-            {getScopeBadge(server.scope)}
-            {!server.enabled && (
-              <Badge variant="outline" className="text-xs h-5 px-1.5 text-muted-foreground">
-                Disabled
-              </Badge>
-            )}
-          </div>
-          {server.description && !compact && (
-            <p className="text-xs text-muted-foreground truncate mt-0.5">
-              {server.description}
-            </p>
-          )}
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-              {server.url}
-            </span>
-            <Badge variant="outline" className="text-[10px] h-4 px-1">
-              {server.transport.toUpperCase()}
-            </Badge>
-            {server.auth_type !== "none" && (
-              <Badge
-                variant="outline"
-                className={`text-[10px] h-4 px-1 ${server.has_auth_secret ? "border-green-500 text-green-600 dark:text-green-400" : "border-amber-500 text-amber-600 dark:text-amber-400"}`}
-              >
-                {server.auth_type === "bearer" ? "Bearer" : "API Key"}
-                {!server.has_auth_secret && " (no secret)"}
-              </Badge>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-1 ml-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-7">
-              <MoreHorizontal className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuItem
-              onClick={() => window.open(server.url, "_blank")}
-            >
-              <ExternalLink className="mr-2 size-3.5" />
-              Open URL
-            </DropdownMenuItem>
-            <EditServerDialog server={server} scope={scope} />
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => onToggle(!server.enabled)}
-              disabled={isToggling}
-            >
-              {server.enabled ? (
-                <>
-                  <PowerOff className="mr-2 size-3.5" />
-                  Disable
-                </>
-              ) : (
-                <>
-                  <Power className="mr-2 size-3.5" />
-                  Enable
-                </>
-              )}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onSelect={(e) => e.preventDefault()}
-                >
-                  <Trash2 className="mr-2 size-3.5" />
-                  Delete
-                </DropdownMenuItem>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete MCP Server</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to delete "{server.name}"? This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={onDelete}
-                    disabled={isDeleting}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    {isDeleting && <Loader2 className="mr-2 size-3 animate-spin" />}
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
     </div>
   )
 }
 
 interface AddServerDialogProps {
   scope: Scope
-  compact?: boolean
 }
 
-function AddServerDialog({ scope, compact }: AddServerDialogProps) {
+function AddServerDialog({ scope }: AddServerDialogProps) {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const queryClient = useQueryClient()
@@ -376,9 +433,8 @@ function AddServerDialog({ scope, compact }: AddServerDialogProps) {
       queryClient.invalidateQueries({ queryKey })
       resetForm()
     },
-    onError: (err: ApiError) => {
-      const detail = (err.body as { detail?: string })?.detail
-      setError(detail || "Failed to create server")
+    onError: (err: unknown) => {
+      setError(getApiErrorMessage(err, "Failed to create server"))
     },
   })
 
@@ -406,8 +462,8 @@ function AddServerDialog({ scope, compact }: AddServerDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(o) => o ? setOpen(true) : resetForm()}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className={compact ? "h-7 text-xs" : ""}>
-          <Plus className={compact ? "size-3 mr-1" : "size-4 mr-1.5"} />
+        <Button variant="outline" size="sm">
+          <Plus className="size-4 mr-1.5" />
           Add Server
         </Button>
       </DialogTrigger>
@@ -595,9 +651,8 @@ function EditServerDialog({ server, scope }: EditServerDialogProps) {
       setOpen(false)
       setError(null)
     },
-    onError: (err: ApiError) => {
-      const detail = (err.body as { detail?: string })?.detail
-      setError(detail || "Failed to update server")
+    onError: (err: unknown) => {
+      setError(getApiErrorMessage(err, "Failed to update server"))
     },
   })
 
@@ -746,4 +801,185 @@ function EditServerDialog({ server, scope }: EditServerDialogProps) {
   )
 }
 
-export { AddServerDialog, EditServerDialog }
+interface TestConnectionDialogProps {
+  server: MCPServer
+  scope: Scope
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+function TestConnectionDialog({ server, scope, open, onOpenChange }: TestConnectionDialogProps) {
+  const [result, setResult] = useState<MCPTestResult | null>(null)
+
+  const testMutation = useMutation({
+    mutationFn: () => {
+      if (scope.type === "org") {
+        return mcpServersApi.testOrgServer(scope.orgId, server.id)
+      } else if (scope.type === "team") {
+        return mcpServersApi.testTeamServer(scope.orgId, scope.teamId, server.id)
+      } else {
+        return mcpServersApi.testUserServer(server.id)
+      }
+    },
+    onSuccess: (data) => {
+      setResult(data)
+    },
+    onError: (err: unknown) => {
+      setResult({
+        success: false,
+        message: "Failed to test connection",
+        tools: [],
+        tool_count: 0,
+        connection_time_ms: null,
+        error_details: getApiErrorMessage(err, "Unknown error"),
+      })
+    },
+  })
+
+  // Auto-test when dialog opens
+  const hasInitiated = useRef(false)
+  useEffect(() => {
+    if (open && !hasInitiated.current) {
+      hasInitiated.current = true
+      setResult(null)
+      testMutation.mutate()
+    }
+    if (!open) {
+      hasInitiated.current = false
+    }
+  }, [open])
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg flex flex-col">
+        <DialogHeader className="shrink-0">
+          <DialogTitle className="flex items-center gap-2">
+            <Server className="size-5" />
+            Test Connection: {server.name}
+          </DialogTitle>
+          <DialogDescription className="truncate">
+            Testing connection to {server.url}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="py-4 overflow-y-auto min-h-0 flex-1">
+          {testMutation.isPending ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-3">
+              <Loader2 className="size-8 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Connecting to server...</p>
+            </div>
+          ) : result ? (
+            <div className="space-y-4">
+              {/* Status Banner */}
+              <div
+                className={`flex items-center gap-3 p-4 rounded-lg ${
+                  result.success
+                    ? "bg-green-500/10 border border-green-500/20"
+                    : "bg-destructive/10 border border-destructive/20"
+                }`}
+              >
+                {result.success ? (
+                  <CheckCircle2 className="size-6 text-green-600 dark:text-green-400 shrink-0" />
+                ) : (
+                  <XCircle className="size-6 text-destructive shrink-0" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className={`font-medium ${result.success ? "text-green-700 dark:text-green-300" : "text-destructive"}`}>
+                    {result.success ? "Connection Successful" : "Connection Failed"}
+                  </p>
+                  <p className="text-sm text-muted-foreground truncate">
+                    {result.message}
+                  </p>
+                </div>
+              </div>
+
+              {/* Connection Details */}
+              <div className="space-y-3">
+                {result.connection_time_ms !== null && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="size-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Response time:</span>
+                    <span className="font-mono">{result.connection_time_ms.toFixed(0)}ms</span>
+                  </div>
+                )}
+
+                {result.success && result.tool_count > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Wrench className="size-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Discovered tools:</span>
+                      <Badge variant="secondary">{result.tool_count}</Badge>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto overflow-x-hidden rounded-lg border bg-muted/30 p-2">
+                      <ul className="space-y-1.5">
+                        {result.tools.map((tool) => (
+                          <li key={tool.name} className="text-sm overflow-hidden">
+                            <div className="flex items-start gap-2 min-w-0">
+                              <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium shrink-0 max-w-[180px] truncate">
+                                {tool.name}
+                              </code>
+                              {tool.description && (
+                                <span className="text-muted-foreground text-xs truncate min-w-0 flex-1">
+                                  {tool.description}
+                                </span>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+                {result.success && result.tool_count === 0 && (
+                  <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="size-4" />
+                    <span>Server connected but no tools were discovered.</span>
+                  </div>
+                )}
+
+                {result.error_details && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-destructive">Error Details:</p>
+                    <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+                      <pre className="text-xs text-destructive whitespace-pre-wrap break-all font-mono">
+                        {result.error_details}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <DialogFooter className="shrink-0">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button
+            onClick={() => {
+              setResult(null)
+              testMutation.mutate()
+            }}
+            disabled={testMutation.isPending}
+          >
+            {testMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Testing...
+              </>
+            ) : (
+              <>
+                <PlayCircle className="mr-2 size-4" />
+                Test Again
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export { AddServerDialog, EditServerDialog, TestConnectionDialog }

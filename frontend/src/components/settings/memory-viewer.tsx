@@ -1,5 +1,6 @@
-import { useState } from "react"
-import { Brain, Trash2, Loader2, AlertCircle } from "lucide-react"
+import { useState, useMemo } from "react"
+import type { ColumnDef } from "@tanstack/react-table"
+import { Brain, Trash2, Loader2, AlertCircle, ArrowUpDown, MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -13,9 +14,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { DataTable } from "@/components/ui/data-table"
 import { useWorkspace } from "@/lib/workspace"
 import { useUserMemories, useDeleteMemory, useClearAllMemories } from "@/lib/queries"
-import type { MemoryType } from "@/lib/api"
+import type { Memory, MemoryType } from "@/lib/api"
 
 const memoryTypeColors: Record<MemoryType, string> = {
   preference: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
@@ -44,6 +52,120 @@ function formatDate(dateString: string): string {
   } catch {
     return dateString
   }
+}
+
+interface MemoryDataTableProps {
+  data: Memory[]
+  onDelete: (id: string) => void
+  deletingId: string | null
+}
+
+function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
+  const columns: ColumnDef<Memory>[] = useMemo(
+    () => [
+      {
+        accessorKey: "content",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            className="-ml-4"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Content
+            <ArrowUpDown className="ml-2 size-4" />
+          </Button>
+        ),
+        cell: ({ row }) => (
+          <span className="line-clamp-2 max-w-[400px]">{row.getValue("content")}</span>
+        ),
+      },
+      {
+        accessorKey: "type",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            className="-ml-4"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Type
+            <ArrowUpDown className="ml-2 size-4" />
+          </Button>
+        ),
+        cell: ({ row }) => {
+          const type = row.getValue("type") as MemoryType
+          return (
+            <Badge
+              variant="secondary"
+              className={memoryTypeColors[type] || memoryTypeColors.fact}
+            >
+              {memoryTypeLabels[type] || type}
+            </Badge>
+          )
+        },
+      },
+      {
+        accessorKey: "created_at",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            className="-ml-4"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Created
+            <ArrowUpDown className="ml-2 size-4" />
+          </Button>
+        ),
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">
+            {formatDate(row.getValue("created_at"))}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => {
+          const memory = row.original
+          const isDeleting = deletingId === memory.id
+          return (
+            <div className="flex justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="size-8" disabled={isDeleting}>
+                    {isDeleting ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <MoreHorizontal className="size-4" />
+                    )}
+                    <span className="sr-only">Open menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => onDelete(memory.id)}
+                  >
+                    <Trash2 className="mr-2 size-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )
+        },
+      },
+    ],
+    [deletingId, onDelete]
+  )
+
+  return (
+    <DataTable
+      columns={columns}
+      data={data}
+      searchKey="content"
+      searchPlaceholder="Search memories..."
+    />
+  )
 }
 
 export function MemoryViewer() {
@@ -141,42 +263,11 @@ export function MemoryViewer() {
         </AlertDialog>
       </div>
 
-      <ul className="space-y-2">
-        {memories.map((memory) => (
-          <li
-            key={memory.id}
-            className="flex justify-between items-start p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-          >
-            <div className="flex-1 min-w-0 pr-4">
-              <div className="flex items-center gap-2 mb-1">
-                <Badge
-                  variant="secondary"
-                  className={memoryTypeColors[memory.type] || memoryTypeColors.fact}
-                >
-                  {memoryTypeLabels[memory.type] || memory.type}
-                </Badge>
-                <span className="text-xs text-muted-foreground">
-                  {formatDate(memory.created_at)}
-                </span>
-              </div>
-              <p className="text-sm">{memory.content}</p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0"
-              onClick={() => handleDeleteMemory(memory.id)}
-              disabled={deletingId === memory.id}
-            >
-              {deletingId === memory.id ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-            </Button>
-          </li>
-        ))}
-      </ul>
+      <MemoryDataTable
+        data={memories}
+        onDelete={handleDeleteMemory}
+        deletingId={deletingId}
+      />
     </div>
   )
 }

@@ -12,9 +12,18 @@
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api"
 
+/** Pydantic validation error item */
+interface ValidationErrorItem {
+  type: string
+  loc: (string | number)[]
+  msg: string
+  input?: unknown
+  ctx?: Record<string, unknown>
+}
+
 /** Standard error response body from the API */
 export interface ApiErrorBody {
-  detail?: string
+  detail?: string | ValidationErrorItem[]
   message?: string
 }
 
@@ -44,13 +53,33 @@ function isApiErrorBody(body: unknown): body is ApiErrorBody {
 }
 
 /**
+ * Format a detail field that could be a string or an array of validation errors.
+ */
+function formatDetailMessage(detail: string | ValidationErrorItem[]): string {
+  if (typeof detail === "string") {
+    return detail
+  }
+  // Handle Pydantic validation error array - extract messages
+  if (Array.isArray(detail) && detail.length > 0) {
+    return detail.map((err) => {
+      const field = err.loc.slice(1).join(".")  // Skip "body" prefix
+      return field ? `${field}: ${err.msg}` : err.msg
+    }).join("; ")
+  }
+  return ""
+}
+
+/**
  * Extract a user-friendly error message from an API error.
  * Safely handles unknown error types and provides fallback messages.
  */
 export function getApiErrorMessage(error: unknown, fallback = "An error occurred"): string {
   if (error instanceof ApiError) {
     if (isApiErrorBody(error.body)) {
-      return error.body.detail || error.body.message || fallback
+      if (error.body.detail) {
+        return formatDetailMessage(error.body.detail)
+      }
+      return error.body.message || fallback
     }
     return `${error.status}: ${error.statusText}`
   }
@@ -66,7 +95,9 @@ export function getApiErrorMessage(error: unknown, fallback = "An error occurred
  */
 export function getApiErrorDetail(error: unknown): string | undefined {
   if (error instanceof ApiError && isApiErrorBody(error.body)) {
-    return error.body.detail
+    if (error.body.detail) {
+      return formatDetailMessage(error.body.detail)
+    }
   }
   return undefined
 }
@@ -1409,6 +1440,8 @@ export interface ChatSettings {
   chat_panel_enabled: boolean
   memory_enabled: boolean
   mcp_enabled: boolean
+  disabled_mcp_servers: string[]
+  disabled_tools: string[]
 }
 
 export interface OrganizationChatSettings extends ChatSettings {
@@ -1441,6 +1474,8 @@ export interface ChatSettingsUpdate {
   chat_panel_enabled?: boolean
   memory_enabled?: boolean
   mcp_enabled?: boolean
+  disabled_mcp_servers?: string[]
+  disabled_tools?: string[]
 }
 
 export interface OrgSettingsUpdate extends ChatSettingsUpdate {
@@ -1466,6 +1501,8 @@ export interface EffectiveChatSettings {
   mcp_disabled_by: DisabledByLevel
   mcp_allow_custom_servers: boolean
   mcp_custom_servers_disabled_by: DisabledByLevel
+  disabled_mcp_servers: string[]
+  disabled_tools: string[]
 }
 
 export const chatSettingsApi = {
@@ -1785,4 +1822,83 @@ export const mcpServersApi = {
       { headers: getAuthHeader() }
     )
   },
+
+  /** Get all tools from effective MCP servers */
+  listEffectiveTools: (orgId: string, teamId?: string) => {
+    const params = new URLSearchParams({ organization_id: orgId })
+    if (teamId) params.append("team_id", teamId)
+    return apiClient.get<MCPToolsList>(
+      `/v1/mcp-servers/effective/tools?${params}`,
+      { headers: getAuthHeader() }
+    )
+  },
+
+  // ==========================================================================
+  // Test Connection
+  // ==========================================================================
+
+  /** Test connection to an organization-level MCP server */
+  testOrgServer: (orgId: string, serverId: string) =>
+    apiClient.post<MCPTestResult>(
+      `/v1/organizations/${orgId}/mcp-servers/${serverId}/test`,
+      {},
+      { headers: getAuthHeader() }
+    ),
+
+  /** Test connection to a team-level MCP server */
+  testTeamServer: (orgId: string, teamId: string, serverId: string) =>
+    apiClient.post<MCPTestResult>(
+      `/v1/organizations/${orgId}/teams/${teamId}/mcp-servers/${serverId}/test`,
+      {},
+      { headers: getAuthHeader() }
+    ),
+
+  /** Test connection to a user's personal MCP server */
+  testUserServer: (serverId: string) =>
+    apiClient.post<MCPTestResult>(
+      `/v1/mcp-servers/me/${serverId}/test`,
+      {},
+      { headers: getAuthHeader() }
+    ),
+}
+
+// =============================================================================
+// MCP Tool Configuration Types
+// =============================================================================
+
+export interface MCPTool {
+  name: string
+  description: string
+}
+
+export interface MCPTestResult {
+  success: boolean
+  message: string
+  tools: MCPTool[]
+  tool_count: number
+  connection_time_ms: number | null
+  error_details: string | null
+}
+
+export interface MCPServerWithTools {
+  server_id: string
+  server_name: string
+  server_description: string | null
+  scope: "org" | "team" | "user"
+  enabled: boolean
+  tools: MCPTool[]
+  tool_count: number
+  error: string | null
+}
+
+export interface MCPToolsList {
+  servers: MCPServerWithTools[]
+  total_tools: number
+  total_servers: number
+  error_count: number
+}
+
+export interface ToolConfigUpdate {
+  disabled_mcp_servers?: string[]
+  disabled_tools?: string[]
 }

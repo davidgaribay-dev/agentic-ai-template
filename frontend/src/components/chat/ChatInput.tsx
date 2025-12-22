@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { PromptPicker } from "./PromptPicker"
+import { ToolPicker } from "./ToolPicker"
 
 interface ChatInputProps {
   onSubmit: (message: string) => void
@@ -105,6 +106,11 @@ export function ChatInput({
             organizationId={organizationId}
             teamId={teamId}
             onSelect={handlePromptSelect}
+            disabled={disabled || isStreaming || isPending}
+          />
+          <ToolPicker
+            organizationId={organizationId}
+            teamId={teamId}
             disabled={disabled || isStreaming || isPending}
           />
         </div>
