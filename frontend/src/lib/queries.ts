@@ -36,7 +36,7 @@ export const queryKeys = {
   },
   conversations: {
     all: ["conversations"] as const,
-    list: (teamId?: string) => ["conversations", "list", teamId] as const,
+    list: (teamId?: string, searchQuery?: string) => ["conversations", "list", teamId, searchQuery] as const,
     detail: (id: string) => ["conversations", "detail", id] as const,
   },
   chatSettings: {
@@ -110,11 +110,11 @@ export function useChatMutation() {
   })
 }
 
-/** Hook to fetch paginated conversations list, optionally filtered by team. */
-export function useConversations(teamId?: string, skip = 0, limit = 100) {
+/** Hook to fetch paginated conversations list, optionally filtered by team and/or search query. */
+export function useConversations(teamId?: string, searchQuery?: string, skip = 0, limit = 100) {
   return useQuery({
-    queryKey: queryKeys.conversations.list(teamId),
-    queryFn: () => conversationsApi.getConversations(skip, limit, teamId),
+    queryKey: queryKeys.conversations.list(teamId, searchQuery),
+    queryFn: () => conversationsApi.getConversations(skip, limit, teamId, searchQuery),
     enabled: !!teamId,
   })
 }
@@ -127,7 +127,7 @@ export function useUpdateConversation(teamId?: string) {
     mutationFn: ({ id, data }: { id: string; data: ConversationUpdate }) =>
       conversationsApi.updateConversation(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.list(teamId) })
+      queryClient.invalidateQueries({ queryKey: ["conversations", "list", teamId] })
     },
     onError: (error) => {
       console.error("Failed to update conversation:", error)
@@ -142,7 +142,7 @@ export function useDeleteConversation(teamId?: string) {
   return useMutation({
     mutationFn: (id: string) => conversationsApi.deleteConversation(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.list(teamId) })
+      queryClient.invalidateQueries({ queryKey: ["conversations", "list", teamId] })
     },
     onError: (error) => {
       console.error("Failed to delete conversation:", error)
@@ -158,7 +158,7 @@ export function useStarConversation(teamId?: string) {
     mutationFn: ({ id, isStarred }: { id: string; isStarred: boolean }) =>
       conversationsApi.starConversation(id, isStarred),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.list(teamId) })
+      queryClient.invalidateQueries({ queryKey: ["conversations", "list", teamId] })
     },
     onError: (error) => {
       console.error("Failed to update star status:", error)

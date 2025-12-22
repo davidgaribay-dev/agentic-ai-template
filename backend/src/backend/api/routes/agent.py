@@ -31,6 +31,7 @@ from backend.auth import CurrentUser, SessionDep
 from backend.conversations import (
     Conversation,
     ConversationUpdate,
+    create_conversation_message,
     create_conversation_with_id,
     get_conversation,
     touch_conversation,
@@ -174,6 +175,20 @@ async def chat(
         is_new=is_new_conversation,
     )
 
+    # Index user message for search
+    try:
+        create_conversation_message(
+            session=session,
+            conversation_id=uuid.UUID(conversation_id),
+            role="user",
+            content=request.message,
+            organization_id=uuid.UUID(request.organization_id) if request.organization_id else None,
+            team_id=uuid.UUID(request.team_id) if request.team_id else None,
+            created_by_id=current_user.id,
+        )
+    except Exception as e:
+        logger.warning("failed_to_index_user_message", error=str(e), conversation_id=conversation_id)
+
     if request.stream:
         return EventSourceResponse(
             stream_response(
@@ -184,6 +199,7 @@ async def chat(
                 team_id=request.team_id,
                 user_id=str(current_user.id),
                 current_user=current_user,
+                session=session,
             ),
             media_type="text/event-stream",
         )
@@ -212,6 +228,20 @@ async def chat(
                 org_id=request.organization_id,
                 team_id=request.team_id,
             )
+
+        # Index assistant response for search
+        try:
+            create_conversation_message(
+                session=session,
+                conversation_id=uuid.UUID(conversation_id),
+                role="assistant",
+                content=response,
+                organization_id=uuid.UUID(request.organization_id) if request.organization_id else None,
+                team_id=uuid.UUID(request.team_id) if request.team_id else None,
+                created_by_id=current_user.id,
+            )
+        except Exception as e:
+            logger.warning("failed_to_index_assistant_message", error=str(e), conversation_id=conversation_id)
 
         return ChatResponse(
             message=response,
@@ -340,6 +370,7 @@ async def stream_response(
     team_id: str | None = None,
     user_id: str | None = None,
     current_user=None,
+    session=None,
 ):
     """Generate SSE events for streaming response.
 
@@ -427,6 +458,21 @@ async def stream_response(
                         "event": "title",
                         "data": json.dumps({"title": title, "conversation_id": conversation_id}),
                     }
+
+            # Index assistant response for search
+            if full_response and session:
+                try:
+                    create_conversation_message(
+                        session=session,
+                        conversation_id=uuid.UUID(conversation_id),
+                        role="assistant",
+                        content=full_response,
+                        organization_id=uuid.UUID(org_id) if org_id else None,
+                        team_id=uuid.UUID(team_id) if team_id else None,
+                        created_by_id=uuid.UUID(user_id) if user_id else None,
+                    )
+                except Exception as e:
+                    logger.warning("failed_to_index_assistant_message_stream", error=str(e), conversation_id=conversation_id)
 
             # Extract and store memories in background (don't block response)
             if full_response and org_id and user_id:

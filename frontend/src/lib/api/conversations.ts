@@ -34,10 +34,11 @@ export interface ConversationUpdate {
 }
 
 export const conversationsApi = {
-  /** Get all conversations (paginated), optionally filtered by team */
-  getConversations: (skip = 0, limit = 100, teamId?: string) => {
+  /** Get all conversations (paginated), optionally filtered by team and/or search query */
+  getConversations: (skip = 0, limit = 100, teamId?: string, searchQuery?: string) => {
     const params = new URLSearchParams({ skip: String(skip), limit: String(limit) })
     if (teamId) params.append("team_id", teamId)
+    if (searchQuery && searchQuery.trim()) params.append("search", searchQuery.trim())
     return apiClient.get<ConversationsPublic>(`/v1/conversations/?${params}`, {
       headers: getAuthHeader(),
     })

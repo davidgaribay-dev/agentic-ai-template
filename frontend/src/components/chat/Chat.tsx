@@ -136,8 +136,8 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
     }
 
     return (
-      <div className={cn("flex h-full flex-col", className)}>
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
+      <div className={cn("flex h-full flex-col overflow-hidden", className)}>
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden">
           <div className="mx-auto w-full max-w-3xl px-4">
             <ChatContainer messages={messages} className="py-4" />
             {/* Tool Approval Card - shown inline after messages when waiting for approval */}
@@ -163,7 +163,7 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
             )}
           </div>
         </div>
-        <div className="shrink-0 bg-background pb-4 pt-2">
+        <div className="shrink-0 bg-background pb-4 pt-4">
           <div className="mx-auto w-full max-w-3xl px-4">
             <ChatInput
               onSubmit={sendMessage}

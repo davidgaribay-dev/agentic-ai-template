@@ -1,24 +1,32 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlmodel import Session, col, func, select
+from sqlmodel import Session, col, delete, func, select
 
-from backend.conversations.models import Conversation, ConversationCreate, ConversationUpdate
+from backend.conversations.models import (
+    Conversation,
+    ConversationCreate,
+    ConversationMessage,
+    ConversationUpdate,
+)
 
 # Re-export for backwards compatibility
 __all__ = [
     "create_conversation",
     "create_conversation_with_id",
+    "create_conversation_message",
+    "delete_conversation_messages",
     "get_conversation",
-    "get_conversations_by_user",
     "get_conversations_by_team",
-    "update_conversation",
-    "touch_conversation",
-    "soft_delete_conversation",
-    "restore_conversation",
+    "get_conversations_by_user",
     "hard_delete_conversation",
-    "toggle_star_conversation",
+    "restore_conversation",
+    "search_conversations_by_team",
     "set_star_conversation",
+    "soft_delete_conversation",
+    "toggle_star_conversation",
+    "touch_conversation",
+    "update_conversation",
 ]
 
 
@@ -231,3 +239,122 @@ def set_star_conversation(
     session.commit()
     session.refresh(db_conversation)
     return db_conversation
+
+
+def create_conversation_message(
+    *,
+    session: Session,
+    conversation_id: uuid.UUID,
+    role: str,
+    content: str,
+    organization_id: uuid.UUID | None,
+    team_id: uuid.UUID | None,
+    created_by_id: uuid.UUID | None,
+) -> ConversationMessage:
+    """Create a searchable message index entry.
+
+    Messages are indexed for fast search without coupling to LangGraph internals.
+    """
+    message = ConversationMessage(
+        conversation_id=conversation_id,
+        role=role,
+        content=content,
+        organization_id=organization_id,
+        team_id=team_id,
+        created_by_id=created_by_id,
+    )
+    session.add(message)
+    session.commit()
+    session.refresh(message)
+    return message
+
+
+def delete_conversation_messages(
+    *,
+    session: Session,
+    conversation_id: uuid.UUID,
+) -> None:
+    """Delete all messages for a conversation.
+
+    Note: With CASCADE on conversation_id FK, this happens automatically on hard delete,
+    but this function can be used for explicit cleanup if needed.
+    """
+    statement = delete(ConversationMessage).where(
+        ConversationMessage.conversation_id == conversation_id
+    )
+    session.exec(statement)
+    session.commit()
+
+
+def search_conversations_by_team(
+    *,
+    session: Session,
+    team_id: uuid.UUID,
+    user_id: uuid.UUID,
+    search_query: str,
+    skip: int = 0,
+    limit: int = 100,
+    include_deleted: bool = False,
+) -> tuple[list[Conversation], int]:
+    """Search conversations by title AND message content.
+
+    Uses separate message index table for performance (avoids querying LangGraph checkpointer).
+    Returns conversations ordered by starred first, then most recently updated.
+    Excludes soft-deleted conversations by default.
+    """
+    search_pattern = f"%{search_query}%"
+
+    # Build base conditions
+    base_conditions = [
+        Conversation.team_id == team_id,
+        Conversation.created_by_id == user_id,
+    ]
+    if not include_deleted:
+        base_conditions.append(Conversation.deleted_at.is_(None))
+
+    # Search in title OR message content using LEFT OUTER JOIN
+    # This approach avoids UNION and returns proper Conversation objects
+    statement = (
+        select(Conversation)
+        .outerjoin(
+            ConversationMessage,
+            Conversation.id == ConversationMessage.conversation_id,
+        )
+        .where(
+            *base_conditions,
+            (
+                Conversation.title.ilike(search_pattern)
+                | ConversationMessage.content.ilike(search_pattern)
+            ),
+        )
+        .distinct()  # Remove duplicates (conversations with multiple matching messages)
+        .order_by(
+            col(Conversation.is_starred).desc(),
+            col(Conversation.updated_at).desc(),
+        )
+        .offset(skip)
+        .limit(limit)
+    )
+
+    conversations = list(session.exec(statement).all())
+
+    # Count distinct conversations matching the search
+    count_statement = (
+        select(func.count(func.distinct(Conversation.id)))
+        .select_from(Conversation)
+        .outerjoin(
+            ConversationMessage,
+            Conversation.id == ConversationMessage.conversation_id,
+        )
+        .where(
+            *base_conditions,
+            (
+                Conversation.title.ilike(search_pattern)
+                | ConversationMessage.content.ilike(search_pattern)
+            ),
+        )
+    )
+
+    count = session.exec(count_statement).one()
+
+    return conversations, count

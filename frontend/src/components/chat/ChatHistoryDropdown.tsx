@@ -11,7 +11,7 @@ import {
   Trash2,
 } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn, formatRelativeTime } from "@/lib/utils"
 import { conversationsApi, type Conversation } from "@/lib/api"
 import {
   queryKeys,
@@ -214,22 +214,7 @@ export function ChatHistoryDropdown({
   }, [conversations, search])
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMinutes = Math.floor(diffMs / (1000 * 60))
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-    if (diffMinutes < 1) return "Just now"
-    if (diffHours < 1) return `${diffMinutes}m`
-    if (diffHours < 24) return `${diffHours}h`
-    if (diffDays === 1) return "Yesterday"
-    if (diffDays < 7) return `${diffDays}d`
-    if (date.getFullYear() === now.getFullYear()) {
-      return date.toLocaleDateString(undefined, { month: "short", day: "numeric" })
-    }
-    return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+    return formatRelativeTime(dateString)
   }
 
   const handleSelect = (conversationId: string) => {
