@@ -141,14 +141,29 @@ Auth types: `NONE`, `BEARER`, `API_KEY` (with custom header name)
 Tool approval (human-in-the-loop):
 - Enabled via `mcp_tool_approval_required` setting (default: true)
 - Uses `create_agent_graph_with_tool_approval()` instead of standard graph
-- `tool_approval_node` pauses execution, sends `tool_approval` SSE event
+- `tool_approval_node` pauses execution via LangGraph `interrupt()`, sends `tool_approval` SSE event
 - Agent resumes after user approval or cancels on rejection
+
+Orphaned tool call handling:
+- When user abandons approval (sends new message instead), orphaned `tool_use` blocks remain
+- Anthropic API requires every `tool_use` to have corresponding `tool_result`
+- `cleanup_orphans` node runs at graph entry, injects rejection `ToolMessage` for orphaned calls
+- `_fix_orphaned_tool_calls_in_messages()` ensures `tool_result` immediately follows `tool_use`
+- Checkpoint state also checked/fixed before streaming to handle edge cases
+
+Tool configuration (new settings fields):
+- `disabled_mcp_servers` - List of server UUIDs to disable (merged from all hierarchy levels)
+- `disabled_tools` - List of tool names to disable (merged from all levels)
+- `_get_disabled_tools_config()` fetches merged disabled lists for filtering
+
+Effective tools endpoint: `GET /v1/mcp/effective-tools` returns `MCPToolsList` with all available tools, server info, and errors.
 
 Settings in hierarchy (org → team → user):
 - `mcp_enabled` - master toggle
 - `mcp_tool_approval_required` - require human approval for tool calls
 - `mcp_allow_custom_servers` - allow adding servers (org/team only)
 - `mcp_max_servers_per_team/user` - limits (org only)
+- `disabled_mcp_servers`, `disabled_tools` - granular disable (union of all levels)
 
 Auth secrets: Stored in Infisical at `/organizations/{org_id}/[teams/{team_id}/][users/{user_id}/]mcp/mcp_server_{server_id}`
 

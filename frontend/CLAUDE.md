@@ -117,7 +117,12 @@ const { messages, sendMessage, stopStreaming, clearMessages, isStreaming, conver
 
 Stream events: `token` (content), `title`, `tool_approval` (MCP), `done`, `error`. Uses Streamdown for markdown with custom CodeBlock (Shiki syntax highlighting).
 
-Tool approval: When `tool_approval` event received, renders `ToolApprovalCard` inline showing tool name, description, and arguments. User can approve or reject, resuming agent execution.
+Tool approval flow:
+- When `tool_approval` event received, renders `ToolApprovalCard` inline showing tool name, description, and arguments
+- User can approve or reject, resuming agent execution
+- Abandoned approvals (user sends new message) are auto-cleaned by backend
+- `pendingToolApproval` state in chat store tracks current pending approval
+- `handleToolApproval(approved)` in `useChat` sends approval/rejection to backend
 
 ## Memory System
 
@@ -163,12 +168,21 @@ mcpServersApi.listOrgServers(orgId)
 mcpServersApi.listTeamServers(orgId, teamId)
 mcpServersApi.listUserServers()
 mcpServersApi.listEffectiveServers(orgId, teamId)  // All servers user can use
+mcpServersApi.listEffectiveTools(orgId, teamId)    // All tools with server info
+mcpServersApi.testConnection(orgId, teamId?, data) // Test server connectivity
 ```
 
 Settings fields:
 - `mcp_enabled` - Master toggle (respects hierarchy)
 - `mcp_tool_approval_required` - Require approval for tool calls
 - `mcp_allow_custom_servers` - Allow adding servers (org/team only)
+- `disabled_mcp_servers` - List of server UUIDs to disable
+- `disabled_tools` - List of tool names to disable
+
+Tool picker (`components/chat/ToolPicker.tsx`):
+- Displays available tools grouped by server
+- Allows enabling/disabling individual tools
+- Queries `listEffectiveTools` for tool discovery
 
 ## Layout System
 

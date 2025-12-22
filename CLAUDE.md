@@ -85,10 +85,17 @@ Settings hierarchy (org → team → user):
 - `mcp_max_servers_per_team/user` - Configurable limits (org only)
 
 Tool approval flow:
-1. Agent calls MCP tool → execution pauses
+1. Agent calls MCP tool → execution pauses (LangGraph interrupt)
 2. SSE sends `tool_approval` event with tool details
 3. Frontend shows `ToolApprovalCard` inline in chat
 4. User approves/rejects → agent resumes or cancels
+5. Orphaned tool calls (abandoned approvals) are auto-cleaned on next message
+
+Tool configuration (per hierarchy level):
+- `disabled_mcp_servers` - List of server UUIDs to disable
+- `disabled_tools` - List of tool names to disable (merged from all levels)
+
+Effective tools endpoint: `GET /v1/mcp/effective-tools` returns all available tools with server info, respecting disabled settings.
 
 Auth secrets stored in Infisical (never exposed in API responses).
 
