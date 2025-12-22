@@ -26,13 +26,45 @@ src/
 │   └── settings/        # MemorySettings, MemoryViewer, ApiKeys, Prompts, etc.
 ├── hooks/useChat.ts     # SSE streaming chat hook
 └── lib/
-    ├── api.ts           # Typed API client
+    ├── api/             # Modular API client (see API Architecture below)
     ├── auth.ts          # Token management & auth hooks
     ├── queries.ts       # TanStack Query hooks
     ├── chat-store.ts    # Zustand: multi-instance chat state
     ├── ui-store.ts      # Zustand: persisted sidebar/panel state
     ├── workspace.tsx    # Context: org/team selection
     └── settings-context.tsx  # Context: effective chat settings
+```
+
+## API Architecture
+
+Modular API client in `lib/api/` with domain-specific modules:
+
+```
+lib/api/
+├── index.ts          # Barrel export (backwards compatible with @/lib/api imports)
+├── client.ts         # Core: apiClient, ApiError, getAuthHeader, getApiErrorMessage
+├── types/            # Shared types (Message, OrgRole, TeamRole, InvitationStatus)
+├── auth.ts           # authApi: profile, password operations
+├── agent.ts          # agentApi: chat streaming, SSE, tool approval
+├── organizations.ts  # organizationsApi: org CRUD, members, ownership
+├── teams.ts          # teamsApi: team CRUD, members
+├── invitations.ts    # invitationsApi: org/team invites
+├── conversations.ts  # conversationsApi: chat history management
+├── prompts.ts        # promptsApi: system/template prompts (org/team/user)
+├── chat-settings.ts  # chatSettingsApi: feature visibility settings
+├── memory.ts         # memoryApi: user memory management
+├── mcp-servers.ts    # mcpServersApi: MCP server management
+└── api-keys.ts       # apiKeysApi: LLM API key management
+```
+
+Import patterns (both work):
+```typescript
+// Barrel import (backwards compatible)
+import { agentApi, type Conversation } from "@/lib/api"
+
+// Direct module import (better tree-shaking)
+import { agentApi } from "@/lib/api/agent"
+import type { Conversation } from "@/lib/api/conversations"
 ```
 
 ## Key Patterns
@@ -139,7 +171,7 @@ const deleteMutation = useDeleteMemory(orgId, teamId)  // Delete single
 const clearMutation = useClearAllMemories(orgId, teamId)  // Clear all
 ```
 
-API (`lib/api.ts`):
+API (`lib/api/memory.ts`):
 ```typescript
 memoryApi.listMemories(orgId?, teamId?, limit?)
 memoryApi.deleteMemory(memoryId, orgId?, teamId?)
@@ -162,14 +194,14 @@ Components (`components/settings/`):
 - `MCPSettings` - Toggle MCP enabled/disabled, allow custom servers
 - `ToolApprovalCard` (`components/chat/`) - Inline approval UI for MCP tool calls
 
-API (`lib/api.ts`):
+API (`lib/api/mcp-servers.ts`):
 ```typescript
 mcpServersApi.listOrgServers(orgId)
 mcpServersApi.listTeamServers(orgId, teamId)
-mcpServersApi.listUserServers()
+mcpServersApi.listUserServers(orgId, teamId)
 mcpServersApi.listEffectiveServers(orgId, teamId)  // All servers user can use
 mcpServersApi.listEffectiveTools(orgId, teamId)    // All tools with server info
-mcpServersApi.testConnection(orgId, teamId?, data) // Test server connectivity
+mcpServersApi.testOrgServer(orgId, serverId)       // Test server connectivity
 ```
 
 Settings fields:
@@ -269,7 +301,7 @@ New route: Add file to `src/routes/` (`foo.tsx` → `/foo`, `$id.tsx` → `/:id`
 
 New shadcn component: `npx shadcn@latest add <name>`
 
-New API hook: Add to `lib/api.ts`, create TanStack Query hook in `lib/queries.ts`
+New API hook: Add to appropriate `lib/api/*.ts` module, export from `lib/api/index.ts`, create TanStack Query hook in `lib/queries.ts`
 
 ## Environment
 

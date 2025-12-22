@@ -56,7 +56,7 @@ Authentication flow:
 2. Store tokens: `auth_token`, `auth_refresh_token`, `auth_token_expiry` in localStorage
 3. Auto-refresh via `tryRefreshToken()` every 60s when expiring within 60s
 
-Key API groups: See `backend/api/main.py` for all routers. Frontend client at `frontend/src/lib/api.ts`.
+Key API groups: See `backend/api/main.py` for all routers. Frontend client at `frontend/src/lib/api/` (modular architecture).
 
 ## Chat/Agent System
 
@@ -145,7 +145,11 @@ OpenSearch indices: `audit-logs-YYYY.MM.DD` (90-day retention), `app-logs-YYYY.M
         ├── routes/         # File-based routing
         ├── components/     # UI (shadcn/ui) + chat
         ├── hooks/          # useChat SSE streaming
-        └── lib/            # API client, auth, workspace context
+        └── lib/
+            ├── api/        # Modular API client (agent, auth, orgs, teams, etc.)
+            ├── auth.ts     # Token management & auth hooks
+            ├── queries.ts  # TanStack Query hooks
+            └── workspace.tsx  # Org/team context
 ```
 
 ## Development Commands
