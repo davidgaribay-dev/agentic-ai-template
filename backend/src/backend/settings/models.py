@@ -1,9 +1,11 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy.dialects.postgresql import JSON
 from sqlmodel import Field, Relationship, SQLModel
+
+from backend.core.base_models import TimestampedTable, TimestampResponseMixin
 
 if TYPE_CHECKING:
     from backend.auth.models import User
@@ -36,7 +38,7 @@ class ChatSettingsBase(SQLModel):
     disabled_tools: list[str] = Field(default_factory=list, sa_type=JSON)
 
 
-class OrganizationSettings(ChatSettingsBase, table=True):
+class OrganizationSettings(ChatSettingsBase, TimestampedTable, table=True):
     """Organization-level chat visibility settings.
 
     These settings are the master controls. If disabled at org level,
@@ -45,7 +47,7 @@ class OrganizationSettings(ChatSettingsBase, table=True):
 
     __tablename__ = "organization_settings"
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    # Scoping with unique constraint (one settings record per org)
     organization_id: uuid.UUID = Field(
         foreign_key="organization.id", unique=True, nullable=False, ondelete="CASCADE"
     )
@@ -54,9 +56,6 @@ class OrganizationSettings(ChatSettingsBase, table=True):
     mcp_allow_custom_servers: bool = Field(default=True)
     mcp_max_servers_per_team: int = Field(default=10)
     mcp_max_servers_per_user: int = Field(default=5)
-
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     organization: "Organization" = Relationship(back_populates="settings")
 
@@ -74,17 +73,15 @@ class OrganizationSettingsUpdate(SQLModel):
     disabled_tools: list[str] | None = None
 
 
-class OrganizationSettingsPublic(ChatSettingsBase):
+class OrganizationSettingsPublic(ChatSettingsBase, TimestampResponseMixin):
     id: uuid.UUID
     organization_id: uuid.UUID
     mcp_allow_custom_servers: bool
     mcp_max_servers_per_team: int
     mcp_max_servers_per_user: int
-    created_at: datetime
-    updated_at: datetime
 
 
-class TeamSettings(ChatSettingsBase, table=True):
+class TeamSettings(ChatSettingsBase, TimestampedTable, table=True):
     """Team-level chat visibility settings.
 
     Can only enable features that the org has enabled.
@@ -93,16 +90,13 @@ class TeamSettings(ChatSettingsBase, table=True):
 
     __tablename__ = "team_settings"
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    # Scoping with unique constraint (one settings record per team)
     team_id: uuid.UUID = Field(
         foreign_key="team.id", unique=True, nullable=False, ondelete="CASCADE"
     )
 
     # MCP-specific team settings
     mcp_allow_custom_servers: bool = Field(default=True)
-
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     team: "Team" = Relationship(back_populates="settings")
 
@@ -118,15 +112,13 @@ class TeamSettingsUpdate(SQLModel):
     disabled_tools: list[str] | None = None
 
 
-class TeamSettingsPublic(ChatSettingsBase):
+class TeamSettingsPublic(ChatSettingsBase, TimestampResponseMixin):
     id: uuid.UUID
     team_id: uuid.UUID
     mcp_allow_custom_servers: bool
-    created_at: datetime
-    updated_at: datetime
 
 
-class UserSettings(ChatSettingsBase, table=True):
+class UserSettings(ChatSettingsBase, TimestampedTable, table=True):
     """User-level chat visibility preferences.
 
     Can only enable features that both org and team have enabled.
@@ -135,12 +127,10 @@ class UserSettings(ChatSettingsBase, table=True):
 
     __tablename__ = "user_settings"
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    # Scoping with unique constraint (one settings record per user)
     user_id: uuid.UUID = Field(
         foreign_key="user.id", unique=True, nullable=False, ondelete="CASCADE"
     )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     user: "User" = Relationship(back_populates="settings")
 
@@ -155,11 +145,9 @@ class UserSettingsUpdate(SQLModel):
     disabled_tools: list[str] | None = None
 
 
-class UserSettingsPublic(ChatSettingsBase):
+class UserSettingsPublic(ChatSettingsBase, TimestampResponseMixin):
     id: uuid.UUID
     user_id: uuid.UUID
-    created_at: datetime
-    updated_at: datetime
 
 
 class EffectiveSettings(SQLModel):

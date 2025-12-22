@@ -1,8 +1,15 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
+
+from backend.core.base_models import (
+    OptionalAuditedTable,
+    PaginatedResponse,
+    SoftDeleteMixin,
+    TimestampResponseMixin,
+)
 
 if TYPE_CHECKING:
     from backend.auth.models import User
@@ -13,7 +20,7 @@ class ConversationBase(SQLModel):
     title: str = Field(min_length=1, max_length=255)
 
 
-class Conversation(ConversationBase, table=True):
+class Conversation(ConversationBase, OptionalAuditedTable, SoftDeleteMixin, table=True):
     """Conversation database model.
 
     Stores metadata about chat conversations for listing in the UI.
@@ -22,21 +29,17 @@ class Conversation(ConversationBase, table=True):
     Multi-tenant scoping:
     - organization_id: Required, provides first-level data isolation
     - team_id: Required, provides second-level data isolation
-    - created_by_id: Tracks who created the conversation (audit trail)
+    - created_by_id: Tracks who created the conversation (audit trail, from OptionalAuditedTable)
     - user_id: Deprecated, kept for backwards compatibility during migration
     """
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-
     # Multi-tenant scoping (required for new conversations)
+    # Note: Not using HierarchicalScopedMixin due to deprecated user_id field semantics
     organization_id: uuid.UUID | None = Field(
         foreign_key="organization.id", nullable=True, ondelete="CASCADE", index=True
     )
     team_id: uuid.UUID | None = Field(
         foreign_key="team.id", nullable=True, ondelete="CASCADE", index=True
-    )
-    created_by_id: uuid.UUID | None = Field(
-        foreign_key="user.id", nullable=True, ondelete="SET NULL"
     )
 
     # Deprecated: Direct user ownership (kept for backwards compatibility)
@@ -45,14 +48,8 @@ class Conversation(ConversationBase, table=True):
         foreign_key="user.id", nullable=True, ondelete="CASCADE"
     )
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
     # Starring (per-user would need a separate table, this is per-conversation)
     is_starred: bool = Field(default=False)
-
-    # Soft delete
-    deleted_at: datetime | None = Field(default=None, nullable=True, index=True)
 
     # Relationships
     user: Optional["User"] = Relationship(
@@ -75,7 +72,7 @@ class ConversationUpdate(SQLModel):
     title: str | None = Field(default=None, min_length=1, max_length=255)
 
 
-class ConversationPublic(ConversationBase):
+class ConversationPublic(ConversationBase, TimestampResponseMixin):
     """Schema for public conversation response."""
 
     id: uuid.UUID
@@ -83,17 +80,12 @@ class ConversationPublic(ConversationBase):
     team_id: uuid.UUID | None
     created_by_id: uuid.UUID | None
     user_id: uuid.UUID | None  # Deprecated, included for backwards compatibility
-    created_at: datetime
-    updated_at: datetime
     is_starred: bool
     deleted_at: datetime | None
 
 
-class ConversationsPublic(SQLModel):
-    """Schema for paginated conversations response."""
-
-    data: list[ConversationPublic]
-    count: int
+# ConversationsPublic is now PaginatedResponse[ConversationPublic]
+ConversationsPublic = PaginatedResponse[ConversationPublic]
 
 
 # Forward reference resolution

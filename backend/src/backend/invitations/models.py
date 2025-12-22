@@ -7,6 +7,12 @@ from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
+from backend.core.base_models import (
+    CreatedAtMixin,
+    PaginatedResponse,
+    UUIDPrimaryKeyMixin,
+)
+
 if TYPE_CHECKING:
     from backend.auth.models import User
     from backend.organizations.models import Organization, OrgRole
@@ -24,14 +30,13 @@ class InvitationBase(SQLModel):
     email: str = Field(max_length=255, index=True)
 
 
-class Invitation(InvitationBase, table=True):
+class Invitation(InvitationBase, UUIDPrimaryKeyMixin, CreatedAtMixin, table=True):
     """Invitation database model.
 
     Stores invitations for users to join organizations and optionally teams.
     Token is hashed with SHA-256 for security - only the hash is stored.
     """
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     organization_id: uuid.UUID = Field(
         foreign_key="organization.id", nullable=False, ondelete="CASCADE"
     )
@@ -52,7 +57,6 @@ class Invitation(InvitationBase, table=True):
     expires_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC) + timedelta(days=7)
     )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     accepted_at: datetime | None = Field(default=None)
 
     organization: "Organization" = Relationship(back_populates="invitations")
@@ -154,9 +158,8 @@ class InvitationCreatedResponse(InvitationPublic):
     token: str
 
 
-class InvitationsPublic(SQLModel):
-    data: list[InvitationPublic]
-    count: int
+# InvitationsPublic is now PaginatedResponse[InvitationPublic]
+InvitationsPublic = PaginatedResponse[InvitationPublic]
 
 
 class InvitationAccept(SQLModel):

@@ -1,9 +1,16 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
+
+from backend.core.base_models import (
+    HierarchicalScopedMixin,
+    OptionalAuditedTable,
+    PaginatedResponse,
+    TimestampResponseMixin,
+)
 
 if TYPE_CHECKING:
     from backend.auth.models import User
@@ -31,12 +38,12 @@ class PromptBase(SQLModel):
     prompt_type: PromptType = Field(default=PromptType.TEMPLATE)
 
 
-class Prompt(PromptBase, table=True):
+class Prompt(PromptBase, OptionalAuditedTable, HierarchicalScopedMixin, table=True):
     """Prompt database model.
 
     Stores prompt templates and system prompts with hierarchical scoping.
 
-    Scope levels (exactly one scope field should be set):
+    Scope levels (from HierarchicalScopedMixin, exactly one scope field should be set):
     - Organization scope: organization_id set, team_id and user_id null
     - Team scope: organization_id and team_id set, user_id null
     - User scope: user_id set, organization_id and team_id null (global to user)
@@ -46,31 +53,8 @@ class Prompt(PromptBase, table=True):
     org prompt + team prompt + user prompt
     """
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-
-    # Scope fields - exactly one pattern determines the level
-    # Org scope: organization_id set, team_id null, user_id null
-    organization_id: uuid.UUID | None = Field(
-        foreign_key="organization.id", nullable=True, ondelete="CASCADE", index=True
-    )
-    # Team scope: organization_id set, team_id set, user_id null
-    team_id: uuid.UUID | None = Field(
-        foreign_key="team.id", nullable=True, ondelete="CASCADE", index=True
-    )
-    # User scope: user_id set, organization_id null, team_id null (global)
-    user_id: uuid.UUID | None = Field(
-        foreign_key="user.id", nullable=True, ondelete="CASCADE", index=True
-    )
-
     # For system prompts: is this the active one for this scope?
     is_active: bool = Field(default=False, index=True)
-
-    # Metadata
-    created_by_id: uuid.UUID | None = Field(
-        foreign_key="user.id", nullable=True, ondelete="SET NULL"
-    )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Relationships
     organization: Optional["Organization"] = Relationship(
@@ -100,20 +84,17 @@ class PromptUpdate(SQLModel):
     content: str | None = Field(default=None, min_length=1)
 
 
-class PromptPublic(PromptBase):
+class PromptPublic(PromptBase, TimestampResponseMixin):
     id: uuid.UUID
     organization_id: uuid.UUID | None
     team_id: uuid.UUID | None
     user_id: uuid.UUID | None
     is_active: bool
     created_by_id: uuid.UUID | None
-    created_at: datetime
-    updated_at: datetime
 
 
-class PromptsPublic(SQLModel):
-    data: list[PromptPublic]
-    count: int
+# PromptsPublic is now PaginatedResponse[PromptPublic]
+PromptsPublic = PaginatedResponse[PromptPublic]
 
 
 class PromptsAvailable(SQLModel):

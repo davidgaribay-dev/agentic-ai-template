@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
 
+from backend.core.base_models import BaseTable, PaginatedResponse
+
 if TYPE_CHECKING:
     from backend.conversations.models import Conversation
     from backend.invitations.models import Invitation
@@ -21,8 +23,7 @@ class UserBase(SQLModel):
     profile_image_url: str | None = Field(default=None, max_length=500)
 
 
-class User(UserBase, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+class User(UserBase, BaseTable, table=True):
     hashed_password: str
     password_changed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -99,9 +100,8 @@ class UserPublic(UserBase):
     id: uuid.UUID
 
 
-class UsersPublic(SQLModel):
-    data: list[UserPublic]
-    count: int
+# UsersPublic is now PaginatedResponse[UserPublic] - use it directly in routes
+UsersPublic = PaginatedResponse[UserPublic]
 
 
 class Token(SQLModel):

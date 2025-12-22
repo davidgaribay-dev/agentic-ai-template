@@ -1,9 +1,17 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
+
+from backend.core.base_models import (
+    OrgScopedMixin,
+    OptionalAuditedTable,
+    PaginatedResponse,
+    TimestampedTable,
+    TimestampResponseMixin,
+)
 
 if TYPE_CHECKING:
     from backend.conversations.models import Conversation
@@ -32,20 +40,10 @@ class TeamBase(SQLModel):
     logo_url: str | None = Field(default=None, max_length=500)
 
 
-class Team(TeamBase, table=True):
+class Team(TeamBase, OptionalAuditedTable, OrgScopedMixin, table=True):
     """Sub-group within an organization for resource isolation.
     Teams contain conversations, items, and other resources.
     """
-
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    organization_id: uuid.UUID = Field(
-        foreign_key="organization.id", nullable=False, ondelete="CASCADE"
-    )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    created_by_id: uuid.UUID | None = Field(
-        foreign_key="user.id", nullable=True, ondelete="SET NULL"
-    )
 
     organization: "Organization" = Relationship(back_populates="teams")
     members: list["TeamMember"] = Relationship(
@@ -78,24 +76,21 @@ class TeamUpdate(SQLModel):
     description: str | None = Field(default=None, max_length=1000)
 
 
-class TeamPublic(TeamBase):
+class TeamPublic(TeamBase, TimestampResponseMixin):
     id: uuid.UUID
     organization_id: uuid.UUID
-    created_at: datetime
-    updated_at: datetime
     created_by_id: uuid.UUID | None
 
 
-class TeamsPublic(SQLModel):
-    data: list[TeamPublic]
-    count: int
+# TeamsPublic is now PaginatedResponse[TeamPublic]
+TeamsPublic = PaginatedResponse[TeamPublic]
 
 
 class TeamMemberBase(SQLModel):
     role: TeamRole = Field(default=TeamRole.MEMBER)
 
 
-class TeamMember(TeamMemberBase, table=True):
+class TeamMember(TeamMemberBase, TimestampedTable, table=True):
     """Team membership database model.
 
     Links organization members to teams with a specific role.
@@ -104,15 +99,12 @@ class TeamMember(TeamMemberBase, table=True):
 
     __tablename__ = "team_member"
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     team_id: uuid.UUID = Field(
         foreign_key="team.id", nullable=False, ondelete="CASCADE"
     )
     org_member_id: uuid.UUID = Field(
         foreign_key="organization_member.id", nullable=False, ondelete="CASCADE"
     )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     team: Team = Relationship(back_populates="members")
     org_member: "OrganizationMember" = Relationship(back_populates="team_memberships")
@@ -131,13 +123,11 @@ class TeamMemberUpdate(SQLModel):
     role: TeamRole | None = None
 
 
-class TeamMemberPublic(SQLModel):
+class TeamMemberPublic(TimestampResponseMixin):
     id: uuid.UUID
     team_id: uuid.UUID
     org_member_id: uuid.UUID
     role: TeamRole
-    created_at: datetime
-    updated_at: datetime
 
 
 class TeamMemberWithUser(TeamMemberPublic):
@@ -145,12 +135,11 @@ class TeamMemberWithUser(TeamMemberPublic):
     user_email: str
     user_full_name: str | None
     user_profile_image_url: str | None = None
-    org_role: str 
+    org_role: str
 
 
-class TeamMembersPublic(SQLModel):
-    data: list[TeamMemberWithUser]
-    count: int
+# TeamMembersPublic is now PaginatedResponse[TeamMemberWithUser]
+TeamMembersPublic = PaginatedResponse[TeamMemberWithUser]
 
 
 from backend.conversations.models import Conversation  # noqa: E402, F401

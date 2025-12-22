@@ -1,9 +1,15 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
+
+from backend.core.base_models import (
+    PaginatedResponse,
+    TimestampedTable,
+    TimestampResponseMixin,
+)
 
 if TYPE_CHECKING:
     from backend.auth.models import User
@@ -34,16 +40,12 @@ class OrganizationBase(SQLModel):
     logo_url: str | None = Field(default=None, max_length=500)
 
 
-class Organization(OrganizationBase, table=True):
+class Organization(OrganizationBase, TimestampedTable, table=True):
     """Organization database model.
 
     Top-level tenant container that groups users and resources.
     Organizations contain teams, and all resources are scoped to org/team.
     """
-
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     members: list["OrganizationMember"] = Relationship(
         back_populates="organization",
@@ -75,22 +77,19 @@ class OrganizationUpdate(SQLModel):
     description: str | None = Field(default=None, max_length=1000)
 
 
-class OrganizationPublic(OrganizationBase):
+class OrganizationPublic(OrganizationBase, TimestampResponseMixin):
     id: uuid.UUID
-    created_at: datetime
-    updated_at: datetime
 
 
-class OrganizationsPublic(SQLModel):
-    data: list[OrganizationPublic]
-    count: int
+# OrganizationsPublic is now PaginatedResponse[OrganizationPublic]
+OrganizationsPublic = PaginatedResponse[OrganizationPublic]
 
 
 class OrganizationMemberBase(SQLModel):
     role: OrgRole = Field(default=OrgRole.MEMBER)
 
 
-class OrganizationMember(OrganizationMemberBase, table=True):
+class OrganizationMember(OrganizationMemberBase, TimestampedTable, table=True):
     """Organization membership database model.
 
     Links users to organizations with a specific role.
@@ -99,15 +98,12 @@ class OrganizationMember(OrganizationMemberBase, table=True):
 
     __tablename__ = "organization_member"
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     organization_id: uuid.UUID = Field(
         foreign_key="organization.id", nullable=False, ondelete="CASCADE"
     )
     user_id: uuid.UUID = Field(
         foreign_key="user.id", nullable=False, ondelete="CASCADE"
     )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     organization: Organization = Relationship(back_populates="members")
     user: "User" = Relationship(back_populates="organization_memberships")
@@ -132,13 +128,11 @@ class OrganizationMemberUpdate(SQLModel):
     role: OrgRole | None = None
 
 
-class OrganizationMemberPublic(SQLModel):
+class OrganizationMemberPublic(TimestampResponseMixin):
     id: uuid.UUID
     organization_id: uuid.UUID
     user_id: uuid.UUID
     role: OrgRole
-    created_at: datetime
-    updated_at: datetime
 
 
 class OrganizationMemberWithUser(OrganizationMemberPublic):
@@ -147,9 +141,8 @@ class OrganizationMemberWithUser(OrganizationMemberPublic):
     user_profile_image_url: str | None = None
 
 
-class OrganizationMembersPublic(SQLModel):
-    data: list[OrganizationMemberWithUser]
-    count: int
+# OrganizationMembersPublic is now PaginatedResponse[OrganizationMemberWithUser]
+OrganizationMembersPublic = PaginatedResponse[OrganizationMemberWithUser]
 
 
 from backend.invitations.models import Invitation  # noqa: E402, F401

@@ -1,12 +1,19 @@
 """MCP Server models and schemas."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
 from pydantic import field_validator
 from sqlmodel import Field, Relationship, SQLModel
+
+from backend.core.base_models import (
+    AuditedTable,
+    MCPScopedMixin,
+    PaginatedResponse,
+    TimestampResponseMixin,
+)
 
 if TYPE_CHECKING:
     from backend.auth.models import User
@@ -30,10 +37,10 @@ class MCPAuthType(str, Enum):
     API_KEY = "api_key"
 
 
-class MCPServer(SQLModel, table=True):
+class MCPServer(AuditedTable, MCPScopedMixin, table=True):
     """MCP Server registry model.
 
-    Servers can be scoped to:
+    Servers can be scoped to (via MCPScopedMixin - org always required):
     - Organization level (team_id=NULL, user_id=NULL): Available to all org members
     - Team level (team_id set, user_id=NULL): Available to team members only
     - User level (team_id set, user_id set): Personal server for specific user
@@ -43,19 +50,6 @@ class MCPServer(SQLModel, table=True):
     """
 
     __tablename__ = "mcp_server"
-
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-
-    # Scoping - organization is always required
-    organization_id: uuid.UUID = Field(
-        foreign_key="organization.id", nullable=False, ondelete="CASCADE"
-    )
-    team_id: uuid.UUID | None = Field(
-        foreign_key="team.id", nullable=True, default=None, ondelete="CASCADE"
-    )
-    user_id: uuid.UUID | None = Field(
-        foreign_key="user.id", nullable=True, default=None, ondelete="CASCADE"
-    )
 
     # Server identification
     name: str = Field(max_length=100)
@@ -74,11 +68,6 @@ class MCPServer(SQLModel, table=True):
     enabled: bool = Field(default=True)
     is_builtin: bool = Field(default=False)
     tool_prefix: bool = Field(default=True)
-
-    # Metadata
-    created_by_id: uuid.UUID = Field(foreign_key="user.id", nullable=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Relationships
     organization: Optional["Organization"] = Relationship(
@@ -160,7 +149,7 @@ class MCPServerUpdate(SQLModel):
         return v
 
 
-class MCPServerPublic(SQLModel):
+class MCPServerPublic(TimestampResponseMixin):
     """Public schema for MCP server responses."""
 
     id: uuid.UUID
@@ -179,8 +168,6 @@ class MCPServerPublic(SQLModel):
     tool_prefix: bool
     scope: str
     created_by_id: uuid.UUID
-    created_at: datetime
-    updated_at: datetime
 
     @classmethod
     def from_model(cls, server: MCPServer) -> "MCPServerPublic":
@@ -207,11 +194,8 @@ class MCPServerPublic(SQLModel):
         )
 
 
-class MCPServerList(SQLModel):
-    """Paginated list of MCP servers."""
-
-    data: list[MCPServerPublic]
-    count: int
+# MCPServerList is now PaginatedResponse[MCPServerPublic]
+MCPServerList = PaginatedResponse[MCPServerPublic]
 
 
 class MCPToolPublic(SQLModel):
