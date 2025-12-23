@@ -22,15 +22,17 @@ src/
 ├── routes/              # File-based routing → routeTree.gen.ts (auto-generated, never edit)
 ├── components/
 │   ├── ui/              # shadcn/ui (add: npx shadcn@latest add <name>)
-│   ├── chat/            # Chat, ChatInput, ChatMessage, CodeBlock, PromptPicker, ToolPicker
-│   ├── settings/        # MemorySettings, MemoryViewer, ApiKeys, Prompts, etc.
+│   ├── chat/            # Chat, ChatInput, ChatMessage, AttachmentPicker, CitationBadge, ToolApprovalCard
+│   ├── documents/       # DocumentUpload, DocumentList, DocumentViewer (RAG)
+│   ├── settings/        # MemorySettings, MemoryViewer, ApiKeys, Prompts, RAG, Theme, Guardrails
 │   ├── search-conversations.tsx  # Full-text conversation search with debouncing
 │   └── side-panel.tsx   # Collapsible chat panel with dual-pane support
 ├── hooks/
 │   ├── useChat.ts       # SSE streaming chat hook
 │   ├── useDebounce.ts   # Generic debounce hook for search inputs
 │   ├── useIsMobile.ts   # Mobile viewport detection (768px breakpoint)
-│   └── useMediaUpload.ts # Image upload with validation and progress
+│   ├── useMediaUpload.ts # Image upload with validation and progress
+│   └── useDocumentUpload.ts # RAG document upload with progress
 └── lib/
     ├── api/             # Modular API client (see API Architecture below)
     ├── auth.ts          # Token management & auth hooks
@@ -63,7 +65,10 @@ lib/api/
 ├── mcp-servers.ts    # mcpServersApi: MCP server management
 ├── api-keys.ts       # apiKeysApi: LLM API key management
 ├── guardrails.ts     # guardrailsApi: content filtering (input/output, PII)
-└── media.ts          # mediaApi: chat image uploads
+├── media.ts          # mediaApi: chat image uploads
+├── documents.ts      # documentsApi: RAG document upload and management
+├── rag-settings.ts   # ragSettingsApi: RAG configuration (org/team/user)
+└── theme-settings.ts # themeSettingsApi: UI theme configuration
 ```
 
 Import patterns (both work):
@@ -345,6 +350,111 @@ Components:
 Supported types: JPEG, PNG, GIF, WebP
 Limits: Configurable at org level via `max_media_file_size_mb`, `max_media_storage_mb`
 
+## RAG (Documents)
+
+Document-based knowledge retrieval with AI-powered search. Documents uploaded to RAG become searchable across conversations.
+
+Route: `/org/team/:teamId/documents` - Document management page
+
+Components:
+- `DocumentUpload` (`components/documents/`) - Drag-drop upload with progress
+- `DocumentList` - Table view with status, file type, chunk count
+- `DocumentViewer` - Full document content preview
+- `AttachmentPicker` (`components/chat/`) - Popover for upload mode selection
+- `AttachmentPreviewList` (`components/chat/`) - Preview of pending attachments
+- `CitationBadge` (`components/chat/`) - Inline source citation rendering
+
+Hook (`hooks/useDocumentUpload.ts`):
+```typescript
+const {
+  uploads,          // Upload states with progress
+  isUploading,      // Any upload in progress
+  uploadFile,       // Upload single file → Document
+  uploadFiles,      // Upload multiple files
+  clearCompleted,   // Clear finished uploads
+} = useDocumentUpload({
+  organizationId,
+  teamId,
+  scope: "team",    // "org" | "team" | "user"
+  onUploadComplete,
+  onError,
+})
+```
+
+API (`lib/api/documents.ts`):
+```typescript
+documentsApi.upload({ file, organization_id, team_id?, scope })
+documentsApi.list({ organization_id, team_id?, status?, page?, page_size? })
+documentsApi.get(documentId)
+documentsApi.delete(documentId)
+documentsApi.reprocess(documentId)
+documentsApi.getChunks(documentId)
+documentsApi.getContent(documentId)
+```
+
+Document statuses: `pending` → `processing` → `completed`/`failed`
+
+Chat integration:
+- `AttachmentPicker` in `ChatInput` offers two modes:
+  - "Use in this conversation" - inline for immediate analysis
+  - "Add to Knowledge Base" - upload to RAG
+- `search_documents` tool auto-queries RAG when enabled
+- Citations rendered with `CitationBadge` showing source file
+
+## RAG Settings
+
+Hierarchical RAG configuration (org → team → user).
+
+Components (`components/settings/`):
+- `org-rag-settings.tsx` - Org-level RAG configuration
+- `team-rag-settings.tsx` - Team-level RAG configuration
+- `user-rag-settings.tsx` - User-level RAG configuration
+
+API (`lib/api/rag-settings.ts`):
+```typescript
+ragSettingsApi.getOrgSettings(orgId)
+ragSettingsApi.updateOrgSettings(orgId, settings)
+ragSettingsApi.getTeamSettings(orgId, teamId)
+ragSettingsApi.updateTeamSettings(orgId, teamId, settings)
+ragSettingsApi.getUserSettings()
+ragSettingsApi.updateUserSettings(settings)
+ragSettingsApi.getEffectiveSettings(organizationId?, teamId?)
+```
+
+Settings fields:
+- `rag_enabled` - Master toggle
+- `chunk_size`, `chunk_overlap` - Chunking parameters
+- `chunks_per_query`, `similarity_threshold` - Search parameters
+- `use_hybrid_search`, `reranking_enabled`, `query_rewriting_enabled`
+- `max_documents_per_user`, `max_document_size_mb`, `allowed_file_types`
+- `allow_team_customization`, `allow_user_customization` - Hierarchy controls
+
+## Theme Settings
+
+Customizable UI theming with predefined palettes and custom theme support.
+
+API (`lib/api/theme-settings.ts`):
+```typescript
+themeSettingsApi.getOrgSettings(orgId)
+themeSettingsApi.updateOrgSettings(orgId, settings)
+themeSettingsApi.getTeamSettings(orgId, teamId)
+themeSettingsApi.updateTeamSettings(orgId, teamId, settings)
+themeSettingsApi.getUserSettings()
+themeSettingsApi.updateUserSettings(settings)
+themeSettingsApi.getEffectiveSettings(organizationId?, teamId?, systemPrefersDark?)
+themeSettingsApi.getPredefinedThemes()  // All available theme palettes
+```
+
+Types:
+- `ThemeMode`: `"light" | "dark" | "system"`
+- `ThemeColors`: 30+ color variables (background, foreground, primary, etc.)
+- Predefined themes: github-light, one-dark-pro, etc.
+- Custom themes: `custom_light_theme`, `custom_dark_theme` JSON fields
+
+Settings hierarchy:
+- Org: `default_theme_mode`, `default_light_theme`, `default_dark_theme`
+- Team/User: Can override if `allow_*_customization=true`
+
 ## Layout System
 
 IMPORTANT - CSS Grid 3-column layout:
@@ -464,6 +574,8 @@ const { sidebarOpen, sidePanelOpen, sidePanelWidth, toggleSidebar, toggleSidePan
 /org/team/:teamId/prompts  # Team prompts
 /org/mcp-servers           # Org MCP servers
 /org/team/:teamId/mcp-servers  # Team MCP servers
+/org/team/:teamId/documents    # Team document management (RAG)
+/search                        # Conversation search
 ```
 
 ## Common Tasks

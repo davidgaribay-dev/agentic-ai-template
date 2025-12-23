@@ -69,14 +69,18 @@ System prompts: Hierarchical concatenation (org → team → user) prepended to 
 
 LLM key resolution: team-level → org-level → environment variable (via Infisical)
 
-**Multimodal Chat (Image Uploads)**: Send images with chat messages
-- Supports JPEG, PNG, GIF, WebP (max 10MB per file, 5 files per message)
-- Images stored in SeaweedFS with multi-tenant scoping (org → team → user)
-- `useMediaUpload()` hook handles validation, preview, and upload
+**Multimodal Chat (Image & Document Uploads)**: Send images and documents with chat messages
+- Images: JPEG, PNG, GIF, WebP (max 10MB per file, 5 files per message)
+- Documents: PDF with Claude's native document support and prompt caching
+- Two upload modes via `AttachmentPicker`:
+  - "Use in this conversation" - inline for immediate analysis
+  - "Add to Knowledge Base" - upload to RAG for persistent storage
+- Images/docs stored in SeaweedFS with multi-tenant scoping (org → team → user)
+- `useMediaUpload()` hook for images, `useDocumentUpload()` hook for RAG docs
 - Media library UI at user settings for viewing/deleting uploads
 - Org-level configurable limits: `max_media_file_size_mb`, `max_media_storage_mb`
 - Backend: `backend/media/` module, API at `/v1/media`
-- Frontend: `ImagePreview` component for inline display, `MediaLibrary` for management
+- Frontend: `ImagePreview`, `AttachmentPicker`, `AttachmentPreviewList` components
 
 **Guardrails (Content Filtering)**: AI safety controls for input/output
 - Hierarchical configuration: org → team → user (patterns merged, most restrictive action wins)
@@ -96,6 +100,26 @@ LLM key resolution: team-level → org-level → environment variable (via Infis
 - Search endpoint: `GET /v1/conversations?team_id={id}&search={query}`
 - Backfill script for existing conversations: `backend/scripts/backfill_message_index.py`
 - Dedicated search UI at `/search` route with real-time debounced search
+
+**RAG (Retrieval Augmented Generation)**: Document-based knowledge for AI responses
+- Document upload with automatic processing: parse → chunk → embed → store
+- Supports PDF, TXT, MD, DOCX, code files, and more (configurable per org)
+- pgvector for semantic similarity search with HNSW indexing
+- Multi-tenant scoping: org-level, team-level, or user-level documents
+- Hierarchical settings (org → team → user) for chunk_size, similarity_threshold, etc.
+- `search_documents` tool auto-available in agent when RAG enabled
+- Citations displayed inline with `[[filename]]` markers and `CitationBadge` component
+- Backend: `backend/documents/` + `backend/rag_settings/` modules, API at `/v1/documents`, `/v1/rag-settings`
+- Frontend: `documentsApi`, `ragSettingsApi`, `AttachmentPicker`, `useDocumentUpload` hook, documents page at `/org/team/:teamId/documents`
+
+**Theme Settings**: Customizable UI theming with OKLch color system
+- Predefined themes (github-light, one-dark-pro, etc.) with 30+ color variables
+- Custom theme support via JSON color definitions
+- Hierarchical configuration: org defaults → team overrides → user preferences
+- Light/dark/system mode with per-mode theme selection
+- Org controls: `allow_team_customization`, `allow_user_customization`
+- Backend: `backend/theme_settings/` module with themes.py (38KB of predefined themes)
+- Frontend: `themeSettingsApi`, theme settings components at org/team/user levels
 
 ## MCP (Model Context Protocol)
 
@@ -163,8 +187,13 @@ OpenSearch indices: `audit-logs-YYYY.MM.DD` (90-day retention), `app-logs-YYYY.M
 │   │   ├── organizations/  # Org + OrganizationMember
 │   │   ├── teams/          # Team + TeamMember
 │   │   ├── conversations/  # Multi-tenant chat history + message index
+│   │   ├── documents/      # RAG document upload, parsing, chunking, vector store
+│   │   ├── rag_settings/   # RAG configuration (org/team/user hierarchy)
+│   │   ├── theme_settings/ # UI theme configuration with predefined themes
 │   │   ├── guardrails/     # AI content filtering (input/output, PII detection)
-│   │   ├── media/          # Chat media uploads (images)
+│   │   ├── media/          # Chat media uploads (images, documents)
+│   │   ├── memory/         # User memory extraction and storage
+│   │   ├── prompts/        # System and template prompts
 │   │   ├── audit/          # OpenSearch logging
 │   │   └── core/           # Config, DB, security, secrets, cache, HTTP, tasks, UoW, exceptions
 │   ├── scripts/            # Setup scripts (setup-infisical.py, backfill_message_index.py, etc.)
@@ -172,11 +201,15 @@ OpenSearch indices: `audit-logs-YYYY.MM.DD` (90-day retention), `app-logs-YYYY.M
 │   └── alembic/            # Database migrations
 └── frontend/               # React 19 + TanStack + Tailwind v4
     └── src/
-        ├── routes/         # File-based routing
-        ├── components/     # UI (shadcn/ui) + chat
-        ├── hooks/          # useChat SSE streaming, useIsMobile
+        ├── routes/         # File-based routing (including /org/team/:teamId/documents)
+        ├── components/
+        │   ├── ui/         # shadcn/ui base components
+        │   ├── chat/       # ChatInput, ChatMessage, ToolApprovalCard, AttachmentPicker, CitationBadge
+        │   ├── settings/   # Org/team/user settings panels (RAG, theme, guardrails, MCP)
+        │   └── documents/  # DocumentUpload, DocumentList, DocumentViewer
+        ├── hooks/          # useChat, useMediaUpload, useDocumentUpload, useIsMobile
         └── lib/
-            ├── api/        # Modular API client (agent, auth, orgs, teams, etc.)
+            ├── api/        # Modular API client (agent, auth, orgs, teams, documents, rag-settings, theme-settings, etc.)
             ├── auth.ts     # Token management & auth hooks
             ├── queries.ts  # TanStack Query hooks
             └── workspace.tsx  # Org/team context
@@ -190,11 +223,13 @@ uv run ruff check .                        # Lint check (MUST pass before commit
 uv run ruff check . --fix                  # Auto-fix lint issues
 uv run ruff format .                       # Format code
 uv run ruff format --check .               # Check formatting without changes
+uv run mypy src/backend                    # Type check (MUST pass before commit)
 uv run pytest                              # Run tests
 uv run alembic revision --autogenerate -m "msg"  # Create migration
 
 # Frontend (from frontend/)
 npm run build                              # TypeScript + Vite build
+npm run typecheck                          # TypeScript type check only (MUST pass)
 npm run lint                               # ESLint
 npm run format                             # Format code with Prettier
 npm run format:check                       # Check formatting without changes
@@ -207,10 +242,10 @@ npx shadcn@latest add <name>               # Add UI component
 
 ```bash
 # Backend (from backend/)
-uv run ruff check . && uv run ruff format --check .
+uv run ruff check . && uv run ruff format --check . && uv run mypy src/backend
 
 # Frontend (from frontend/)
-npm run lint && npm run format:check
+npm run typecheck && npm run lint && npm run format:check
 ```
 
 Auto-fix commands if checks fail:
@@ -358,3 +393,59 @@ These patterns are intentionally allowed in specific contexts:
 - **Tests**: Magic values, assert statements, unused fixtures
 
 See `backend/pyproject.toml` `[tool.ruff.lint.per-file-ignores]` for full list.
+
+### Backend Mypy Type Checking (Enforced by CI)
+
+**MUST pass mypy** - CI runs `uv run mypy src/backend`:
+
+1. **SQLModel/SQLAlchemy column methods**: Use `== None` with noqa comment, not `.is_(None)`
+   ```python
+   # ✅ Correct
+   statement.where(Model.deleted_at == None)  # noqa: E711
+
+   # ❌ Wrong - mypy error: "datetime" has no attribute "is_"
+   statement.where(Model.deleted_at.is_(None))
+   ```
+
+2. **SQLModel `.in_()` and `.desc()` methods**: Add `type: ignore[attr-defined]`
+   ```python
+   # ✅ Correct
+   Model.id.in_(id_list),  # type: ignore[attr-defined]
+   Model.created_at.desc()  # type: ignore[attr-defined]
+
+   # ❌ Wrong - mypy error: "UUID" has no attribute "in_"
+   Model.id.in_(id_list)
+   ```
+
+3. **Generic type parameters**: Always specify type parameters for generics
+   ```python
+   # ✅ Correct
+   def _json_column() -> "Column[list[str]]": ...
+
+   # ❌ Wrong - mypy error: Missing type parameters for generic type
+   def _json_column() -> Column: ...
+   ```
+
+4. **Don't add unused `type: ignore` comments**: Use correct error codes
+   ```python
+   # ✅ Correct error code
+   # type: ignore[attr-defined]  # for missing attributes
+
+   # ❌ Wrong - causes "Unused type: ignore" error
+   # type: ignore[union-attr]  # when actual error is attr-defined
+   ```
+
+### Frontend TypeScript Standards (Enforced by CI)
+
+**MUST pass typecheck** - CI runs `npm run typecheck`:
+
+1. **Export all types used across modules**: If a type is used in another file, export it from the barrel file
+   ```typescript
+   // ✅ In lib/api/index.ts - export types used elsewhere
+   export { type MessageMediaInfo } from "./agent";
+
+   // ❌ Wrong - importing non-exported type causes TS2305
+   import { MessageMediaInfo } from "@/lib/api";  // Error if not exported
+   ```
+
+2. **Check barrel exports when adding new types**: When adding types to a module, add to `index.ts` if used externally

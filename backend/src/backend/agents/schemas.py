@@ -20,12 +20,14 @@ class MessageSource(BaseModel):
 
 
 class MessageMediaInfo(BaseModel):
-    """Media info for multimodal messages (images)."""
+    """Media info for multimodal messages (images and documents)."""
 
     id: str = Field(..., description="Media ID for fetching from storage")
     filename: str = Field(default="", description="Original filename")
-    mime_type: str = Field(..., description="MIME type (e.g., 'image/jpeg')")
-    type: str = Field(default="image", description="Media type: 'image'")
+    mime_type: str = Field(
+        ..., description="MIME type (e.g., 'image/jpeg', 'application/pdf')"
+    )
+    type: str = Field(default="image", description="Media type: 'image' or 'document'")
 
 
 class ChatMessage(BaseModel):
@@ -36,7 +38,7 @@ class ChatMessage(BaseModel):
     )
     media: list[MessageMediaInfo] | None = Field(
         default=None,
-        description="Media attachments (images) for user messages",
+        description="Media attachments (images/documents) for user messages",
     )
     guardrail_blocked: bool = Field(
         default=False,
@@ -69,7 +71,7 @@ class ChatRequest(BaseModel):
     )
     media_ids: list[str] | None = Field(
         default=None,
-        description="Optional list of media IDs (images) to attach to the message",
+        description="Optional list of media IDs (images/documents) to attach to the message",
     )
 
 

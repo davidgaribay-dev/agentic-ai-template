@@ -210,12 +210,19 @@ async def chat(
             try:
                 media = get_chat_media(session, uuid.UUID(media_id_str))
                 if media:
+                    # Determine media type based on mime_type
+                    media_type = "image"
+                    if media.mime_type and (
+                        media.mime_type.startswith("application/pdf")
+                        or media.mime_type.startswith("text/")
+                    ):
+                        media_type = "document"
                     media_list.append(
                         {
                             "id": str(media.id),
                             "filename": media.filename,
                             "mime_type": media.mime_type,
-                            "type": "image",
+                            "type": media_type,
                         }
                     )
             except Exception as e:

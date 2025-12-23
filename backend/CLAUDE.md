@@ -46,6 +46,9 @@ src/backend/
 ├── memory/              # Long-term memory with semantic search
 ├── mcp/                 # MCP server registry, client, tool loading, types
 ├── settings/            # Hierarchical settings (org/team/user)
+├── documents/           # RAG document upload, parsing, chunking, vector store
+├── rag_settings/        # RAG configuration hierarchy (org/team/user)
+├── theme_settings/      # UI theme configuration with predefined themes
 ├── core/
 │   ├── config.py        # Pydantic settings with computed fields
 │   ├── db.py            # Engine, session, pagination utilities
@@ -388,6 +391,151 @@ API routes (`/v1/memory/*`):
 
 Environment: Requires `OPENAI_API_KEY` for embeddings. Memory store optional - app works without it.
 
+## RAG System (Documents)
+
+Document-based knowledge retrieval for AI responses using pgvector.
+
+Architecture:
+```
+documents/
+├── models.py       # Document, DocumentChunk, DocumentEmbedding SQLModels
+├── service.py      # Upload, list, delete, reprocess operations
+├── chunking.py     # Token-based text splitting with overlap
+├── embeddings.py   # OpenAI text-embedding-3-small (1536 dims)
+├── parsers.py      # PDF, TXT, MD, DOCX, code file extraction
+├── vector_store.py # pgvector similarity search with HNSW index
+```
+
+Document lifecycle:
+1. Upload via `/v1/documents` (multipart form) → saved to SeaweedFS
+2. Background task: parse → chunk → embed → store in PostgreSQL
+3. Status transitions: `pending` → `processing` → `completed`/`failed`
+4. On chat: `search_documents` tool queries pgvector for relevant chunks
+
+Multi-tenant scoping:
+- **Org-level**: `scope="org"` - all org members can search
+- **Team-level**: `scope="team"` - team members only
+- **User-level**: `scope="user"` - private to user
+
+Key settings (from `rag_settings`):
+- `chunk_size` (default: 512 tokens), `chunk_overlap` (default: 64 tokens)
+- `chunks_per_query` (default: 5), `similarity_threshold` (default: 0.7)
+- `use_hybrid_search`, `reranking_enabled`, `query_rewriting_enabled`
+- `max_documents_per_user`, `max_document_size_mb`, `allowed_file_types`
+
+Vector store:
+```sql
+CREATE TABLE document_embedding (
+  id UUID PRIMARY KEY,
+  chunk_id UUID REFERENCES document_chunk(id) ON DELETE CASCADE,
+  embedding vector(1536),  -- pgvector extension
+  created_at TIMESTAMP
+);
+
+CREATE INDEX idx_document_embedding_hnsw
+  ON document_embedding USING hnsw (embedding vector_cosine_ops);
+```
+
+`search_documents` tool (auto-added when RAG enabled):
+```python
+@tool
+def search_documents(query: str) -> str:
+    """Search uploaded documents for relevant information."""
+    # Uses org/team/user context from agent execution
+    results = vector_store.similarity_search(query, k=chunks_per_query)
+    return json.dumps({"results": results})
+```
+
+Citations: Tool returns source metadata, agent includes `[[filename]]` markers, frontend renders `CitationBadge`.
+
+API endpoints:
+- `POST /v1/documents` - Upload document (multipart)
+- `GET /v1/documents` - List with filters (org_id, team_id, status)
+- `GET /v1/documents/{id}` - Get document details
+- `GET /v1/documents/{id}/chunks` - Get document chunks
+- `GET /v1/documents/{id}/content` - Get full document content
+- `POST /v1/documents/{id}/reprocess` - Retry failed document
+- `DELETE /v1/documents/{id}` - Soft delete
+
+## RAG Settings
+
+Hierarchical RAG configuration (org → team → user).
+
+Architecture:
+```
+rag_settings/
+├── models.py    # OrganizationRAGSettings, TeamRAGSettings, UserRAGSettings
+├── service.py   # CRUD + effective settings resolution
+```
+
+Org-level controls:
+- `rag_enabled` - Master toggle
+- `rag_customization_enabled` - Allow any customization
+- `allow_team_customization` - Teams can override settings
+- `allow_user_customization` - Users can override settings
+- `max_documents_per_user`, `max_document_size_mb`, `max_total_storage_gb`
+- `allowed_file_types` - List of extensions ["pdf", "txt", "md", ...]
+
+Team-level: Inherits org settings, can customize if allowed
+User-level: Inherits team settings, can customize if allowed
+
+Effective settings resolution:
+```python
+effective = get_effective_rag_settings(session, user_id, org_id, team_id)
+# Returns merged settings respecting hierarchy and override permissions
+```
+
+API endpoints:
+- `GET/PUT /v1/organizations/{id}/rag-settings`
+- `GET/PUT /v1/organizations/{id}/teams/{id}/rag-settings`
+- `GET/PUT /v1/users/me/rag-settings`
+- `GET /v1/rag-settings/effective?organization_id=...&team_id=...`
+
+## Theme Settings
+
+Customizable UI theming with predefined color palettes.
+
+Architecture:
+```
+theme_settings/
+├── models.py    # OrganizationThemeSettings, TeamThemeSettings, UserThemeSettings
+├── service.py   # CRUD + effective settings resolution
+├── themes.py    # 38KB of predefined theme definitions (github-light, one-dark-pro, etc.)
+```
+
+Theme structure (30+ color variables using OKLch):
+```python
+ThemeColors = {
+    "background", "foreground", "chat_input_bg",
+    "card", "card_foreground", "popover", "popover_foreground",
+    "primary", "primary_foreground", "secondary", "secondary_foreground",
+    "muted", "muted_foreground", "accent", "accent_foreground",
+    "destructive", "destructive_foreground", "border", "input", "ring",
+    "chart_1" ... "chart_5",
+    "sidebar", "sidebar_foreground", "sidebar_primary", ...
+}
+```
+
+Hierarchy:
+- Org: `default_theme_mode` (light/dark/system), `default_light_theme`, `default_dark_theme`
+- Team: Can override if `allow_team_customization=true`
+- User: Can override if `allow_user_customization=true`
+
+Custom themes: `custom_light_theme` and `custom_dark_theme` JSON fields for fully custom palettes.
+
+Effective settings resolution returns:
+- `theme_mode` - Current mode
+- `light_theme`, `dark_theme` - Theme names
+- `custom_light_theme`, `custom_dark_theme` - Custom overrides
+- `active_theme_colors` - Resolved colors for current system preference
+
+API endpoints:
+- `GET/PUT /v1/organizations/{id}/theme-settings`
+- `GET/PUT /v1/organizations/{id}/teams/{id}/theme-settings`
+- `GET/PUT /v1/users/me/theme-settings`
+- `GET /v1/theme-settings/effective?organization_id=...&team_id=...&system_prefers_dark=...`
+- `GET /v1/theme-settings/predefined-themes` - All available theme palettes
+
 ## Adding Features
 
 New Route:
@@ -429,13 +577,17 @@ Configured in `core/rate_limit.py`:
 - OpenAPI docs: `/v1/docs`
 - Auth: `/v1/auth/*` (login, signup, refresh, forgot-password)
 - Agent: `/v1/agent/chat` (POST, SSE streaming)
-- Conversations: `/v1/conversations/*` (CRUD + star/soft-delete)
+- Conversations: `/v1/conversations/*` (CRUD + star/soft-delete + search)
 - Organizations: `/v1/organizations/*` (CRUD + members)
 - Teams: `/v1/organizations/{id}/teams/*`
 - Prompts: org/team/user scopes with separate routers
 - Memory: `/v1/memory/*` (list, delete, clear)
 - Settings: `/v1/settings/*` (effective settings with hierarchy)
 - MCP: `/v1/organizations/{id}/mcp-servers/*`, `/v1/organizations/{id}/teams/{id}/mcp-servers/*`, `/v1/mcp-servers/me/*`
+- Documents: `/v1/documents/*` (upload, list, delete, reprocess, chunks, content)
+- RAG Settings: `/v1/organizations/{id}/rag-settings`, `/v1/organizations/{id}/teams/{id}/rag-settings`, `/v1/users/me/rag-settings`, `/v1/rag-settings/effective`
+- Theme Settings: `/v1/organizations/{id}/theme-settings`, `/v1/organizations/{id}/teams/{id}/theme-settings`, `/v1/users/me/theme-settings`, `/v1/theme-settings/effective`, `/v1/theme-settings/predefined-themes`
+- Media: `/v1/media/*` (upload, list, delete for chat attachments)
 
 ## Code Quality & Development Tools
 

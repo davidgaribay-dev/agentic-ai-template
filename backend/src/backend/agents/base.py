@@ -1,3 +1,4 @@
+import asyncio
 import base64
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -190,56 +191,127 @@ def _is_memory_enabled(
         return False
 
 
+def _is_document_type(mime_type: str | None) -> bool:
+    """Check if a mime type is a document (PDF or text-based)."""
+    if not mime_type:
+        return False
+    return mime_type.startswith(("application/pdf", "text/"))
+
+
 def _build_multimodal_message(
     message: str,
     media_list: list[ChatMedia],
 ) -> HumanMessage:
-    """Build a multimodal HumanMessage with text and images.
+    """Build a multimodal HumanMessage with text, images, and documents.
 
-    Creates a message with content blocks for text and images.
-    Images are encoded as base64 data URLs for LLM consumption.
+    Creates a message with content blocks for text, images, and documents.
+    Content is encoded as base64 for LLM consumption.
+    Documents use Claude's native PDF support with cache_control for prompt caching.
     Media metadata (id, filename, mime_type) is stored for history reconstruction.
 
     Args:
         message: The text message content
-        media_list: List of ChatMedia records to include as images
+        media_list: List of ChatMedia records to include
 
     Returns:
         HumanMessage with multimodal content and media metadata
     """
     content_blocks: list[dict] = []
-
-    # Add text content first
-    content_blocks.append({"type": "text", "text": message})
-
-    # Collect media metadata for reconstruction in history
     media_metadata: list[dict] = []
 
-    # Add images
-    for media in media_list:
+    # Separate documents and images - documents should come first per Claude best practices
+    documents = [m for m in media_list if _is_document_type(m.mime_type)]
+    images = [m for m in media_list if not _is_document_type(m.mime_type)]
+
+    # Add documents first (Claude recommends documents before other content)
+    for media in documents:
         try:
-            # Get image content from storage
+            doc_bytes = get_chat_media_content(media.file_path)
+            base64_data = base64.b64encode(doc_bytes).decode("utf-8")
+
+            # Use Claude's document type for PDFs with prompt caching
+            if media.mime_type and media.mime_type.startswith("application/pdf"):
+                content_blocks.append(
+                    {
+                        "type": "document",
+                        "source": {
+                            "type": "base64",
+                            "media_type": media.mime_type,
+                            "data": base64_data,
+                        },
+                        # Enable prompt caching for repeated queries on same document
+                        "cache_control": {"type": "ephemeral"},
+                        "media_id": str(media.id),
+                    }
+                )
+            else:
+                # Text files - include as text content
+                try:
+                    text_content = doc_bytes.decode("utf-8")
+                    content_blocks.append(
+                        {
+                            "type": "text",
+                            "text": f"[Document: {media.filename}]\n\n{text_content}",
+                            "cache_control": {"type": "ephemeral"},
+                            "media_id": str(media.id),
+                        }
+                    )
+                except UnicodeDecodeError:
+                    # If decode fails, skip this document
+                    logger.warning(
+                        "document_decode_failed",
+                        media_id=str(media.id),
+                        filename=media.filename,
+                    )
+                    continue
+
+            media_metadata.append(
+                {
+                    "id": str(media.id),
+                    "filename": media.filename,
+                    "mime_type": media.mime_type,
+                    "type": "document",
+                }
+            )
+
+            logger.debug(
+                "multimodal_document_added",
+                media_id=str(media.id),
+                filename=media.filename,
+                mime_type=media.mime_type,
+            )
+        except Exception as e:
+            logger.warning(
+                "multimodal_document_failed",
+                media_id=str(media.id),
+                error=str(e),
+            )
+
+    # Add text content
+    content_blocks.append({"type": "text", "text": message})
+
+    # Add images
+    for media in images:
+        try:
             image_bytes = get_chat_media_content(media.file_path)
             base64_data = base64.b64encode(image_bytes).decode("utf-8")
 
-            # Add image block with data URL and media ID for reference
             content_blocks.append(
                 {
                     "type": "image_url",
                     "image_url": {
                         "url": f"data:{media.mime_type};base64,{base64_data}",
                     },
-                    # Store media ID for history reconstruction
                     "media_id": str(media.id),
                 }
             )
 
-            # Store metadata for history
             media_metadata.append(
                 {
                     "id": str(media.id),
                     "filename": media.filename,
                     "mime_type": media.mime_type,
+                    "type": "image",
                 }
             )
 
@@ -255,10 +327,7 @@ def _build_multimodal_message(
                 media_id=str(media.id),
                 error=str(e),
             )
-            # Continue without this image
 
-    # Return message with media metadata stored in additional_kwargs
-    # This allows reconstruction of media URLs when loading history
     return HumanMessage(
         content=content_blocks,
         additional_kwargs={"media_metadata": media_metadata} if media_metadata else {},
@@ -498,49 +567,67 @@ def create_agent_graph(checkpointer: AsyncPostgresSaver | None = None) -> Any:
                 messages = [SystemMessage(content=system_prompt), *messages]
                 logger.debug("system_prompt_added", length=len(system_prompt))
 
-        # Inject relevant memories if enabled
-        if ctx and ctx.get("org_id") and ctx.get("user_id"):
+        # Inject relevant memories if enabled (with timeout to avoid blocking)
+        # Skip memory retrieval when message has inline media attachments
+        # (they're for immediate analysis, not related to past memories)
+        has_media = ctx.get("has_media", False) if ctx else False
+        if ctx and ctx.get("org_id") and ctx.get("user_id") and not has_media:
             memory_enabled = _is_memory_enabled(
                 org_id=ctx.get("org_id"),
                 team_id=ctx.get("team_id"),
                 user_id=ctx.get("user_id"),
             )
             if memory_enabled:
+                # Timeout for memory retrieval (don't block chat if embeddings are slow)
+                memory_timeout_seconds = 3.0
                 try:
-                    store = await get_memory_store()
-                    service = MemoryService(store)
 
-                    # Get the last user message for semantic search
-                    last_message = ""
-                    for msg in reversed(messages):
-                        if isinstance(msg, HumanMessage):
-                            last_message = str(msg.content)
-                            break
+                    async def _retrieve_memories():
+                        store = await get_memory_store()
+                        service = MemoryService(store)
 
-                    if last_message:
-                        memories = await service.search_memories(
-                            org_id=ctx.get("org_id"),
-                            team_id=ctx.get("team_id") or "default",
-                            user_id=ctx.get("user_id"),
-                            query=last_message,
-                            limit=5,
-                        )
+                        # Get the last user message for semantic search
+                        last_message = ""
+                        for msg in reversed(messages):
+                            if isinstance(msg, HumanMessage):
+                                last_message = str(msg.content)
+                                break
 
-                        if memories:
-                            memory_context = format_memories_for_context(memories)
-                            if memory_context:
-                                # Add memory context as a system message after any existing system prompt
-                                memory_msg = SystemMessage(content=memory_context)
-                                if messages and isinstance(messages[0], SystemMessage):
-                                    # Insert after existing system prompt
-                                    messages = [messages[0], memory_msg, *messages[1:]]
-                                else:
-                                    messages = [memory_msg, *messages]
-                                logger.debug(
-                                    "memories_injected",
-                                    count=len(memories),
-                                    user_id=ctx.get("user_id"),
-                                )
+                        if last_message:
+                            return await service.search_memories(
+                                org_id=ctx.get("org_id"),
+                                team_id=ctx.get("team_id") or "default",
+                                user_id=ctx.get("user_id"),
+                                query=last_message,
+                                limit=5,
+                            )
+                        return []
+
+                    memories = await asyncio.wait_for(
+                        _retrieve_memories(),
+                        timeout=memory_timeout_seconds,
+                    )
+
+                    if memories:
+                        memory_context = format_memories_for_context(memories)
+                        if memory_context:
+                            # Add memory context as a system message after any existing system prompt
+                            memory_msg = SystemMessage(content=memory_context)
+                            if messages and isinstance(messages[0], SystemMessage):
+                                # Insert after existing system prompt
+                                messages = [messages[0], memory_msg, *messages[1:]]
+                            else:
+                                messages = [memory_msg, *messages]
+                            logger.debug(
+                                "memories_injected",
+                                count=len(memories),
+                                user_id=ctx.get("user_id"),
+                            )
+                except TimeoutError:
+                    logger.warning(
+                        "memory_retrieval_timeout",
+                        timeout_seconds=memory_timeout_seconds,
+                    )
                 except Exception as e:
                     # Don't fail the request if memory retrieval fails
                     logger.warning("memory_injection_failed", error=str(e))
@@ -876,7 +963,9 @@ def create_agent_graph_with_tools(
                 logger.debug("system_prompt_added", length=len(system_prompt))
 
         # Inject relevant memories if enabled
-        if ctx and ctx.get("org_id") and ctx.get("user_id"):
+        # Skip memory retrieval when message has inline media attachments
+        has_media = ctx.get("has_media", False) if ctx else False
+        if ctx and ctx.get("org_id") and ctx.get("user_id") and not has_media:
             memory_enabled = _is_memory_enabled(
                 org_id=ctx.get("org_id"),
                 team_id=ctx.get("team_id"),
@@ -1077,7 +1166,9 @@ def create_agent_graph_with_tool_approval(
                 logger.debug("system_prompt_added", length=len(system_prompt))
 
         # Inject relevant memories if enabled
-        if ctx and ctx.get("org_id") and ctx.get("user_id"):
+        # Skip memory retrieval when message has inline media attachments
+        has_media = ctx.get("has_media", False) if ctx else False
+        if ctx and ctx.get("org_id") and ctx.get("user_id") and not has_media:
             memory_enabled = _is_memory_enabled(
                 org_id=ctx.get("org_id"),
                 team_id=ctx.get("team_id"),
@@ -1562,6 +1653,7 @@ async def run_agent_with_context(
             "team_id": team_id,
             "provider": provider,
             "user_id": user_id,
+            "has_media": bool(media_ids),  # Skip memory when inline attachments present
         }
     )
 
@@ -1642,6 +1734,7 @@ async def stream_agent_with_context(
             "team_id": team_id,
             "provider": provider,
             "user_id": user_id,
+            "has_media": bool(media_ids),  # Skip memory when inline attachments present
         }
     )
 

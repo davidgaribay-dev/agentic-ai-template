@@ -27,7 +27,7 @@ def get_or_create_org_settings(
             organization_id=organization_id,
             chat_enabled=True,
             chat_panel_enabled=True,
-            memory_enabled=True,
+            memory_enabled=False,  # Disabled by default - requires OpenAI embeddings
             mcp_enabled=True,
             mcp_tool_approval_required=True,
             mcp_allow_custom_servers=True,
@@ -70,7 +70,7 @@ def get_or_create_team_settings(session: Session, team_id: uuid.UUID) -> TeamSet
             team_id=team_id,
             chat_enabled=True,
             chat_panel_enabled=True,
-            memory_enabled=True,
+            memory_enabled=False,  # Disabled by default - requires OpenAI embeddings
             mcp_enabled=True,
             mcp_tool_approval_required=True,
             mcp_allow_custom_servers=True,

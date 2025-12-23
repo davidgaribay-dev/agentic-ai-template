@@ -1,25 +1,20 @@
 import * as React from "react";
 import { useRef, useCallback, useState, useEffect } from "react";
-import { ArrowUp, Square, ImagePlus } from "lucide-react";
+import { ArrowUp, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { PromptPicker } from "./PromptPicker";
 import { ToolPicker } from "./ToolPicker";
-import { ImagePreviewList } from "./ImagePreview";
+import { AttachmentPicker } from "./AttachmentPicker";
+import { AttachmentPreviewList } from "./AttachmentPreviewList";
 import {
   useMediaUpload,
   mediaToAttachment,
-  getAllowedMediaAccept,
+  isAllowedAttachmentType,
 } from "@/hooks/useMediaUpload";
-import { mediaApi } from "@/lib/api";
+import { mediaApi, documentsApi, type DocumentScope } from "@/lib/api";
 import type { ChatMediaAttachment } from "@/lib/chat-store";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 interface ChatInputProps {
   onSubmit: (
@@ -33,8 +28,8 @@ interface ChatInputProps {
   className?: string;
   organizationId?: string;
   teamId?: string;
-  /** Enable image upload functionality */
-  enableImageUpload?: boolean;
+  /** Enable attachment functionality (images + documents) */
+  enableAttachments?: boolean;
 }
 
 export function ChatInput({
@@ -46,18 +41,20 @@ export function ChatInput({
   className,
   organizationId,
   teamId,
-  enableImageUpload = true,
+  enableAttachments = true,
 }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [isPending, setIsPending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Media upload hook
+  // Media upload hook (for inline attachments - images and documents)
   const mediaUpload = useMediaUpload({
     organizationId: organizationId ?? "",
     teamId,
-    onError: (error) => console.error("Media upload error:", error),
+    allowDocuments: true,
+    onError: (error) => {
+      console.error("Media upload error:", error);
+    },
   });
 
   // Reset pending state when streaming starts (parent acknowledged the submit)
@@ -123,50 +120,75 @@ export function ChatInput({
     [handleSubmit],
   );
 
-  const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
-      if (files && files.length > 0) {
-        mediaUpload.addFiles(files);
-      }
-      // Reset input so same file can be selected again
-      e.target.value = "";
+  // Handle inline file selection from AttachmentPicker
+  const handleInlineSelect = useCallback(
+    (files: FileList) => {
+      mediaUpload.addFiles(files);
     },
     [mediaUpload],
   );
 
-  const handleImageButtonClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
+  // Handle RAG file selection from AttachmentPicker
+  const handleRAGSelect = useCallback(
+    async (files: FileList) => {
+      if (!organizationId) return;
 
-  // Handle paste events for images
+      const fileArray = Array.from(files);
+      const scope: DocumentScope = teamId ? "team" : "org";
+
+      for (const file of fileArray) {
+        try {
+          console.log(`Uploading ${file.name} to Knowledge Base...`);
+
+          await documentsApi.upload({
+            file,
+            organization_id: organizationId,
+            team_id: teamId,
+            scope,
+          });
+
+          console.log(
+            `${file.name} added to Knowledge Base and will be searchable soon.`,
+          );
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "Upload failed";
+          console.error(`Failed to upload ${file.name}: ${message}`);
+        }
+      }
+    },
+    [organizationId, teamId],
+  );
+
+  // Handle paste events for files
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
-      if (!enableImageUpload || !organizationId) return;
+      if (!enableAttachments || !organizationId) return;
 
       const items = e.clipboardData.items;
-      const imageFiles: File[] = [];
+      const files: File[] = [];
 
       for (const item of items) {
-        if (item.type.startsWith("image/")) {
+        // Check if it's an allowed attachment type
+        if (isAllowedAttachmentType(item.type)) {
           const file = item.getAsFile();
           if (file) {
-            imageFiles.push(file);
+            files.push(file);
           }
         }
       }
 
-      if (imageFiles.length > 0) {
-        mediaUpload.addFiles(imageFiles);
+      if (files.length > 0) {
+        mediaUpload.addFiles(files);
       }
     },
-    [enableImageUpload, organizationId, mediaUpload],
+    [enableAttachments, organizationId, mediaUpload],
   );
 
   // Handle drag and drop
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
-      if (!enableImageUpload || !organizationId) return;
+      if (!enableAttachments || !organizationId) return;
 
       e.preventDefault();
       const files = e.dataTransfer.files;
@@ -174,7 +196,7 @@ export function ChatInput({
         mediaUpload.addFiles(files);
       }
     },
-    [enableImageUpload, organizationId, mediaUpload],
+    [enableAttachments, organizationId, mediaUpload],
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -191,7 +213,7 @@ export function ChatInput({
     }
   }, [disabled, isStreaming]);
 
-  const showImageUpload = enableImageUpload && organizationId;
+  const showAttachments = enableAttachments && organizationId;
 
   return (
     <div
@@ -202,10 +224,10 @@ export function ChatInput({
       onDrop={handleDrop}
       onDragOver={handleDragOver}
     >
-      {/* Image previews */}
+      {/* Attachment previews */}
       {hasMedia && (
         <div className="px-3 pt-3">
-          <ImagePreviewList
+          <AttachmentPreviewList
             uploads={mediaUpload.pendingUploads}
             onRemove={mediaUpload.removeUpload}
             disabled={isPending || isStreaming || mediaUpload.isUploading}
@@ -237,38 +259,14 @@ export function ChatInput({
             teamId={teamId}
             disabled={disabled || isStreaming || isPending}
           />
-          {showImageUpload && (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={getAllowedMediaAccept()}
-                multiple
-                onChange={handleFileSelect}
-                className="hidden"
-                aria-label="Upload images"
-              />
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={handleImageButtonClick}
-                      disabled={disabled || isStreaming || isPending}
-                      className="size-8 text-muted-foreground hover:text-foreground"
-                      aria-label="Attach image"
-                    >
-                      <ImagePlus className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    <p>Attach image</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </>
+          {showAttachments && (
+            <AttachmentPicker
+              organizationId={organizationId}
+              teamId={teamId}
+              onInlineSelect={handleInlineSelect}
+              onRAGSelect={handleRAGSelect}
+              disabled={disabled || isStreaming || isPending}
+            />
           )}
         </div>
         <div className="flex items-center gap-1">
