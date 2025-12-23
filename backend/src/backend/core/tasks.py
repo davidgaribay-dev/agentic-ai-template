@@ -311,7 +311,12 @@ async def process_document_task(
             temp_dir = Path(tempfile.gettempdir()) / "rag_processing"
             temp_dir.mkdir(parents=True, exist_ok=True)
             safe_filename = sanitize_filename(doc.filename)
-            local_file_path = str(temp_dir / f"{document_id}_{safe_filename}")
+            # Construct path and resolve to ensure it stays within temp_dir
+            target_path = (temp_dir / f"{document_id}_{safe_filename}").resolve()
+            # Security check: ensure resolved path is still within temp_dir
+            if not str(target_path).startswith(str(temp_dir.resolve())):
+                raise ValueError("Invalid filename: path traversal attempt detected")
+            local_file_path = str(target_path)
             with open(local_file_path, "wb") as f:
                 f.write(file_content)
             logger.debug(
