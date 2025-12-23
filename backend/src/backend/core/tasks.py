@@ -38,7 +38,19 @@ T = TypeVar("T")
 
 # Allowed file extensions for document processing (must match DocumentParser supported types)
 ALLOWED_EXTENSIONS: frozenset[str] = frozenset(
-    {".pdf", ".txt", ".md", ".docx", ".html", ".htm", ".csv", ".json", ".py", ".js", ".ts"}
+    {
+        ".pdf",
+        ".txt",
+        ".md",
+        ".docx",
+        ".html",
+        ".htm",
+        ".csv",
+        ".json",
+        ".py",
+        ".js",
+        ".ts",
+    }
 )
 
 
