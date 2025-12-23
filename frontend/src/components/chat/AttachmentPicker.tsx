@@ -105,37 +105,34 @@ export function AttachmentPicker({
   const ragEnabled = ragSettings?.rag_enabled ?? false;
   const allowedFileTypes = ragSettings?.allowed_file_types ?? [];
 
-  const handleInlineClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
-      // Close popover first, then trigger file input after a small delay
-      // to ensure the popover doesn't interfere with the file dialog
-      setOpen(false);
-      setTimeout(() => {
-        inlineInputRef.current?.click();
-      }, 100);
-    },
-    [],
-  );
+  const handleInlineClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    // Close popover first, then trigger file input after a small delay
+    // to ensure the popover doesn't interfere with the file dialog
+    setOpen(false);
+    setTimeout(() => {
+      inlineInputRef.current?.click();
+    }, 100);
+  }, []);
 
-  const handleRAGClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
-      // Close popover first, then trigger file input after a small delay
-      setOpen(false);
-      setTimeout(() => {
-        ragInputRef.current?.click();
-      }, 100);
-    },
-    [],
-  );
+  const handleRAGClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    // Close popover first, then trigger file input after a small delay
+    setOpen(false);
+    setTimeout(() => {
+      ragInputRef.current?.click();
+    }, 100);
+  }, []);
 
   const handleInlineChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
-      console.log("[AttachmentPicker] handleInlineChange called", files?.length);
+      console.log(
+        "[AttachmentPicker] handleInlineChange called",
+        files?.length,
+      );
       if (files && files.length > 0) {
         onInlineSelect(files);
       }
@@ -188,124 +185,126 @@ export function AttachmentPicker({
       />
 
       <Popover open={open} onOpenChange={setOpen}>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                disabled={disabled}
-                className="size-8 text-muted-foreground hover:text-foreground"
-                aria-label="Attach files"
-              >
-                <Plus className="size-4" />
-              </Button>
-            </PopoverTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            <p>Attach files</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={disabled}
+                  className="size-8 text-muted-foreground hover:text-foreground"
+                  aria-label="Attach files"
+                >
+                  <Plus className="size-4" />
+                </Button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>Attach files</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
-      <PopoverContent
-        className="w-[360px] max-w-[calc(100vw-2rem)] p-0"
-        align="start"
-        side="top"
-        sideOffset={8}
-      >
-        <div className="flex flex-col">
-          {/* Header */}
-          <div className="border-b px-4 py-3">
-            <h4 className="text-sm font-medium">Attach Files</h4>
-            <p className="text-xs text-muted-foreground">
-              Choose how to use your files
-            </p>
-          </div>
+        <PopoverContent
+          className="w-[360px] max-w-[calc(100vw-2rem)] p-0"
+          align="start"
+          side="top"
+          sideOffset={8}
+        >
+          <div className="flex flex-col">
+            {/* Header */}
+            <div className="border-b px-4 py-3">
+              <h4 className="text-sm font-medium">Attach Files</h4>
+              <p className="text-xs text-muted-foreground">
+                Choose how to use your files
+              </p>
+            </div>
 
-          {/* Options */}
-          <div className="p-2">
-            {/* Inline attachment option */}
-            <button
-              type="button"
-              onClick={handleInlineClick}
-              className={cn(
-                "w-full rounded-lg p-3 text-left",
-                "hover:bg-accent focus:bg-accent focus:outline-none",
-                "transition-colors",
-              )}
-            >
-              <div className="flex items-start gap-3">
-                <div className="rounded-md bg-primary/10 p-2">
-                  <Paperclip className="size-4 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">
-                    Use in this conversation
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Attach for immediate analysis (images, PDFs)
-                  </p>
-                </div>
-              </div>
-            </button>
-
-            {/* RAG upload option */}
-            {isLoadingRAG ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="size-4 animate-spin text-muted-foreground" />
-              </div>
-            ) : ragEnabled ? (
+            {/* Options */}
+            <div className="p-2">
+              {/* Inline attachment option */}
               <button
                 type="button"
-                onClick={handleRAGClick}
+                onClick={handleInlineClick}
                 className={cn(
-                  "w-full rounded-lg p-3 text-left mt-1",
+                  "w-full rounded-lg p-3 text-left",
                   "hover:bg-accent focus:bg-accent focus:outline-none",
                   "transition-colors",
                 )}
               >
                 <div className="flex items-start gap-3">
-                  <div className="rounded-md bg-blue-500/10 p-2">
-                    <Database className="size-4 text-blue-500" />
+                  <div className="rounded-md bg-primary/10 p-2">
+                    <Paperclip className="size-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">Add to Knowledge Base</p>
+                    <p className="text-sm font-medium">
+                      Use in this conversation
+                    </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Store for retrieval across all conversations
+                      Attach for immediate analysis (images, PDFs)
                     </p>
                   </div>
                 </div>
               </button>
-            ) : (
-              <div className="rounded-lg p-3 mt-1 bg-muted/50">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-md bg-muted p-2">
-                    <Database className="size-4 text-muted-foreground" />
+
+              {/* RAG upload option */}
+              {isLoadingRAG ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : ragEnabled ? (
+                <button
+                  type="button"
+                  onClick={handleRAGClick}
+                  className={cn(
+                    "w-full rounded-lg p-3 text-left mt-1",
+                    "hover:bg-accent focus:bg-accent focus:outline-none",
+                    "transition-colors",
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-md bg-blue-500/10 p-2">
+                      <Database className="size-4 text-blue-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">
+                        Add to Knowledge Base
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Store for retrieval across all conversations
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Knowledge Base
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      RAG is disabled for this workspace
-                    </p>
+                </button>
+              ) : (
+                <div className="rounded-lg p-3 mt-1 bg-muted/50">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-md bg-muted p-2">
+                      <Database className="size-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Knowledge Base
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        RAG is disabled for this workspace
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          {/* Footer hint */}
-          <div className="border-t px-4 py-2">
-            <p className="text-xs text-muted-foreground text-center">
-              Drag & drop files anywhere in the chat
-            </p>
+            {/* Footer hint */}
+            <div className="border-t px-4 py-2">
+              <p className="text-xs text-muted-foreground text-center">
+                Drag & drop files anywhere in the chat
+              </p>
+            </div>
           </div>
-        </div>
-      </PopoverContent>
-    </Popover>
+        </PopoverContent>
+      </Popover>
     </>
   );
 }
