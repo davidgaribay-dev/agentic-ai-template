@@ -859,7 +859,7 @@ function UserGuardrailsSection() {
         piiDetectionEnabled={guardrails?.pii_detection_enabled ?? false}
         piiTypes={guardrails?.pii_types ?? []}
         piiAction={guardrails?.pii_action ?? "redact"}
-        isLoading={isLoading || updateMutation.isPending}
+        isLoading={updateMutation.isPending}
         onUpdate={(data) => updateMutation.mutate(data)}
       />
     </div>

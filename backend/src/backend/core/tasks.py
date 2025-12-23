@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 import json
 import os
 from pathlib import Path
+import re
 import tempfile
 from typing import Any, TypeVar
 import uuid
@@ -34,6 +35,31 @@ from backend.rag_settings.service import get_effective_rag_settings
 logger = get_logger(__name__)
 
 T = TypeVar("T")
+
+
+def sanitize_filename(filename: str) -> str:
+    """Sanitize filename to prevent path traversal attacks.
+
+    Args:
+        filename: Original filename from user upload
+
+    Returns:
+        Safe filename with path components and dangerous characters removed
+    """
+    # Extract just the filename, removing any path components
+    safe_name = Path(filename).name
+
+    # Remove any remaining path traversal attempts
+    safe_name = safe_name.replace("..", "").replace("/", "").replace("\\", "")
+
+    # Remove null bytes and control characters
+    safe_name = re.sub(r"[\x00-\x1f\x7f]", "", safe_name)
+
+    # Ensure we have a valid filename
+    if not safe_name or safe_name.startswith("."):
+        safe_name = "unnamed_file"
+
+    return safe_name
 
 
 def create_safe_task(
@@ -284,7 +310,8 @@ async def process_document_task(
             file_content = get_document_content(s3_object_key)
             temp_dir = Path(tempfile.gettempdir()) / "rag_processing"
             temp_dir.mkdir(parents=True, exist_ok=True)
-            local_file_path = str(temp_dir / f"{document_id}_{doc.filename}")
+            safe_filename = sanitize_filename(doc.filename)
+            local_file_path = str(temp_dir / f"{document_id}_{safe_filename}")
             with open(local_file_path, "wb") as f:
                 f.write(file_content)
             logger.debug(

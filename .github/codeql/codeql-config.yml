@@ -1,0 +1,22 @@
+name: "CodeQL Configuration"
+
+# Exclude paths that generate false positives
+paths-ignore:
+  # Setup scripts intentionally write secrets to .env files for local development
+  # These are not production code and .env files are gitignored
+  - backend/scripts/setup-infisical.py
+  - backend/scripts/setup-langfuse.py
+  - backend/scripts/generate_secrets.py
+
+query-filters:
+  # Suppress clear-text storage alerts for setup scripts
+  # These scripts are designed to create local development configuration
+  - exclude:
+      id: py/clear-text-storage-sensitive-data
+      paths:
+        - backend/scripts/*
+  # Suppress clear-text logging for truncated secrets (already safe)
+  - exclude:
+      id: py/clear-text-logging-sensitive-data
+      paths:
+        - backend/scripts/*
