@@ -1,12 +1,14 @@
 import { memo } from "react"
 import { cn } from "@/lib/utils"
 import { ChatMessage } from "./ChatMessage"
+import type { MessageSource } from "@/lib/chat-store"
 
 export interface Message {
   id: string
   role: "user" | "assistant"
   content: string
   isStreaming?: boolean
+  sources?: MessageSource[]
 }
 
 interface ChatContainerProps {
@@ -36,6 +38,7 @@ export const ChatContainer = memo(function ChatContainer({
           role={message.role}
           content={message.content}
           isStreaming={message.isStreaming}
+          sources={message.sources}
         />
       ))}
     </div>

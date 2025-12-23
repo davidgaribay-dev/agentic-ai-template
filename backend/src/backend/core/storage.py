@@ -1,6 +1,6 @@
-import uuid
 from functools import lru_cache
 from typing import BinaryIO
+import uuid
 
 import boto3
 from botocore.config import Config
@@ -23,17 +23,14 @@ MAX_FILE_SIZE = 5 * 1024 * 1024
 
 class StorageError(Exception):
     """Base exception for storage operations."""
-    pass
 
 
 class InvalidFileTypeError(StorageError):
     """Raised when file type is not allowed."""
-    pass
 
 
 class FileTooLargeError(StorageError):
     """Raised when file exceeds size limit."""
-    pass
 
 
 @lru_cache(maxsize=1)
@@ -145,3 +142,120 @@ def delete_file(url: str) -> bool:
     except ClientError as e:
         logger.error("delete_failed", key=object_key, error=str(e))
         return False
+
+
+def upload_document(
+    content: bytes,
+    filename: str,
+    content_type: str,
+    org_id: uuid.UUID,
+    team_id: uuid.UUID | None = None,
+    user_id: uuid.UUID | None = None,
+) -> str:
+    """Upload a document to S3-compatible storage (SeaweedFS).
+
+    Documents are stored with a hierarchical path:
+    - Org-level: documents/{org_id}/{uuid}_{filename}
+    - Team-level: documents/{org_id}/{team_id}/{uuid}_{filename}
+    - User-level: documents/{org_id}/{team_id}/{user_id}/{uuid}_{filename}
+
+    Args:
+        content: File content as bytes
+        filename: Original filename
+        content_type: MIME type of the file
+        org_id: Organization ID
+        team_id: Optional team ID
+        user_id: Optional user ID (for user-scoped documents)
+
+    Returns:
+        The S3 object key (path) for the uploaded file
+
+    Raises:
+        StorageError: For storage errors
+    """
+    # Build hierarchical path
+    path_parts = ["documents", str(org_id)]
+    if team_id:
+        path_parts.append(str(team_id))
+    if user_id:
+        path_parts.append(str(user_id))
+
+    # Add unique prefix to filename to avoid collisions
+    unique_filename = f"{uuid.uuid4()}_{filename}"
+    path_parts.append(unique_filename)
+    object_key = "/".join(path_parts)
+
+    client = get_s3_client()
+    ensure_bucket_exists(client)
+
+    try:
+        client.put_object(
+            Bucket=settings.S3_BUCKET_NAME,
+            Key=object_key,
+            Body=content,
+            ContentType=content_type or "application/octet-stream",
+        )
+        logger.info("document_uploaded", key=object_key, size=len(content))
+    except ClientError as e:
+        logger.error("document_upload_failed", key=object_key, error=str(e))
+        raise StorageError(f"Failed to upload document: {e}") from e
+
+    return object_key
+
+
+def get_document_content(object_key: str) -> bytes:
+    """Download document content from S3-compatible storage.
+
+    Args:
+        object_key: The S3 object key (path) of the document
+
+    Returns:
+        The file content as bytes
+
+    Raises:
+        StorageError: If file not found or download fails
+    """
+    client = get_s3_client()
+
+    try:
+        response = client.get_object(Bucket=settings.S3_BUCKET_NAME, Key=object_key)
+        content = response["Body"].read()
+        logger.debug("document_downloaded", key=object_key, size=len(content))
+        return content
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code")
+        if error_code == "NoSuchKey":
+            raise StorageError(f"Document not found: {object_key}") from e
+        logger.error("document_download_failed", key=object_key, error=str(e))
+        raise StorageError(f"Failed to download document: {e}") from e
+
+
+def delete_document(object_key: str) -> bool:
+    """Delete a document from S3-compatible storage.
+
+    Args:
+        object_key: The S3 object key (path) of the document
+
+    Returns:
+        True if deleted successfully, False if file didn't exist
+    """
+    client = get_s3_client()
+    try:
+        client.delete_object(Bucket=settings.S3_BUCKET_NAME, Key=object_key)
+        logger.info("document_deleted", key=object_key)
+        return True
+    except ClientError as e:
+        logger.error("document_delete_failed", key=object_key, error=str(e))
+        return False
+
+
+def get_document_url(object_key: str) -> str:
+    """Get the public URL for a document.
+
+    Args:
+        object_key: The S3 object key (path) of the document
+
+    Returns:
+        The full URL to access the document
+    """
+    return f"{settings.s3_public_base_url}/{settings.S3_BUCKET_NAME}/{object_key}"

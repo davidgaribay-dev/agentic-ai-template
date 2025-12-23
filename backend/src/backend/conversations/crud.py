@@ -250,10 +250,12 @@ def create_conversation_message(
     organization_id: uuid.UUID | None,
     team_id: uuid.UUID | None,
     created_by_id: uuid.UUID | None,
+    sources_json: str | None = None,
 ) -> ConversationMessage:
     """Create a searchable message index entry.
 
     Messages are indexed for fast search without coupling to LangGraph internals.
+    Sources are stored as JSON for RAG citation display.
     """
     message = ConversationMessage(
         conversation_id=conversation_id,
@@ -262,11 +264,29 @@ def create_conversation_message(
         organization_id=organization_id,
         team_id=team_id,
         created_by_id=created_by_id,
+        sources_json=sources_json,
     )
     session.add(message)
     session.commit()
     session.refresh(message)
     return message
+
+
+def get_conversation_messages(
+    *,
+    session: Session,
+    conversation_id: uuid.UUID,
+) -> list[ConversationMessage]:
+    """Get all messages for a conversation ordered by creation time.
+
+    Returns messages with their sources_json for citation display.
+    """
+    statement = (
+        select(ConversationMessage)
+        .where(ConversationMessage.conversation_id == conversation_id)
+        .order_by(ConversationMessage.created_at.asc())
+    )
+    return list(session.exec(statement).all())
 
 
 def delete_conversation_messages(

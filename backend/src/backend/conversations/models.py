@@ -109,6 +109,12 @@ class ConversationMessage(SQLModel, table=True):
     content: str = Field(..., description="Message text content")
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
+    # RAG sources (JSON array of source objects for citation display)
+    sources_json: str | None = Field(
+        default=None,
+        description="JSON array of RAG sources for this message",
+    )
+
     # Multi-tenant denormalization for fast filtering
     organization_id: uuid.UUID | None = Field(default=None, index=True)
     team_id: uuid.UUID | None = Field(default=None, index=True)

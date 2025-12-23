@@ -31,6 +31,14 @@ import {
   type TeamThemeSettingsUpdate,
   type UserThemeSettingsUpdate,
 } from "./api"
+import { ragSettingsApi, documentsApi } from "./api"
+import type {
+  OrganizationRAGSettingsUpdate,
+  TeamRAGSettingsUpdate,
+  UserRAGSettingsUpdate,
+  UploadDocumentParams,
+  ListDocumentsParams,
+} from "./api"
 
 export const queryKeys = {
   agent: {
@@ -72,6 +80,20 @@ export const queryKeys = {
       ["mcpServers", "user", orgId, teamId] as const,
     effective: (orgId: string, teamId?: string) =>
       ["mcpServers", "effective", orgId, teamId] as const,
+  },
+  ragSettings: {
+    org: (orgId: string) => ["ragSettings", "org", orgId] as const,
+    team: (orgId: string, teamId: string) =>
+      ["ragSettings", "team", orgId, teamId] as const,
+    user: ["ragSettings", "user"] as const,
+    effective: (orgId?: string, teamId?: string) =>
+      ["ragSettings", "effective", orgId, teamId] as const,
+  },
+  documents: {
+    all: ["documents"] as const,
+    list: (orgId?: string, teamId?: string, status?: string) =>
+      ["documents", "list", orgId, teamId, status] as const,
+    detail: (id: string) => ["documents", "detail", id] as const,
   },
 }
 
@@ -578,5 +600,164 @@ export function usePredefinedThemes() {
     queryKey: queryKeys.themeSettings.predefined,
     queryFn: () => themeSettingsApi.getPredefinedThemes(),
     staleTime: Infinity, // Predefined themes never change
+  })
+}
+
+// ============================================================================
+// RAG Settings Hooks
+// ============================================================================
+
+/** Hook to fetch organization RAG settings. */
+export function useOrgRAGSettings(orgId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.ragSettings.org(orgId ?? ""),
+    queryFn: () => ragSettingsApi.getOrgSettings(orgId!),
+    enabled: !!orgId,
+  })
+}
+
+/** Mutation hook for updating organization RAG settings. */
+export function useUpdateOrgRAGSettings(orgId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (settings: OrganizationRAGSettingsUpdate) =>
+      ragSettingsApi.updateOrgSettings(orgId!, settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.ragSettings.org(orgId!) })
+      queryClient.invalidateQueries({ queryKey: ["ragSettings", "effective"] })
+    },
+  })
+}
+
+/** Hook to fetch team RAG settings. */
+export function useTeamRAGSettings(orgId: string | undefined, teamId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.ragSettings.team(orgId ?? "", teamId ?? ""),
+    queryFn: () => ragSettingsApi.getTeamSettings(orgId!, teamId!),
+    enabled: !!orgId && !!teamId,
+  })
+}
+
+/** Mutation hook for updating team RAG settings. */
+export function useUpdateTeamRAGSettings(
+  orgId: string | undefined,
+  teamId: string | undefined
+) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (settings: TeamRAGSettingsUpdate) =>
+      ragSettingsApi.updateTeamSettings(orgId!, teamId!, settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.ragSettings.team(orgId!, teamId!),
+      })
+      queryClient.invalidateQueries({ queryKey: ["ragSettings", "effective"] })
+    },
+  })
+}
+
+/** Hook to fetch user RAG settings. */
+export function useUserRAGSettings() {
+  return useQuery({
+    queryKey: queryKeys.ragSettings.user,
+    queryFn: () => ragSettingsApi.getUserSettings(),
+  })
+}
+
+/** Mutation hook for updating user RAG settings. */
+export function useUpdateUserRAGSettings() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (settings: UserRAGSettingsUpdate) =>
+      ragSettingsApi.updateUserSettings(settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.ragSettings.user })
+      queryClient.invalidateQueries({ queryKey: ["ragSettings", "effective"] })
+    },
+  })
+}
+
+/** Hook to fetch effective (computed) RAG settings. */
+export function useEffectiveRAGSettings(
+  orgId: string | undefined,
+  teamId: string | undefined
+) {
+  return useQuery({
+    queryKey: queryKeys.ragSettings.effective(orgId, teamId),
+    queryFn: () => ragSettingsApi.getEffectiveSettings(orgId, teamId),
+    enabled: !!orgId,
+    staleTime: 1000 * 60, // 1 minute
+  })
+}
+
+// ============================================================================
+// Documents Hooks
+// ============================================================================
+
+/** Hook to fetch paginated documents list with optional filters. */
+export function useDocuments(params: ListDocumentsParams) {
+  return useQuery({
+    queryKey: queryKeys.documents.list(
+      params.organization_id,
+      params.team_id,
+      params.status
+    ),
+    queryFn: () => documentsApi.list(params),
+    enabled: !!params.organization_id,
+  })
+}
+
+/** Hook to fetch a single document by ID. */
+export function useDocument(documentId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.documents.detail(documentId ?? ""),
+    queryFn: () => documentsApi.get(documentId!),
+    enabled: !!documentId,
+  })
+}
+
+/** Mutation hook for uploading a document. */
+export function useUploadDocument() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (params: UploadDocumentParams) => documentsApi.upload(params),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.documents.list(
+          variables.organization_id,
+          variables.team_id
+        ),
+      })
+    },
+  })
+}
+
+/** Mutation hook for deleting a document. */
+export function useDeleteDocument() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (documentId: string) => documentsApi.delete(documentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.documents.all })
+    },
+  })
+}
+
+/** Mutation hook for reprocessing a failed document. */
+export function useReprocessDocument() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (documentId: string) => documentsApi.reprocess(documentId),
+    onSuccess: (_, documentId) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.documents.detail(documentId),
+      })
+    },
   })
 }

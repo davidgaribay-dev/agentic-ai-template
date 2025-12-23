@@ -6,12 +6,14 @@ from backend.api.routes import (
     audit,
     auth,
     conversations,
+    documents,
     invitations,
     items,
     mcp,
     memory,
     organizations,
     prompts,
+    rag_settings,
     settings,
     teams,
     theme_settings,
@@ -34,6 +36,8 @@ api_router.include_router(prompts.user_router)
 api_router.include_router(audit.router, tags=["audit"])
 api_router.include_router(settings.router)
 api_router.include_router(theme_settings.router)
+api_router.include_router(rag_settings.router)
+api_router.include_router(documents.router)
 api_router.include_router(memory.router)
 api_router.include_router(mcp.org_router)
 api_router.include_router(mcp.team_router)

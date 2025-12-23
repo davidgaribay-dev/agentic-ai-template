@@ -18,7 +18,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from backend.agents.context import LLMContext, get_llm_context
 from backend.agents.llm import get_chat_model, get_chat_model_with_context
-from backend.agents.tools import get_available_tools
+from backend.agents.tools import get_available_tools, get_context_aware_tools
 from backend.agents.tracing import build_langfuse_config
 from backend.core.config import settings
 from backend.core.logging import get_logger
@@ -126,9 +126,24 @@ class AgentFactory:
             include_mcp=config.include_mcp_tools,
         )
 
-        # Collect tools
+        # Collect tools - start with built-in tools
         all_tools = list(get_available_tools())
         mcp_tool_names: set[str] = set()
+
+        # Add context-aware tools (like search_documents) if we have context
+        if config.org_id and config.user_id:
+            context_tools = get_context_aware_tools(
+                org_id=config.org_id,
+                team_id=config.team_id,
+                user_id=config.user_id,
+            )
+            if context_tools:
+                all_tools.extend(context_tools)
+                logger.info(
+                    "context_aware_tools_loaded",
+                    count=len(context_tools),
+                    names=[t.name for t in context_tools],
+                )
 
         # Add MCP tools if enabled and context is available
         if config.include_mcp_tools and config.org_id and config.user_id:

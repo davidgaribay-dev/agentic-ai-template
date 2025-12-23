@@ -23,6 +23,7 @@ import { Route as OrgPromptsRouteImport } from './routes/org/prompts'
 import { Route as OrgApiKeysRouteImport } from './routes/org/api-keys'
 import { Route as OrgTeamTeamIdSettingsRouteImport } from './routes/org/team/$teamId.settings'
 import { Route as OrgTeamTeamIdPromptsRouteImport } from './routes/org/team/$teamId.prompts'
+import { Route as OrgTeamTeamIdDocumentsRouteImport } from './routes/org/team/$teamId.documents'
 import { Route as OrgTeamTeamIdApiKeysRouteImport } from './routes/org/team/$teamId.api-keys'
 
 const SignupRoute = SignupRouteImport.update({
@@ -95,6 +96,11 @@ const OrgTeamTeamIdPromptsRoute = OrgTeamTeamIdPromptsRouteImport.update({
   path: '/org/team/$teamId/prompts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrgTeamTeamIdDocumentsRoute = OrgTeamTeamIdDocumentsRouteImport.update({
+  id: '/org/team/$teamId/documents',
+  path: '/org/team/$teamId/documents',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrgTeamTeamIdApiKeysRoute = OrgTeamTeamIdApiKeysRouteImport.update({
   id: '/org/team/$teamId/api-keys',
   path: '/org/team/$teamId/api-keys',
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/org/settings': typeof OrgSettingsRoute
   '/settings/prompts': typeof SettingsPromptsRoute
   '/org/team/$teamId/api-keys': typeof OrgTeamTeamIdApiKeysRoute
+  '/org/team/$teamId/documents': typeof OrgTeamTeamIdDocumentsRoute
   '/org/team/$teamId/prompts': typeof OrgTeamTeamIdPromptsRoute
   '/org/team/$teamId/settings': typeof OrgTeamTeamIdSettingsRoute
 }
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/org/settings': typeof OrgSettingsRoute
   '/settings/prompts': typeof SettingsPromptsRoute
   '/org/team/$teamId/api-keys': typeof OrgTeamTeamIdApiKeysRoute
+  '/org/team/$teamId/documents': typeof OrgTeamTeamIdDocumentsRoute
   '/org/team/$teamId/prompts': typeof OrgTeamTeamIdPromptsRoute
   '/org/team/$teamId/settings': typeof OrgTeamTeamIdSettingsRoute
 }
@@ -150,6 +158,7 @@ export interface FileRoutesById {
   '/org/settings': typeof OrgSettingsRoute
   '/settings/prompts': typeof SettingsPromptsRoute
   '/org/team/$teamId/api-keys': typeof OrgTeamTeamIdApiKeysRoute
+  '/org/team/$teamId/documents': typeof OrgTeamTeamIdDocumentsRoute
   '/org/team/$teamId/prompts': typeof OrgTeamTeamIdPromptsRoute
   '/org/team/$teamId/settings': typeof OrgTeamTeamIdSettingsRoute
 }
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/org/settings'
     | '/settings/prompts'
     | '/org/team/$teamId/api-keys'
+    | '/org/team/$teamId/documents'
     | '/org/team/$teamId/prompts'
     | '/org/team/$teamId/settings'
   fileRoutesByTo: FileRoutesByTo
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/org/settings'
     | '/settings/prompts'
     | '/org/team/$teamId/api-keys'
+    | '/org/team/$teamId/documents'
     | '/org/team/$teamId/prompts'
     | '/org/team/$teamId/settings'
   id:
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/org/settings'
     | '/settings/prompts'
     | '/org/team/$teamId/api-keys'
+    | '/org/team/$teamId/documents'
     | '/org/team/$teamId/prompts'
     | '/org/team/$teamId/settings'
   fileRoutesById: FileRoutesById
@@ -220,6 +232,7 @@ export interface RootRouteChildren {
   OrgPromptsRoute: typeof OrgPromptsRoute
   OrgSettingsRoute: typeof OrgSettingsRoute
   OrgTeamTeamIdApiKeysRoute: typeof OrgTeamTeamIdApiKeysRoute
+  OrgTeamTeamIdDocumentsRoute: typeof OrgTeamTeamIdDocumentsRoute
   OrgTeamTeamIdPromptsRoute: typeof OrgTeamTeamIdPromptsRoute
   OrgTeamTeamIdSettingsRoute: typeof OrgTeamTeamIdSettingsRoute
 }
@@ -324,6 +337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgTeamTeamIdPromptsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/org/team/$teamId/documents': {
+      id: '/org/team/$teamId/documents'
+      path: '/org/team/$teamId/documents'
+      fullPath: '/org/team/$teamId/documents'
+      preLoaderRoute: typeof OrgTeamTeamIdDocumentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/org/team/$teamId/api-keys': {
       id: '/org/team/$teamId/api-keys'
       path: '/org/team/$teamId/api-keys'
@@ -359,6 +379,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrgPromptsRoute: OrgPromptsRoute,
   OrgSettingsRoute: OrgSettingsRoute,
   OrgTeamTeamIdApiKeysRoute: OrgTeamTeamIdApiKeysRoute,
+  OrgTeamTeamIdDocumentsRoute: OrgTeamTeamIdDocumentsRoute,
   OrgTeamTeamIdPromptsRoute: OrgTeamTeamIdPromptsRoute,
   OrgTeamTeamIdSettingsRoute: OrgTeamTeamIdSettingsRoute,
 }

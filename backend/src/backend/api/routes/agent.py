@@ -383,6 +383,7 @@ async def stream_response(
     """
     full_response = ""
     is_interrupted = False
+    collected_sources: list[dict] = []  # Track sources for persistence
     try:
         if org_id:
             stream_gen = stream_agent_with_context(
@@ -396,45 +397,65 @@ async def stream_response(
             stream_gen = stream_agent(message, thread_id=conversation_id, user_id=user_id)
 
         async for chunk in stream_gen:
-            # Check if this is a tool approval interrupt (dict) or a token (str)
-            if isinstance(chunk, dict) and chunk.get("type") == "tool_approval":
-                # Emit tool approval event with interrupt data
-                is_interrupted = True
-                tool_name = chunk["data"].get("tool_name")
-                tool_args = chunk["data"].get("tool_args", {})
-                tool_call_id = chunk["data"].get("tool_call_id")
+            # Check if this is a special event (dict) or a token (str)
+            if isinstance(chunk, dict):
+                event_type = chunk.get("type")
 
-                yield {
-                    "event": "tool_approval",
-                    "data": json.dumps({
-                        "conversation_id": conversation_id,
-                        "tool_name": tool_name,
-                        "tool_args": tool_args,
-                        "tool_call_id": tool_call_id,
-                        "tool_description": chunk["data"].get("tool_description", ""),
-                    }),
-                }
-                logger.info(
-                    "tool_approval_event_sent",
-                    conversation_id=conversation_id,
-                    tool_name=tool_name,
-                )
+                if event_type == "tool_approval":
+                    # Emit tool approval event with interrupt data
+                    is_interrupted = True
+                    tool_name = chunk["data"].get("tool_name")
+                    tool_args = chunk["data"].get("tool_args", {})
+                    tool_call_id = chunk["data"].get("tool_call_id")
 
-                # Audit log the tool approval request
-                await audit_service.log(
-                    AuditAction.TOOL_APPROVAL_REQUESTED,
-                    actor=current_user,
-                    organization_id=uuid.UUID(org_id) if org_id else None,
-                    team_id=uuid.UUID(team_id) if team_id else None,
-                    targets=[
-                        Target(type="conversation", id=conversation_id),
-                        Target(type="tool", id=tool_call_id, name=tool_name),
-                    ],
-                    metadata={
-                        "tool_name": tool_name,
-                        "tool_args": tool_args,
-                    },
-                )
+                    yield {
+                        "event": "tool_approval",
+                        "data": json.dumps({
+                            "conversation_id": conversation_id,
+                            "tool_name": tool_name,
+                            "tool_args": tool_args,
+                            "tool_call_id": tool_call_id,
+                            "tool_description": chunk["data"].get("tool_description", ""),
+                        }),
+                    }
+                    logger.info(
+                        "tool_approval_event_sent",
+                        conversation_id=conversation_id,
+                        tool_name=tool_name,
+                    )
+
+                    # Audit log the tool approval request
+                    await audit_service.log(
+                        AuditAction.TOOL_APPROVAL_REQUESTED,
+                        actor=current_user,
+                        organization_id=uuid.UUID(org_id) if org_id else None,
+                        team_id=uuid.UUID(team_id) if team_id else None,
+                        targets=[
+                            Target(type="conversation", id=conversation_id),
+                            Target(type="tool", id=tool_call_id, name=tool_name),
+                        ],
+                        metadata={
+                            "tool_name": tool_name,
+                            "tool_args": tool_args,
+                        },
+                    )
+
+                elif event_type == "sources":
+                    # Emit sources event for RAG citation display
+                    sources = chunk.get("data", [])
+                    collected_sources.extend(sources)  # Track for persistence
+                    yield {
+                        "event": "sources",
+                        "data": json.dumps({
+                            "conversation_id": conversation_id,
+                            "sources": sources,
+                        }),
+                    }
+                    logger.info(
+                        "sources_event_sent",
+                        conversation_id=conversation_id,
+                        source_count=len(sources),
+                    )
             else:
                 # Regular token
                 full_response += chunk
@@ -459,9 +480,10 @@ async def stream_response(
                         "data": json.dumps({"title": title, "conversation_id": conversation_id}),
                     }
 
-            # Index assistant response for search
+            # Index assistant response for search (with sources for citation display)
             if full_response and session:
                 try:
+                    sources_json = json.dumps(collected_sources) if collected_sources else None
                     create_conversation_message(
                         session=session,
                         conversation_id=uuid.UUID(conversation_id),
@@ -470,7 +492,14 @@ async def stream_response(
                         organization_id=uuid.UUID(org_id) if org_id else None,
                         team_id=uuid.UUID(team_id) if team_id else None,
                         created_by_id=uuid.UUID(user_id) if user_id else None,
+                        sources_json=sources_json,
                     )
+                    if collected_sources:
+                        logger.info(
+                            "sources_persisted",
+                            conversation_id=conversation_id,
+                            source_count=len(collected_sources),
+                        )
                 except Exception as e:
                     logger.warning("failed_to_index_assistant_message_stream", error=str(e), conversation_id=conversation_id)
 
@@ -573,8 +602,13 @@ async def get_history(
     """Get conversation history for a specific thread.
 
     Returns the full message history for the given conversation_id,
-    leveraging LangGraph's built-in state management.
+    including RAG sources for citation display on assistant messages.
+
+    Primary source is our conversation_message index table (has sources).
+    Falls back to LangGraph checkpointer if index is empty.
     """
+    from backend.conversations import get_conversation_messages
+
     existing = get_conversation(session=session, conversation_id=uuid.UUID(conversation_id))
     if existing:
         is_owner = existing.user_id == current_user.id or existing.created_by_id == current_user.id
@@ -584,6 +618,39 @@ async def get_history(
                 detail="Not authorized to access this conversation",
             )
 
+    # Try to get messages from our index (has sources)
+    indexed_messages = get_conversation_messages(
+        session=session,
+        conversation_id=uuid.UUID(conversation_id),
+    )
+
+    if indexed_messages:
+        # Use indexed messages which include sources
+        result = []
+        for msg in indexed_messages:
+            sources = None
+            if msg.sources_json:
+                try:
+                    parsed_sources = json.loads(msg.sources_json)
+                    # Fix any sources where metadata is still a JSON string
+                    if parsed_sources:
+                        for source in parsed_sources:
+                            if isinstance(source.get("metadata"), str):
+                                try:
+                                    source["metadata"] = json.loads(source["metadata"])
+                                except (json.JSONDecodeError, TypeError):
+                                    source["metadata"] = None
+                    sources = parsed_sources
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "failed_to_parse_sources_json",
+                        conversation_id=conversation_id,
+                        message_id=str(msg.id),
+                    )
+            result.append(ChatMessage(role=msg.role, content=msg.content, sources=sources))
+        return result
+
+    # Fallback to LangGraph checkpointer (no sources)
     history = await get_conversation_history(conversation_id)
     return [ChatMessage(**msg) for msg in history]
 

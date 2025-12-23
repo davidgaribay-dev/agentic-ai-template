@@ -16,6 +16,12 @@ from backend.theme_settings.models import (  # noqa: F401 - Import models for au
     TeamThemeSettings,
     UserThemeSettings,
 )
+from backend.rag_settings.models import (  # noqa: F401 - Import models for autogenerate
+    OrganizationRAGSettings,
+    TeamRAGSettings,
+    UserRAGSettings,
+)
+from backend.documents.models import Document, DocumentChunk  # noqa: F401 - Import models for autogenerate
 from backend.core.config import settings
 
 config = context.config

@@ -1,6 +1,12 @@
 # Backend
 
-FastAPI backend with LangGraph AI agents.
+FastAPI backend with LangGraph AI agents and RAG (Retrieval Augmented Generation) system.
+
+## Quick Links
+
+- **[RAG Quick Start](RAG_QUICKSTART.md)** - Get started with document search in 5 minutes
+- **[RAG Implementation](RAG_IMPLEMENTATION.md)** - Complete technical documentation
+- **[RAG Completion Summary](RAG_COMPLETION_SUMMARY.md)** - Implementation details and status
 
 ## Development Setup
 

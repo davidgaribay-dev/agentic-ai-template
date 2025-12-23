@@ -1,9 +1,24 @@
 from pydantic import BaseModel, Field
 
 
+class MessageSource(BaseModel):
+    """RAG document source for citation display."""
+
+    content: str = Field(..., description="Chunk content used for the response")
+    source: str = Field(..., description="Source filename or path")
+    file_type: str = Field(..., description="File type (e.g., 'pdf', 'txt')")
+    metadata: dict | None = Field(default=None, description="Additional metadata")
+    relevance_score: float = Field(..., description="Similarity score 0-1")
+    chunk_index: int = Field(default=0, description="Index of the chunk in the document")
+    document_id: str = Field(..., description="Document UUID")
+
+
 class ChatMessage(BaseModel):
     role: str = Field(..., description="Message role: 'user' or 'assistant'")
     content: str = Field(..., description="Message content")
+    sources: list[MessageSource] | None = Field(
+        default=None, description="RAG sources used for this response (assistant only)"
+    )
 
 
 class ChatRequest(BaseModel):

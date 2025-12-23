@@ -14,12 +14,12 @@
 
 import { useCallback, useRef, useMemo, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { agentApi } from "@/lib/api"
+import { agentApi, type MessageSource } from "@/lib/api"
 import { queryKeys } from "@/lib/queries"
 import { useChatMessagesStore, type ChatMessage, type PendingToolApproval, type RejectedToolCall } from "@/lib/chat-store"
 import { useShallow } from "zustand/react/shallow"
 
-export type { ChatMessage, PendingToolApproval, RejectedToolCall }
+export type { ChatMessage, PendingToolApproval, RejectedToolCall, MessageSource }
 
 interface UseChatOptions {
   /** Unique identifier for this chat instance (e.g., "page" or "panel") */
@@ -179,6 +179,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       try {
         let streamedContent = ""
         let newConversationId = conversationId
+        let pendingSources: MessageSource[] = []
 
         for await (const event of agentApi.chatStream(
           {
@@ -215,6 +216,11 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
               actions.setConversationId(instanceId, newConversationId)
               break
 
+            case "sources":
+              // Accumulate sources from RAG search_documents tool
+              pendingSources = [...pendingSources, ...event.data.sources]
+              break
+
             case "tool_approval":
               // Store the pending tool approval and pause streaming
               actions.setPendingToolApproval(instanceId, {
@@ -234,7 +240,11 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           }
         }
 
-        actions.updateMessage(instanceId, assistantMessageId, { isStreaming: false })
+        // Attach sources to the assistant message if any were collected
+        actions.updateMessage(instanceId, assistantMessageId, {
+          isStreaming: false,
+          ...(pendingSources.length > 0 ? { sources: pendingSources } : {}),
+        })
 
         if (newConversationId) {
           queryClient.invalidateQueries({
@@ -272,11 +282,12 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   }, [instanceId, actions])
 
   const loadConversation = useCallback(
-    async (newConversationId: string, history: { role: "user" | "assistant"; content: string }[]) => {
+    async (newConversationId: string, history: { role: "user" | "assistant"; content: string; sources?: MessageSource[] | null }[]) => {
       const newMessages = history.map((msg) => ({
         id: crypto.randomUUID(),
         role: msg.role,
         content: msg.content,
+        sources: msg.sources ?? undefined,
       }))
       actions.setConversationId(instanceId, newConversationId)
       actions.setError(instanceId, null)
@@ -355,6 +366,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
       try {
         let streamedContent = ""
+        let pendingSources: MessageSource[] = []
 
         for await (const event of agentApi.resumeStream(
           {
@@ -374,6 +386,11 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
             case "done":
               break
 
+            case "sources":
+              // Accumulate sources from RAG search_documents tool
+              pendingSources = [...pendingSources, ...event.data.sources]
+              break
+
             case "tool_approval":
               // Another tool needs approval
               actions.setPendingToolApproval(instanceId, {
@@ -391,7 +408,11 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         }
 
         if (approved) {
-          actions.updateMessage(instanceId, assistantMessageId, { isStreaming: false })
+          // Attach sources to the assistant message if any were collected
+          actions.updateMessage(instanceId, assistantMessageId, {
+            isStreaming: false,
+            ...(pendingSources.length > 0 ? { sources: pendingSources } : {}),
+          })
         }
 
         // Invalidate queries

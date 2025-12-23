@@ -12,6 +12,7 @@
   "dependencies": {
     "@base-ui/react": "^1.0.0",
     "@fontsource-variable/dm-sans": "^5.2.8",
+    "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",

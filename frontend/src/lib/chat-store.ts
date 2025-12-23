@@ -1,12 +1,24 @@
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
 
+/** Source citation from RAG search_documents tool */
+export interface MessageSource {
+  content: string
+  source: string
+  file_type: string
+  metadata: Record<string, unknown> | null
+  relevance_score: number
+  chunk_index?: number
+  document_id?: string
+}
+
 /** Shared message type for chat state */
 export interface ChatMessage {
   id: string
   role: "user" | "assistant"
   content: string
   isStreaming?: boolean
+  sources?: MessageSource[]
 }
 
 /** Pending tool approval data */

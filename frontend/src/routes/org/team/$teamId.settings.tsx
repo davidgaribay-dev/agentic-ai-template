@@ -20,6 +20,7 @@ import {
   Brain,
   Plug,
   Palette,
+  FileSearch,
 } from "lucide-react"
 import { useAuth } from "@/lib/auth"
 import {
@@ -55,6 +56,7 @@ import {
   MCPServersList,
 } from "@/components/settings"
 import { TeamThemeSettings } from "@/components/settings/team-theme-settings"
+import { TeamRAGSettings } from "@/components/settings/team-rag-settings"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -104,7 +106,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import { DataTable } from "@/components/ui/data-table"
 
 const teamSettingsSearchSchema = z.object({
-  tab: z.enum(["general", "people", "ai", "preferences", "theme"]).optional(),
+  tab: z.enum(["general", "people", "ai", "preferences", "theme", "rag"]).optional(),
 })
 
 type TeamSettingsTab = z.infer<typeof teamSettingsSearchSchema>["tab"]
@@ -166,6 +168,7 @@ function TeamSettingsPage() {
     { value: "ai", label: "AI Configuration", icon: Sparkles },
     { value: "preferences", label: "Preferences", icon: Settings2 },
     { value: "theme", label: "Theme", icon: Palette },
+    { value: "rag", label: "Document Search", icon: FileSearch },
   ]
 
   if (!currentOrg || !team) {
@@ -262,6 +265,10 @@ function TeamSettingsPage() {
 
                 <TabsContent value="theme" className="mt-0">
                   <TeamThemeSettings orgId={currentOrg.id} teamId={team.id} />
+                </TabsContent>
+
+                <TabsContent value="rag" className="mt-0">
+                  <TeamRAGSettings orgId={currentOrg.id} teamId={team.id} />
                 </TabsContent>
               </>
             )}

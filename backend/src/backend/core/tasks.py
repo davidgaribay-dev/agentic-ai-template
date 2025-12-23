@@ -4,11 +4,18 @@ Provides wrappers for background tasks that ensure:
 - Errors are logged rather than silently swallowed
 - Tasks can be tracked and monitored
 - Cleanup happens properly on cancellation
+
+Also includes application-specific background tasks like document processing.
 """
 
 import asyncio
 from collections.abc import Awaitable, Callable, Coroutine
+import json
+import os
+from pathlib import Path
+import tempfile
 from typing import Any, TypeVar
+import uuid
 
 from backend.core.logging import get_logger
 
@@ -111,7 +118,7 @@ async def run_with_timeout(
 
     try:
         return await asyncio.wait_for(coro, timeout=timeout_seconds)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         raise AppTimeoutError(operation_name, timeout_seconds)
 
 
@@ -201,3 +208,199 @@ class TaskGroup:
         task = create_safe_task(coro, full_name)
         self._tasks.append(task)
         return task
+
+
+async def process_document_task(
+    document_id: uuid.UUID,
+    s3_object_key: str,
+    org_id: uuid.UUID,
+    team_id: uuid.UUID | None,
+    user_id: uuid.UUID,
+) -> dict[str, Any]:
+    """Background task for document processing.
+
+    Steps:
+    1. Download file from S3/SeaweedFS
+    2. Parse file using DocumentParser
+    3. Chunk text based on RAG settings
+    4. Generate embeddings in batches
+    5. Store chunks + embeddings in DB
+    6. Update document status
+    7. Cleanup temp file
+
+    Args:
+        document_id: Document ID to process
+        s3_object_key: S3 object key for the uploaded file
+        org_id: Organization ID
+        team_id: Optional team ID
+        user_id: User ID who uploaded the document
+
+    Returns:
+        Processing results with status and chunk count
+
+    Raises:
+        Exception: Any processing errors (caught and logged by create_safe_task)
+    """
+    from datetime import UTC, datetime
+
+    from sqlmodel import Session
+
+    from backend.core.db import engine
+    from backend.core.storage import StorageError, get_document_content
+    from backend.documents.chunking import DocumentChunker
+    from backend.documents.embeddings import EmbeddingsService
+    from backend.documents.models import Document, DocumentChunk
+    from backend.documents.parsers import DocumentParser
+    from backend.rag_settings.service import get_effective_rag_settings
+
+    session = Session(engine)
+    local_file_path = None
+
+    try:
+        # Get document record
+        doc = session.get(Document, document_id)
+        if not doc:
+            raise ValueError(f"Document {document_id} not found")
+
+        # Update status to processing
+        doc.processing_status = "processing"
+        doc.processing_error = None
+        session.add(doc)
+        session.commit()
+
+        logger.info(
+            "document_processing_started",
+            document_id=str(document_id),
+            filename=doc.filename,
+            file_type=doc.file_type,
+            s3_key=s3_object_key,
+        )
+
+        # Download file from S3 to temp location for processing
+        try:
+            file_content = get_document_content(s3_object_key)
+            temp_dir = Path(tempfile.gettempdir()) / "rag_processing"
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            local_file_path = str(temp_dir / f"{document_id}_{doc.filename}")
+            with open(local_file_path, "wb") as f:
+                f.write(file_content)
+            logger.debug(
+                "document_downloaded_for_processing",
+                document_id=str(document_id),
+                temp_path=local_file_path,
+                size=len(file_content),
+            )
+        except StorageError as e:
+            raise ValueError(f"Failed to download document from storage: {e}")
+
+        # Get effective RAG settings
+        rag_settings = get_effective_rag_settings(session, user_id, org_id, team_id)
+
+        # Parse document
+        logger.debug("document_parsing_started", document_id=str(document_id))
+        documents = await DocumentParser.parse(
+            file_path=local_file_path,
+            file_type=doc.file_type,
+            add_metadata=True,
+        )
+        logger.debug(
+            "document_parsing_completed",
+            document_id=str(document_id),
+            page_count=len(documents),
+        )
+
+        # Chunk documents
+        logger.debug("document_chunking_started", document_id=str(document_id))
+        chunks = await DocumentChunker.chunk_documents(
+            documents=documents,
+            chunk_size=rag_settings.chunk_size,
+            chunk_overlap=rag_settings.chunk_overlap,
+            file_type=doc.file_type,
+        )
+        logger.debug(
+            "document_chunking_completed",
+            document_id=str(document_id),
+            chunk_count=len(chunks),
+        )
+
+        # Generate embeddings in batches
+        logger.debug("embeddings_generation_started", document_id=str(document_id))
+        embeddings_service = EmbeddingsService()
+        chunk_texts = [chunk.page_content for chunk in chunks]
+        embeddings = await embeddings_service.embed_batch(
+            texts=chunk_texts, batch_size=100
+        )
+        logger.debug(
+            "embeddings_generation_completed",
+            document_id=str(document_id),
+            embedding_count=len(embeddings),
+        )
+
+        # Store chunks with embeddings
+        logger.debug("storing_chunks_started", document_id=str(document_id))
+        for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+            chunk_record = DocumentChunk(
+                document_id=document_id,
+                organization_id=org_id,
+                team_id=team_id,
+                user_id=user_id,
+                chunk_index=idx,
+                content=chunk.page_content,
+                token_count=len(chunk.page_content),  # Approximate
+                embedding=embedding,
+                metadata_=json.dumps(chunk.metadata),
+            )
+            session.add(chunk_record)
+
+        # Update document status
+        doc.processing_status = "completed"
+        doc.chunk_count = len(chunks)
+        doc.updated_at = datetime.now(UTC)
+        session.add(doc)
+        session.commit()
+
+        logger.info(
+            "document_processing_completed",
+            document_id=str(document_id),
+            chunk_count=len(chunks),
+            filename=doc.filename,
+        )
+
+        # Cleanup temp file if it exists
+        if local_file_path and os.path.exists(local_file_path):
+            try:
+                os.remove(local_file_path)
+                logger.debug("temp_file_cleaned_up", file_path=local_file_path)
+            except OSError as e:
+                logger.warning(
+                    "temp_file_cleanup_failed", file_path=local_file_path, error=str(e)
+                )
+
+        return {"status": "success", "chunk_count": len(chunks)}
+
+    except Exception as e:
+        # Update document with error status
+        if doc:
+            doc.processing_status = "failed"
+            doc.processing_error = str(e)
+            doc.updated_at = datetime.now(UTC)
+            session.add(doc)
+            session.commit()
+
+        logger.exception(
+            "document_processing_failed",
+            document_id=str(document_id),
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+
+        # Cleanup temp file even on error
+        if local_file_path and os.path.exists(local_file_path):
+            try:
+                os.remove(local_file_path)
+            except OSError:
+                pass
+
+        raise
+    finally:
+        session.close()

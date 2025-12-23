@@ -13,7 +13,7 @@ from langgraph.types import Command, interrupt
 from psycopg_pool import AsyncConnectionPool
 
 from backend.agents.llm import get_chat_model, get_chat_model_with_context
-from backend.agents.tools import get_available_tools
+from backend.agents.tools import get_available_tools, get_context_aware_tools
 from backend.agents.tracing import build_langfuse_config, get_langfuse_handler
 from backend.core.config import settings
 from backend.core.logging import get_logger
@@ -1097,10 +1097,25 @@ async def get_agent_with_tools(
 
     checkpointer = await _init_checkpointer()
 
-    # Collect all tools
+    # Collect all tools - start with built-in tools
     all_tools = list(get_available_tools())
     builtin_tool_names = {t.name for t in all_tools}
     logger.info("builtin_tools_loaded", tool_count=len(all_tools), tool_names=[t.name for t in all_tools])
+
+    # Add context-aware tools (like search_documents) if we have context
+    if org_id and user_id:
+        context_tools = get_context_aware_tools(
+            org_id=org_id,
+            team_id=team_id,
+            user_id=user_id,
+        )
+        if context_tools:
+            all_tools.extend(context_tools)
+            logger.info(
+                "context_aware_tools_loaded",
+                count=len(context_tools),
+                names=[t.name for t in context_tools],
+            )
 
     # Track MCP tool names for approval
     mcp_tool_names: set[str] = set()
@@ -1472,7 +1487,19 @@ async def stream_agent_with_context(
             config=config if config else None,
             version="v2",
         ):
-            if event["event"] == "on_chat_model_stream":
+            event_type = event.get("event", "")
+
+            # Debug: Log tool-related events
+            if "tool" in event_type.lower():
+                logger.info(
+                    "tool_event_received",
+                    event_type=event_type,
+                    event_name=event.get("name", ""),
+                    event_keys=list(event.keys()),
+                    thread_id=thread_id,
+                )
+
+            if event_type == "on_chat_model_stream":
                 chunk = event["data"].get("chunk")
                 if chunk and chunk.content:
                     # Extract text content, handling both string and list formats
@@ -1480,6 +1507,35 @@ async def stream_agent_with_context(
                     text = _extract_text_content(chunk.content)
                     if text:
                         yield text
+
+            # Capture search_documents tool results for citation display
+            elif event_type == "on_tool_end":
+                tool_name = event.get("name", "")
+                if tool_name == "search_documents":
+                    tool_output = event.get("data", {}).get("output", "")
+                    # Extract content from ToolMessage if needed
+                    if hasattr(tool_output, "content"):
+                        tool_output = tool_output.content
+                    try:
+                        import json as json_module
+                        result_data = json_module.loads(tool_output)
+                        sources = result_data.get("results", [])
+                        if sources:
+                            logger.info(
+                                "search_documents_sources_captured",
+                                source_count=len(sources),
+                                thread_id=thread_id,
+                            )
+                            yield {
+                                "type": "sources",
+                                "data": sources,
+                            }
+                    except Exception as e:
+                        logger.warning(
+                            "search_documents_parse_failed",
+                            error=str(e),
+                            thread_id=thread_id,
+                        )
 
         # After streaming completes, check if we're in an interrupted state
         # This happens when tool approval is required

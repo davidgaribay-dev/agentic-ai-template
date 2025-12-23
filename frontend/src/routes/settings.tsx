@@ -19,6 +19,7 @@ import {
   Brain,
   Plug,
   Palette,
+  FileSearch,
 } from "lucide-react"
 import { useAuth, authKeys } from "@/lib/auth"
 import {
@@ -40,6 +41,7 @@ import { ChatSettings } from "@/components/chat-settings"
 import { MemorySettings } from "@/components/settings/memory-settings"
 import { MemoryViewer } from "@/components/settings/memory-viewer"
 import { UserThemeSettings } from "@/components/settings/user-theme-settings"
+import { UserRAGSettings } from "@/components/settings/user-rag-settings"
 import { PromptRow, CreatePromptDialog, MCPSettings, MCPServersList } from "@/components/settings"
 import { getInitials, isValidImageUrl } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -59,7 +61,7 @@ import {
 } from "@/components/ui/collapsible"
 
 const settingsSearchSchema = z.object({
-  tab: z.enum(["profile", "ai", "memory", "preferences", "theme"]).optional(),
+  tab: z.enum(["profile", "ai", "memory", "preferences", "theme", "rag"]).optional(),
 })
 
 type SettingsTab = z.infer<typeof settingsSearchSchema>["tab"]
@@ -90,6 +92,7 @@ function SettingsPage() {
     { value: "memory", label: "Memory", icon: Brain },
     { value: "preferences", label: "Preferences", icon: Settings2 },
     { value: "theme", label: "Theme", icon: Palette },
+    { value: "rag", label: "Document Search", icon: FileSearch },
   ]
 
   return (
@@ -133,6 +136,10 @@ function SettingsPage() {
 
             <TabsContent value="theme" className="mt-0">
               <UserThemeSettings />
+            </TabsContent>
+
+            <TabsContent value="rag" className="mt-0">
+              <UserRAGSettings />
             </TabsContent>
           </div>
         </Tabs>

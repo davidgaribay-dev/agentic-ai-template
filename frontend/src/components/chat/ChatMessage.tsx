@@ -1,11 +1,18 @@
 import * as React from "react"
-import { useState, useCallback, isValidElement, memo } from "react"
+import { useState, useCallback, isValidElement, memo, useMemo } from "react"
 import { Streamdown } from "streamdown"
 import { Copy, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { StreamingIndicator } from "./StreamingIndicator"
 import { CodeBlock } from "./CodeBlock"
 import { TableBlock } from "./TableBlock"
+import {
+  SourcesHeader,
+  CitationBadge,
+  InlineCitationBadge,
+  hasInlineCitations,
+} from "./CitationBadge"
+import type { MessageSource } from "@/lib/chat-store"
 
 type MessageRole = "user" | "assistant"
 
@@ -13,6 +20,7 @@ interface ChatMessageProps {
   role: MessageRole
   content: string
   isStreaming?: boolean
+  sources?: MessageSource[]
   className?: string
 }
 
@@ -152,13 +160,183 @@ const defaultCustomComponents = {
   table: createTableComponent(defaultTableBlockConfig),
 }
 
+/** Unique placeholder for citations that won't appear in normal text */
+const CITATION_PLACEHOLDER_PREFIX = "〈CITE:"
+const CITATION_PLACEHOLDER_SUFFIX = "〉"
+const CITATION_PLACEHOLDER_REGEX = /〈CITE:(\d+)〉/g
+
+/**
+ * Pre-process content to replace [[citation]] markers with unique placeholders
+ * that we can then render with custom components
+ */
+function preprocessCitations(content: string): {
+  processedContent: string
+  citationMap: Map<number, string>
+} {
+  const citationMap = new Map<number, string>()
+  let index = 0
+
+  const processedContent = content.replace(/\[\[([^\]]+)\]\]/g, (_match, citation) => {
+    citationMap.set(index, citation)
+    const placeholder = `${CITATION_PLACEHOLDER_PREFIX}${index}${CITATION_PLACEHOLDER_SUFFIX}`
+    index++
+    return placeholder
+  })
+
+  return { processedContent, citationMap }
+}
+
+/**
+ * Create custom components that handle inline citations via placeholder replacement
+ */
+function createComponentsWithCitations(
+  sources: MessageSource[],
+  citationMap: Map<number, string>
+) {
+  // Shared function to process children for citation placeholders
+  const processChildren = (child: React.ReactNode): React.ReactNode => {
+    if (typeof child === "string") {
+      // Check if this string contains any citation placeholders
+      if (child.includes(CITATION_PLACEHOLDER_PREFIX)) {
+        const parts: React.ReactNode[] = []
+        let lastIndex = 0
+        let match
+        const regex = new RegExp(CITATION_PLACEHOLDER_REGEX.source, "g")
+
+        while ((match = regex.exec(child)) !== null) {
+          // Add text before the placeholder
+          if (match.index > lastIndex) {
+            parts.push(child.slice(lastIndex, match.index))
+          }
+
+          // Get the citation marker from our map
+          const citationIndex = parseInt(match[1], 10)
+          const marker = citationMap.get(citationIndex) || ""
+
+          // Find matching sources for this citation (deduplicated by document_id)
+          const allMatching = sources.filter((s) => {
+            const filename = s.source.split("/").pop() || s.source
+            return filename === marker || filename.toLowerCase() === marker.toLowerCase()
+          })
+          // Deduplicate by document_id - keep only one chunk per document
+          const seenDocIds = new Set<string>()
+          const matchingSources = allMatching.filter((s) => {
+            const docId = s.document_id || s.source
+            if (seenDocIds.has(docId)) return false
+            seenDocIds.add(docId)
+            return true
+          })
+
+          parts.push(
+            <InlineCitationBadge
+              key={`cite-${citationIndex}`}
+              marker={marker}
+              sources={matchingSources.length > 0 ? matchingSources : undefined}
+            />
+          )
+
+          lastIndex = match.index + match[0].length
+        }
+
+        // Add remaining text after last placeholder
+        if (lastIndex < child.length) {
+          parts.push(child.slice(lastIndex))
+        }
+
+        return parts.length === 1 ? parts[0] : <>{parts}</>
+      }
+      return child
+    }
+    if (React.isValidElement(child)) {
+      const element = child as React.ReactElement<{ children?: React.ReactNode }>
+      if (element.props.children) {
+        return React.cloneElement(element, {
+          ...element.props,
+          children: React.Children.map(element.props.children, processChildren),
+        } as React.Attributes & { children?: React.ReactNode })
+      }
+    }
+    return child
+  }
+
+  // Override paragraph to use citation-aware text rendering
+  const ParagraphWithCitations = ({ children }: { children?: React.ReactNode }) => {
+    return <p>{React.Children.map(children, processChildren)}</p>
+  }
+
+  // Override list items to handle citations
+  const ListItemWithCitations = ({ children }: { children?: React.ReactNode }) => {
+    return <li>{React.Children.map(children, processChildren)}</li>
+  }
+
+  // Override strong (bold) text
+  const StrongWithCitations = ({ children }: { children?: React.ReactNode }) => {
+    return <strong>{React.Children.map(children, processChildren)}</strong>
+  }
+
+  // Override emphasis (italic) text
+  const EmWithCitations = ({ children }: { children?: React.ReactNode }) => {
+    return <em>{React.Children.map(children, processChildren)}</em>
+  }
+
+  // Override headings
+  const H1WithCitations = ({ children }: { children?: React.ReactNode }) => {
+    return <h1>{React.Children.map(children, processChildren)}</h1>
+  }
+  const H2WithCitations = ({ children }: { children?: React.ReactNode }) => {
+    return <h2>{React.Children.map(children, processChildren)}</h2>
+  }
+  const H3WithCitations = ({ children }: { children?: React.ReactNode }) => {
+    return <h3>{React.Children.map(children, processChildren)}</h3>
+  }
+
+  // Override spans and other inline elements
+  const SpanWithCitations = ({ children, ...props }: { children?: React.ReactNode } & React.HTMLAttributes<HTMLSpanElement>) => {
+    return <span {...props}>{React.Children.map(children, processChildren)}</span>
+  }
+
+  return {
+    ...defaultCustomComponents,
+    p: ParagraphWithCitations,
+    li: ListItemWithCitations,
+    strong: StrongWithCitations,
+    em: EmWithCitations,
+    h1: H1WithCitations,
+    h2: H2WithCitations,
+    h3: H3WithCitations,
+    span: SpanWithCitations,
+  }
+}
+
 export const ChatMessage = memo(function ChatMessage({
   role,
   content,
   isStreaming = false,
+  sources,
   className,
 }: ChatMessageProps) {
   const isUser = role === "user"
+
+  // Pre-process content to replace [[citation]] markers with placeholders
+  const { processedContent, citationMap } = useMemo(() => {
+    if (content && sources && sources.length > 0 && !isStreaming) {
+      return preprocessCitations(content)
+    }
+    return { processedContent: content, citationMap: new Map<number, string>() }
+  }, [content, sources, isStreaming])
+
+  // Create custom components with citation support when sources are available
+  const customComponents = useMemo(() => {
+    if (sources && sources.length > 0 && !isStreaming && citationMap.size > 0) {
+      return createComponentsWithCitations(sources, citationMap)
+    }
+    return defaultCustomComponents
+  }, [sources, isStreaming, citationMap])
+
+  // Check if content has inline citations (for deciding whether to show bottom badges)
+  const contentHasInlineCitations = useMemo(() => {
+    return content ? hasInlineCitations(content) : false
+  }, [content])
 
   if (isUser) {
     return (
@@ -197,11 +375,43 @@ export const ChatMessage = memo(function ChatMessage({
           >
             <Streamdown
               isAnimating={isStreaming}
-              components={defaultCustomComponents}
+              components={customComponents}
             >
-              {content}
+              {processedContent}
             </Streamdown>
           </div>
+
+          {/* Source Citations - Collapsible header showing search process */}
+          {sources && sources.length > 0 && !isStreaming && (
+            <SourcesHeader sources={sources} className="mt-4" />
+          )}
+
+          {/* Bottom citation badges - only show if content doesn't have inline citations */}
+          {sources && sources.length > 0 && !isStreaming && !contentHasInlineCitations && (
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {(() => {
+                // Group sources by filename for inline display
+                const grouped: Record<string, MessageSource[]> = {}
+                for (const source of sources) {
+                  const filename = source.source.split("/").pop() || source.source
+                  if (!grouped[filename]) {
+                    grouped[filename] = []
+                  }
+                  grouped[filename].push(source)
+                }
+
+                return Object.values(grouped).map((sourceGroup) => (
+                  <CitationBadge
+                    key={sourceGroup[0].source}
+                    source={sourceGroup[0]}
+                    additionalSources={sourceGroup.slice(1)}
+                    variant="standalone"
+                  />
+                ))
+              })()}
+            </div>
+          )}
+
           <div className="mt-1 opacity-0 transition-opacity group-hover:opacity-100">
             <MessageCopyButton content={content} />
           </div>
