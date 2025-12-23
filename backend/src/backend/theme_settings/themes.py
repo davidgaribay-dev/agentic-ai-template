@@ -822,7 +822,7 @@ DARK_THEMES = [
 ]
 
 
-def get_theme_colors(theme_id: str) -> dict:
+def get_theme_colors(theme_id: str) -> dict[str, str]:
     """Get colors for a predefined theme.
 
     Args:

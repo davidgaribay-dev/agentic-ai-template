@@ -162,7 +162,7 @@ def get_user_organizations(
 
     statement = (
         select(Organization)
-        .join(OrganizationMember, OrganizationMember.organization_id == Organization.id)
+        .join(OrganizationMember, OrganizationMember.organization_id == Organization.id)  # type: ignore[arg-type]
         .where(OrganizationMember.user_id == user_id)
         .offset(skip)
         .limit(limit)
@@ -285,10 +285,10 @@ def get_organization_members(
     statement = (
         select(OrganizationMember)
         .where(OrganizationMember.organization_id == organization_id)
-        .options(selectinload(OrganizationMember.user))
+        .options(selectinload(OrganizationMember.user))  # type: ignore[arg-type]
         .offset(skip)
         .limit(limit)
-        .order_by(OrganizationMember.created_at)
+        .order_by(OrganizationMember.created_at)  # type: ignore[arg-type]
     )
     members = session.exec(statement).all()
 

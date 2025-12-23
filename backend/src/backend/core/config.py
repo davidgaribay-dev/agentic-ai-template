@@ -7,7 +7,7 @@ import warnings
 from pydantic import (
     AnyUrl,
     BeforeValidator,
-    PostgresDsn,
+    ValidationInfo,
     computed_field,
     field_validator,
 )
@@ -45,7 +45,7 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = []
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def all_cors_origins(self) -> list[str]:
         """Return all CORS origins as strings."""
@@ -62,7 +62,7 @@ class Settings(BaseSettings):
 
     @field_validator("POSTGRES_PASSWORD", mode="after")
     @classmethod
-    def validate_postgres_password(cls, v: str, info) -> str:
+    def validate_postgres_password(cls, v: str, info: ValidationInfo) -> str:
         """Validate that POSTGRES_PASSWORD is changed in production."""
         env = (
             info.data.get("ENVIRONMENT")
@@ -83,9 +83,9 @@ class Settings(BaseSettings):
             )
         return v
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
-    def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
+    def SQLALCHEMY_DATABASE_URI(self) -> MultiHostUrl:
         """Build PostgreSQL connection URI for SQLAlchemy."""
         return MultiHostUrl.build(
             scheme="postgresql+psycopg",
@@ -96,7 +96,7 @@ class Settings(BaseSettings):
             path=self.POSTGRES_DB,
         )
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def CHECKPOINT_DATABASE_URI(self) -> str:
         """Build PostgreSQL connection URI for LangGraph checkpointer."""
@@ -112,7 +112,7 @@ class Settings(BaseSettings):
 
     @field_validator("SECRET_KEY", mode="before")
     @classmethod
-    def validate_secret_key(cls, v: str, info) -> str:
+    def validate_secret_key(cls, v: str, info: ValidationInfo) -> str:
         """Validate and warn about SECRET_KEY configuration."""
         if not v:
             generated_key = secrets.token_urlsafe(MIN_SECRET_KEY_LENGTH)
@@ -146,7 +146,7 @@ class Settings(BaseSettings):
     EMAILS_FROM_NAME: str | None = None
     EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def emails_enabled(self) -> bool:
         """Check if email sending is properly configured."""
@@ -158,7 +158,7 @@ class Settings(BaseSettings):
     S3_BUCKET_NAME: str = "uploads"
     S3_PUBLIC_URL: str | None = None
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def s3_public_base_url(self) -> str:
         """Return the public base URL for S3 objects."""
@@ -173,13 +173,13 @@ class Settings(BaseSettings):
     # Memory Store - uses OpenAI embeddings for semantic search
     MEMORY_EMBEDDING_MODEL: str = "text-embedding-3-small"
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def MEMORY_DATABASE_URI(self) -> str:
         """Build PostgreSQL connection URI for LangGraph memory store."""
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def has_llm_api_key(self) -> bool:
         """Check if at least one LLM API key is configured via environment."""
@@ -198,7 +198,7 @@ class Settings(BaseSettings):
     INFISICAL_PROJECT_ID: str | None = None
     INFISICAL_ENVIRONMENT: str = "dev"
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def infisical_enabled(self) -> bool:
         """Check if Infisical is properly configured."""
@@ -217,7 +217,7 @@ class Settings(BaseSettings):
     OPENSEARCH_AUDIT_RETENTION_DAYS: int = 90
     OPENSEARCH_APP_LOG_RETENTION_DAYS: int = 30
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def opensearch_enabled(self) -> bool:
         """Check if OpenSearch is configured."""
@@ -229,12 +229,12 @@ class Settings(BaseSettings):
     LANGFUSE_HOST: str = "http://localhost:3001"
     LANGFUSE_BASE_URL: str | None = None
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def langfuse_base_url(self) -> str:
         return self.LANGFUSE_BASE_URL or self.LANGFUSE_HOST
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def langfuse_enabled(self) -> bool:
         return bool(self.LANGFUSE_PUBLIC_KEY and self.LANGFUSE_SECRET_KEY)

@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Annotated
 import uuid
 
@@ -328,7 +329,9 @@ def get_team_context(
 TeamContextDep = Annotated[TeamContext, Depends(get_team_context)]
 
 
-def require_org_permission(permission: OrgPermission):
+def require_org_permission(
+    permission: OrgPermission,
+) -> Callable[[OrgContextDep], None]:
     """Create a dependency that requires a specific organization permission.
 
     Usage:
@@ -343,7 +346,9 @@ def require_org_permission(permission: OrgPermission):
     return dependency
 
 
-def require_team_permission(permission: TeamPermission):
+def require_team_permission(
+    permission: TeamPermission,
+) -> Callable[[TeamContextDep], None]:
     """Create a dependency that requires a specific team permission.
 
     Usage:

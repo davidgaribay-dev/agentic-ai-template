@@ -1,5 +1,5 @@
 from datetime import UTC, datetime, timedelta
-from typing import Literal
+from typing import Any, Literal
 import uuid
 
 import jwt
@@ -60,8 +60,11 @@ def create_token_pair(subject: str) -> tuple[str, str, int]:
     return access_token, refresh_token, expires_in
 
 
-def decode_token(token: str) -> dict:
-    return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+def decode_token(token: str) -> dict[str, Any]:
+    result: dict[str, Any] = jwt.decode(
+        token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+    )
+    return result
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

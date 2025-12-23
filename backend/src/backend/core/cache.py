@@ -44,7 +44,9 @@ def clear_request_cache() -> None:
     _request_cache.set(None)
 
 
-def request_cached(key_func: Callable[..., str]):
+def request_cached(
+    key_func: Callable[..., str],
+) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator for request-scoped caching.
 
     Caches the result of an async function for the duration of a request.
@@ -63,7 +65,7 @@ def request_cached(key_func: Callable[..., str]):
 
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
-        async def wrapper(*args, **kwargs) -> T:
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             cache = get_request_cache()
             key = key_func(*args, **kwargs)
 
@@ -71,17 +73,19 @@ def request_cached(key_func: Callable[..., str]):
                 logger.debug("request_cache_hit", key=key)
                 return cache[key]
 
-            result = await func(*args, **kwargs)
+            result = await func(*args, **kwargs)  # type: ignore[misc]
             cache[key] = result
             logger.debug("request_cache_miss", key=key)
             return result
 
-        return wrapper
+        return wrapper  # type: ignore[return-value]
 
     return decorator
 
 
-def request_cached_sync(key_func: Callable[..., str]):
+def request_cached_sync(
+    key_func: Callable[..., str],
+) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator for request-scoped caching (sync version).
 
     Same as request_cached but for synchronous functions.
@@ -89,7 +93,7 @@ def request_cached_sync(key_func: Callable[..., str]):
 
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
-        def wrapper(*args, **kwargs) -> T:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             cache = get_request_cache()
             key = key_func(*args, **kwargs)
 
@@ -179,23 +183,25 @@ class CachingWrapper:
     def __init__(self, ttl_seconds: int = 300):
         self._cache = TTLCache(ttl_seconds=ttl_seconds)
 
-    def cached(self, key_func: Callable[..., str]):
+    def cached(
+        self, key_func: Callable[..., str]
+    ) -> Callable[[Callable[..., T]], Callable[..., T]]:
         """Decorator for caching async function results with TTL."""
 
         def decorator(func: Callable[..., T]) -> Callable[..., T]:
             @wraps(func)
-            async def wrapper(*args, **kwargs) -> T:
+            async def wrapper(*args: Any, **kwargs: Any) -> Any:
                 key = key_func(*args, **kwargs)
-                cached = self._cache.get(key)
-                if cached is not None:
-                    return cached
+                cached_value = self._cache.get(key)
+                if cached_value is not None:
+                    return cached_value
 
-                result = await func(*args, **kwargs)
+                result = await func(*args, **kwargs)  # type: ignore[misc]
                 if result is not None:  # Don't cache None values
                     self._cache.set(key, result)
                 return result
 
-            return wrapper
+            return wrapper  # type: ignore[return-value]
 
         return decorator
 

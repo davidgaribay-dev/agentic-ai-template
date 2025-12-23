@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import BinaryIO
+from typing import Any, BinaryIO
 import uuid
 
 import boto3
@@ -34,7 +34,7 @@ class FileTooLargeError(StorageError):
 
 
 @lru_cache(maxsize=1)
-def get_s3_client():
+def get_s3_client() -> Any:
     return boto3.client(
         "s3",
         endpoint_url=settings.S3_ENDPOINT_URL,
@@ -47,7 +47,7 @@ def get_s3_client():
     )
 
 
-def ensure_bucket_exists(client=None) -> None:
+def ensure_bucket_exists(client: Any = None) -> None:
     if client is None:
         client = get_s3_client()
 
@@ -220,7 +220,7 @@ def get_document_content(object_key: str) -> bytes:
 
     try:
         response = client.get_object(Bucket=settings.S3_BUCKET_NAME, Key=object_key)
-        content = response["Body"].read()
+        content: bytes = response["Body"].read()
         logger.debug("document_downloaded", key=object_key, size=len(content))
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code")

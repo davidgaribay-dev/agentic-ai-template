@@ -196,7 +196,7 @@ def get_user_teams_in_org(
     count_statement = (
         select(func.count())
         .select_from(TeamMember)
-        .join(Team, TeamMember.team_id == Team.id)
+        .join(Team, TeamMember.team_id == Team.id)  # type: ignore[arg-type]
         .where(
             Team.organization_id == organization_id,
             TeamMember.org_member_id == org_member_id,
@@ -206,7 +206,7 @@ def get_user_teams_in_org(
 
     statement = (
         select(Team)
-        .join(TeamMember, TeamMember.team_id == Team.id)
+        .join(TeamMember, TeamMember.team_id == Team.id)  # type: ignore[arg-type]
         .where(
             Team.organization_id == organization_id,
             TeamMember.org_member_id == org_member_id,
@@ -333,12 +333,12 @@ def get_team_members(
 
     statement = (
         select(TeamMember, OrganizationMember, User)
-        .join(OrganizationMember, TeamMember.org_member_id == OrganizationMember.id)
-        .join(User, OrganizationMember.user_id == User.id)
+        .join(OrganizationMember, TeamMember.org_member_id == OrganizationMember.id)  # type: ignore[arg-type]
+        .join(User, OrganizationMember.user_id == User.id)  # type: ignore[arg-type]
         .where(TeamMember.team_id == team_id)
         .offset(skip)
         .limit(limit)
-        .order_by(TeamMember.created_at)
+        .order_by(TeamMember.created_at)  # type: ignore[arg-type]
     )
     results = list(session.exec(statement).all())
 

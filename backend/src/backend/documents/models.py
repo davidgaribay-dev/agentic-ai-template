@@ -112,11 +112,11 @@ class DocumentChunk(UUIDPrimaryKeyMixin, CreatedAtMixin, table=True):
     # Use Any type hint since Vector is optional import
     embedding: Any | None = Field(
         default=None,
-        sa_column=Column(Vector(1536), nullable=True) if Vector else None,
+        sa_column=Column(Vector(1536), nullable=True) if Vector else None,  # type: ignore[arg-type]
     )
 
     # Metadata (JSON) - context about this chunk
-    metadata_: dict | None = Field(default=None, sa_column=Column(Text))
+    metadata_: dict[str, Any] | None = Field(default=None, sa_column=Column(Text))
 
     # Relationship
     document: Document = Relationship(back_populates="chunks")
@@ -181,7 +181,7 @@ class DocumentChunkPublic(SQLModel):
     chunk_index: int
     content: str
     token_count: int | None
-    metadata_: dict | None
+    metadata_: dict[str, Any] | None
     created_at: Any  # datetime
 
 

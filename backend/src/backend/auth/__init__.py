@@ -10,7 +10,6 @@ from backend.auth.deps import (
     SessionDep,
     TokenDep,
     get_current_user,
-    get_db,
 )
 from backend.auth.models import (
     Message,
@@ -27,6 +26,7 @@ from backend.auth.models import (
     UserUpdate,
     UserUpdateMe,
 )
+from backend.core.db import get_db
 
 __all__ = [
     "CurrentUser",

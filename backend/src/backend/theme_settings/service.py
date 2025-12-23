@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from typing import Any
 import uuid
 
 from sqlmodel import Session, select
@@ -307,8 +308,8 @@ def _build_effective_settings(
     theme_mode: str,
     light_theme: str,
     dark_theme: str,
-    custom_light_theme: dict | None,
-    custom_dark_theme: dict | None,
+    custom_light_theme: dict[str, Any] | None,
+    custom_dark_theme: dict[str, Any] | None,
     customization_allowed: bool,
     customization_disabled_by: str | None,
     system_prefers_dark: bool,

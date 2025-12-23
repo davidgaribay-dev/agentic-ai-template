@@ -132,7 +132,7 @@ async def fetch_json(
 
     try:
         response.raise_for_status()
-        return response.json()
+        result: dict[str, Any] = response.json()
     except httpx.HTTPStatusError as e:
         logger.warning(
             "http_status_error",
@@ -145,6 +145,8 @@ async def fetch_json(
     except ValueError as e:
         logger.warning("http_invalid_json", url=url, error=str(e))
         raise ExternalServiceError(service_name, "Invalid JSON response") from e
+    else:
+        return result
 
 
 class RetryConfig:

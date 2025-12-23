@@ -7,10 +7,11 @@ Based on patterns from Cosmic Python:
 https://www.cosmicpython.com/book/chapter_06_uow.html
 """
 
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 import functools
 import inspect
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from sqlmodel import Session
 
@@ -69,7 +70,9 @@ class UnitOfWork:
 
 
 @contextmanager
-def atomic(session: Session | None = None):
+def atomic(
+    session: Session | None = None,
+) -> Generator[UnitOfWork, None, None]:
     """Context manager for atomic database operations.
 
     Ensures all database operations within the block either
@@ -96,11 +99,10 @@ def atomic(session: Session | None = None):
             ...
     """
     owns_session = session is None
+    active_session = Session(engine) if owns_session else session
+    assert active_session is not None  # for type narrowing
 
-    if owns_session:
-        session = Session(engine)
-
-    uow = UnitOfWork(session)
+    uow = UnitOfWork(active_session)
 
     try:
         yield uow
@@ -110,11 +112,13 @@ def atomic(session: Session | None = None):
         raise
     finally:
         if owns_session:
-            session.close()
+            active_session.close()
 
 
 @contextmanager
-def read_only(session: Session | None = None):
+def read_only(
+    session: Session | None = None,
+) -> Generator[Session, None, None]:
     """Context manager for read-only database operations.
 
     Similar to atomic() but never commits. Use for queries
@@ -127,19 +131,18 @@ def read_only(session: Session | None = None):
         Session for read operations
     """
     owns_session = session is None
-
-    if owns_session:
-        session = Session(engine)
+    active_session = Session(engine) if owns_session else session
+    assert active_session is not None  # for type narrowing
 
     try:
-        yield session
+        yield active_session
     finally:
-        session.rollback()  # Ensure no accidental commits
+        active_session.rollback()  # Ensure no accidental commits
         if owns_session:
-            session.close()
+            active_session.close()
 
 
-def transactional(func):
+def transactional(func: Callable[..., T]) -> Callable[..., T]:
     """Decorator to wrap a function in a transaction.
 
     The decorated function receives a `session` parameter if it doesn't
@@ -160,7 +163,7 @@ def transactional(func):
     sig = inspect.signature(func)
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> T:
         # Check if session was provided
         bound = sig.bind_partial(*args, **kwargs)
 
@@ -198,7 +201,7 @@ class BulkOperations:
 
         Args:
             session: Database session
-            objects: List of modified SQLModel objects
+            objects: List of modified SQLModel objects (tracked by session)
         """
         # SQLModel/SQLAlchemy tracks changes automatically
         # Just flush to send updates

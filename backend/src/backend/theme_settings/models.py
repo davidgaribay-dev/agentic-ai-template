@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 import uuid
 
 from sqlalchemy.dialects.postgresql import JSON
@@ -72,8 +72,8 @@ class ThemeSettingsBase(SQLModel):
     default_theme_mode: str = Field(default="system")  # "light" | "dark" | "system"
     default_light_theme: str = Field(default="github-light")
     default_dark_theme: str = Field(default="one-dark-pro")
-    custom_light_theme: dict | None = Field(default=None, sa_type=JSON)
-    custom_dark_theme: dict | None = Field(default=None, sa_type=JSON)
+    custom_light_theme: dict[str, Any] | None = Field(default=None, sa_type=JSON)
+    custom_dark_theme: dict[str, Any] | None = Field(default=None, sa_type=JSON)
 
 
 class OrganizationThemeSettings(ThemeSettingsBase, TimestampedTable, table=True):
@@ -110,8 +110,8 @@ class OrganizationThemeSettingsUpdate(SQLModel):
     default_theme_mode: str | None = None
     default_light_theme: str | None = None
     default_dark_theme: str | None = None
-    custom_light_theme: dict | None = None
-    custom_dark_theme: dict | None = None
+    custom_light_theme: dict[str, Any] | None = None
+    custom_dark_theme: dict[str, Any] | None = None
 
 
 class OrganizationThemeSettingsPublic(ThemeSettingsBase, TimestampResponseMixin):
@@ -153,8 +153,8 @@ class TeamThemeSettingsUpdate(SQLModel):
     default_theme_mode: str | None = None
     default_light_theme: str | None = None
     default_dark_theme: str | None = None
-    custom_light_theme: dict | None = None
-    custom_dark_theme: dict | None = None
+    custom_light_theme: dict[str, Any] | None = None
+    custom_dark_theme: dict[str, Any] | None = None
 
 
 class TeamThemeSettingsPublic(ThemeSettingsBase, TimestampResponseMixin):
@@ -189,8 +189,8 @@ class UserThemeSettings(TimestampedTable, table=True):
     theme_mode: str = Field(default="system")
     light_theme: str = Field(default="github-light")
     dark_theme: str = Field(default="one-dark-pro")
-    custom_light_theme: dict | None = Field(default=None, sa_type=JSON)
-    custom_dark_theme: dict | None = Field(default=None, sa_type=JSON)
+    custom_light_theme: dict[str, Any] | None = Field(default=None, sa_type=JSON)
+    custom_dark_theme: dict[str, Any] | None = Field(default=None, sa_type=JSON)
 
     user: "User" = Relationship(back_populates="theme_settings")
 
@@ -199,8 +199,8 @@ class UserThemeSettingsUpdate(SQLModel):
     theme_mode: str | None = None
     light_theme: str | None = None
     dark_theme: str | None = None
-    custom_light_theme: dict | None = None
-    custom_dark_theme: dict | None = None
+    custom_light_theme: dict[str, Any] | None = None
+    custom_dark_theme: dict[str, Any] | None = None
 
 
 class UserThemeSettingsPublic(TimestampResponseMixin):
@@ -209,8 +209,8 @@ class UserThemeSettingsPublic(TimestampResponseMixin):
     theme_mode: str
     light_theme: str
     dark_theme: str
-    custom_light_theme: dict | None
-    custom_dark_theme: dict | None
+    custom_light_theme: dict[str, Any] | None
+    custom_dark_theme: dict[str, Any] | None
 
 
 class EffectiveThemeSettings(SQLModel):
@@ -227,15 +227,15 @@ class EffectiveThemeSettings(SQLModel):
     theme_mode: str
     light_theme: str
     dark_theme: str
-    custom_light_theme: dict | None
-    custom_dark_theme: dict | None
+    custom_light_theme: dict[str, Any] | None
+    custom_dark_theme: dict[str, Any] | None
 
     # Metadata about permissions
     customization_allowed: bool
     customization_disabled_by: str | None = None  # "org" | "team" | None
 
     # Resolved theme colors (based on current mode + system preference)
-    active_theme_colors: dict  # Full OKLch color map
+    active_theme_colors: dict[str, str]  # Full OKLch color map
 
 
 OrganizationThemeSettings.model_rebuild()

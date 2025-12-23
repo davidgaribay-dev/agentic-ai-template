@@ -43,7 +43,7 @@ def read_users(
     statement = select(User).offset(skip).limit(limit)
     users = session.exec(statement).all()
 
-    return UsersPublic(data=users, count=count)
+    return UsersPublic(data=list(users), count=count)  # type: ignore[arg-type]
 
 
 @router.post("/", response_model=UserPublic)

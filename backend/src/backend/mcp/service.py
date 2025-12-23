@@ -113,12 +113,12 @@ def list_mcp_servers(
 
     if include_org_level:
         # Org-level: team_id IS NULL AND user_id IS NULL
-        conditions.append((MCPServer.team_id.is_(None)) & (MCPServer.user_id.is_(None)))
+        conditions.append((MCPServer.team_id.is_(None)) & (MCPServer.user_id.is_(None)))  # type: ignore[union-attr]
 
     if include_team_level and team_id:
         # Team-level: team_id matches AND user_id IS NULL
         conditions.append(
-            (MCPServer.team_id == team_id) & (MCPServer.user_id.is_(None))
+            (MCPServer.team_id == team_id) & (MCPServer.user_id.is_(None))  # type: ignore[union-attr]
         )
 
     if include_user_level and team_id and user_id:
@@ -134,7 +134,7 @@ def list_mcp_servers(
         select(MCPServer)
         .where(base_condition)
         .where(or_(*conditions))
-        .order_by(MCPServer.created_at.desc())
+        .order_by(MCPServer.created_at.desc())  # type: ignore[attr-defined]
     )
 
     return list(session.exec(statement).all())
@@ -148,9 +148,9 @@ def list_org_level_servers(
     statement = (
         select(MCPServer)
         .where(MCPServer.organization_id == organization_id)
-        .where(MCPServer.team_id.is_(None))
-        .where(MCPServer.user_id.is_(None))
-        .order_by(MCPServer.created_at.desc())
+        .where(MCPServer.team_id.is_(None))  # type: ignore[union-attr]
+        .where(MCPServer.user_id.is_(None))  # type: ignore[union-attr]
+        .order_by(MCPServer.created_at.desc())  # type: ignore[attr-defined]
     )
     return list(session.exec(statement).all())
 
@@ -165,8 +165,8 @@ def list_team_level_servers(
         select(MCPServer)
         .where(MCPServer.organization_id == organization_id)
         .where(MCPServer.team_id == team_id)
-        .where(MCPServer.user_id.is_(None))
-        .order_by(MCPServer.created_at.desc())
+        .where(MCPServer.user_id.is_(None))  # type: ignore[union-attr]
+        .order_by(MCPServer.created_at.desc())  # type: ignore[attr-defined]
     )
     return list(session.exec(statement).all())
 
@@ -183,7 +183,7 @@ def list_user_level_servers(
         .where(MCPServer.organization_id == organization_id)
         .where(MCPServer.team_id == team_id)
         .where(MCPServer.user_id == user_id)
-        .order_by(MCPServer.created_at.desc())
+        .order_by(MCPServer.created_at.desc())  # type: ignore[attr-defined]
     )
     return list(session.exec(statement).all())
 

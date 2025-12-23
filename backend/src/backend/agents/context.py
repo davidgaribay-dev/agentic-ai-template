@@ -4,6 +4,7 @@ Provides safe scoping of context variables to prevent bleeding between requests.
 Uses Python's contextvars with explicit reset to ensure cleanup.
 """
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass
@@ -62,7 +63,7 @@ def llm_context(
     team_id: str | None = None,
     user_id: str | None = None,
     provider: str | None = None,
-):
+) -> Generator[LLMContext, None, None]:
     """Context manager for safely scoping LLM context.
 
     Ensures context is properly set and cleaned up, preventing
@@ -89,7 +90,7 @@ def llm_context(
         user_id=user_id,
         provider=provider,
     )
-    token: Token = _llm_context.set(ctx)
+    token: Token[LLMContext | None] = _llm_context.set(ctx)
     try:
         yield ctx
     finally:
@@ -127,7 +128,7 @@ def request_context(
     team_id: str | None = None,
     user_id: str | None = None,
     provider: str | None = None,
-):
+) -> Generator[RequestContext, None, None]:
     """Context manager for full request context.
 
     Includes both request-level info and LLM context.
@@ -142,8 +143,8 @@ def request_context(
     ctx = RequestContext(request_id=request_id, llm=llm)
 
     # Set both contexts
-    request_token: Token = _request_context.set(ctx)
-    llm_token: Token = _llm_context.set(llm)
+    request_token: Token[RequestContext | None] = _request_context.set(ctx)
+    llm_token: Token[LLMContext | None] = _llm_context.set(llm)
 
     try:
         yield ctx

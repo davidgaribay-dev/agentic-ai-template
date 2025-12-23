@@ -24,7 +24,7 @@ class SecretsService:
     3. Environment variable (backward compatible)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._client = None
         self._initialized = False
 
@@ -470,13 +470,13 @@ class SecretsService:
             team_path = self._get_secret_path(org_id, team_id)
             provider = self._get_secret("default_provider", team_path)
             if provider and provider in SUPPORTED_PROVIDERS:
-                return provider  # type: ignore
+                return provider
 
         # Check org-level default
         org_path = self._get_secret_path(org_id)
         provider = self._get_secret("default_provider", org_path)
         if provider and provider in SUPPORTED_PROVIDERS:
-            return provider  # type: ignore
+            return provider
 
         # Fall back to settings
         return settings.DEFAULT_LLM_PROVIDER

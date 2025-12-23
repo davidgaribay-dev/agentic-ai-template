@@ -41,12 +41,14 @@ def _safe_eval_node(node: ast.AST) -> float | int:
             raise ValueError(f"Unsupported operator: {type(node.op).__name__}")
         left = _safe_eval_node(node.left)
         right = _safe_eval_node(node.right)
-        return op_func(left, right)
+        result: float | int = op_func(left, right)
+        return result
     if isinstance(node, ast.UnaryOp):
         op_func = _SAFE_OPERATORS.get(type(node.op))
         if op_func is None:
             raise ValueError(f"Unsupported operator: {type(node.op).__name__}")
-        return op_func(_safe_eval_node(node.operand))
+        unary_result: float | int = op_func(_safe_eval_node(node.operand))
+        return unary_result
     if isinstance(node, ast.Expression):
         return _safe_eval_node(node.body)
     raise ValueError(f"Unsupported expression type: {type(node).__name__}")

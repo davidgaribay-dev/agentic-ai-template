@@ -1,8 +1,9 @@
 from collections.abc import Generator
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlmodel import Session, SQLModel, create_engine, func, select
+from sqlmodel.sql.expression import SelectOfScalar
 
 from backend.core.config import settings
 
@@ -26,11 +27,11 @@ T = TypeVar("T", bound=SQLModel)
 
 def paginate(
     session: Session,
-    statement: select,
+    statement: SelectOfScalar[T],
     model: type[T],
     skip: int = 0,
     limit: int = 100,
-    order_by: InstrumentedAttribute | None = None,
+    order_by: InstrumentedAttribute[Any] | None = None,
 ) -> tuple[list[T], int]:
     """Execute a paginated query and return results with total count.
 

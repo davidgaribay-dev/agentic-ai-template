@@ -86,7 +86,7 @@ export function ChatInput({
   return (
     <div
       className={cn(
-        "flex flex-col rounded-xl bg-chat-input-bg",
+        "flex flex-col rounded-xl bg-chat-input-bg border border-border/50",
         className
       )}
     >

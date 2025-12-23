@@ -26,6 +26,7 @@ async def _get_org_membership(
     current_user: CurrentUser,
 ) -> OrganizationMember:
     """Get and validate org membership with audit permission."""
+    raise NotImplementedError("Validation is done via route dependencies")
 
 
 @router.get(

@@ -67,7 +67,7 @@ def read_conversations(
         conversations, count = get_conversations_by_user(
             session=session, user_id=current_user.id, skip=skip, limit=limit
         )
-    return ConversationsPublic(data=conversations, count=count)
+    return ConversationsPublic(data=conversations, count=count)  # type: ignore[arg-type]
 
 
 @router.post("/", response_model=ConversationPublic)

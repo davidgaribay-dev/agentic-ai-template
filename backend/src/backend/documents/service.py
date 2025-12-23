@@ -5,6 +5,7 @@ Orchestrates document upload, processing, chunking, embedding, and retrieval.
 
 from datetime import UTC, datetime
 import json
+from typing import Any
 import uuid
 
 from sqlmodel import Session, select
@@ -277,7 +278,7 @@ class DocumentService:
         user_id: uuid.UUID,
         k: int = 4,
         score_threshold: float = 0.7,
-    ) -> list[dict[str, any]]:
+    ) -> list[dict[str, Any]]:
         """Search documents using vector similarity.
 
         Args:

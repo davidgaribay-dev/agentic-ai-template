@@ -1,5 +1,6 @@
 import logging
 import sys
+from typing import Any
 
 import structlog
 
@@ -25,6 +26,7 @@ def setup_logging() -> None:
         structlog.processors.UnicodeDecoder(),
     ]
 
+    processors: list[Any]
     if settings.ENVIRONMENT == "local":
         processors = [*shared_processors, structlog.dev.ConsoleRenderer(colors=True)]
     else:
@@ -44,4 +46,5 @@ def setup_logging() -> None:
 
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
-    return structlog.get_logger(name)
+    logger: structlog.stdlib.BoundLogger = structlog.get_logger(name)
+    return logger

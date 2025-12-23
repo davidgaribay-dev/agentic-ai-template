@@ -247,9 +247,9 @@ def get_effective_theme_settings(
 
 @router.get(
     "/theme-settings/predefined-themes",
-    response_model=dict[str, dict],
+    response_model=dict[str, dict[str, str]],
 )
-def get_predefined_themes() -> dict[str, dict]:
+def get_predefined_themes() -> dict[str, dict[str, str]]:
     """Get all predefined theme color palettes.
 
     Returns a dictionary mapping theme IDs to their color definitions.

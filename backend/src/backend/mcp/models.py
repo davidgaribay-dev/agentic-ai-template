@@ -4,7 +4,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Optional
 import uuid
 
-from pydantic import field_validator
+from pydantic import ValidationInfo, field_validator
 from sqlmodel import Field, Relationship, SQLModel
 
 from backend.core.base_models import (
@@ -116,7 +116,7 @@ class MCPServerCreate(SQLModel):
 
     @field_validator("auth_header_name")
     @classmethod
-    def validate_auth_header(cls, v: str | None, info) -> str | None:
+    def validate_auth_header(cls, v: str | None, info: ValidationInfo) -> str | None:
         """Require auth_header_name when auth_type is not none."""
         if info.data.get("auth_type") != MCPAuthType.NONE and not v:
             raise ValueError("auth_header_name is required when auth_type is set")
@@ -187,7 +187,7 @@ class MCPServerPublic(TimestampResponseMixin):
             is_builtin=server.is_builtin,
             tool_prefix=server.tool_prefix,
             scope=server.scope,
-            created_by_id=server.created_by_id,
+            created_by_id=server.created_by_id,  # type: ignore[arg-type]
             created_at=server.created_at,
             updated_at=server.updated_at,
         )

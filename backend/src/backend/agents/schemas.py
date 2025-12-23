@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -7,7 +9,9 @@ class MessageSource(BaseModel):
     content: str = Field(..., description="Chunk content used for the response")
     source: str = Field(..., description="Source filename or path")
     file_type: str = Field(..., description="File type (e.g., 'pdf', 'txt')")
-    metadata: dict | None = Field(default=None, description="Additional metadata")
+    metadata: dict[str, Any] | None = Field(
+        default=None, description="Additional metadata"
+    )
     relevance_score: float = Field(..., description="Similarity score 0-1")
     chunk_index: int = Field(
         default=0, description="Index of the chunk in the document"
@@ -99,7 +103,7 @@ class ToolApprovalInfo(BaseModel):
 
     conversation_id: str = Field(..., description="Conversation ID")
     tool_name: str = Field(..., description="Name of the tool being called")
-    tool_args: dict = Field(
+    tool_args: dict[str, Any] = Field(
         default_factory=dict, description="Arguments passed to the tool"
     )
     tool_call_id: str | None = Field(

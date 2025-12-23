@@ -71,7 +71,7 @@ def read_items(
             session=session, owner_id=current_user.id, skip=skip, limit=limit
         )
 
-    return ItemsPublic(data=items, count=count)
+    return ItemsPublic(data=items, count=count)  # type: ignore[arg-type]
 
 
 @router.post("/", response_model=ItemPublic)
