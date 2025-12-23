@@ -82,6 +82,7 @@ export {
   type ToolApprovalRequest,
   type ToolApprovalInfo,
   type MessageSource,
+  type MessageMediaInfo,
 } from "./agent";
 
 // Organizations module

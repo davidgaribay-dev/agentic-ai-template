@@ -42,7 +42,7 @@ class GuardrailResult(BaseModel):
 
 
 # Helper functions to create JSON columns (avoids shared Column object issue)
-def _json_column() -> Column:
+def _json_column() -> "Column[list[str]]":
     """Create a new JSON column for each field."""
     return Column(JSON, nullable=False, default=[])
 
@@ -50,7 +50,7 @@ def _json_column() -> Column:
 class OrganizationGuardrails(SQLModel, table=True):
     """Organization-level guardrails configuration."""
 
-    __tablename__ = "organization_guardrails"  # type: ignore[assignment]
+    __tablename__ = "organization_guardrails"
     __table_args__ = (Index("idx_organization_guardrails_org_id", "organization_id"),)
 
     id: uuid.UUID = SQLField(default_factory=uuid.uuid4, primary_key=True)
@@ -95,7 +95,7 @@ class OrganizationGuardrails(SQLModel, table=True):
 class TeamGuardrails(SQLModel, table=True):
     """Team-level guardrails configuration."""
 
-    __tablename__ = "team_guardrails"  # type: ignore[assignment]
+    __tablename__ = "team_guardrails"
     __table_args__ = (Index("idx_team_guardrails_team_id", "team_id"),)
 
     id: uuid.UUID = SQLField(default_factory=uuid.uuid4, primary_key=True)
@@ -134,7 +134,7 @@ class TeamGuardrails(SQLModel, table=True):
 class UserGuardrails(SQLModel, table=True):
     """User-level guardrails configuration."""
 
-    __tablename__ = "user_guardrails"  # type: ignore[assignment]
+    __tablename__ = "user_guardrails"
     __table_args__ = (Index("idx_user_guardrails_user_id", "user_id"),)
 
     id: uuid.UUID = SQLField(default_factory=uuid.uuid4, primary_key=True)

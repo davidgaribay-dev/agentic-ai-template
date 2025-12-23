@@ -284,9 +284,9 @@ def _get_media_for_message(
     try:
         with Session(engine) as session:
             statement = select(ChatMedia).where(
-                ChatMedia.id.in_([uuid.UUID(mid) for mid in media_ids]),
+                ChatMedia.id.in_([uuid.UUID(mid) for mid in media_ids]),  # type: ignore[attr-defined]
                 ChatMedia.created_by_id == uuid.UUID(user_id),
-                ChatMedia.deleted_at.is_(None),
+                ChatMedia.deleted_at == None,  # noqa: E711
             )
             return list(session.exec(statement).all())
     except Exception as e:

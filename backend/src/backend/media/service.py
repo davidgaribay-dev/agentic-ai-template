@@ -99,7 +99,7 @@ def get_chat_media(
     statement = select(ChatMedia).where(ChatMedia.id == media_id)
 
     if not include_deleted:
-        statement = statement.where(ChatMedia.deleted_at.is_(None))
+        statement = statement.where(ChatMedia.deleted_at == None)  # noqa: E711
 
     return session.exec(statement).first()
 
@@ -146,14 +146,14 @@ def list_chat_media(
 
     # Exclude deleted unless requested
     if not include_deleted:
-        statement = statement.where(ChatMedia.deleted_at.is_(None))
+        statement = statement.where(ChatMedia.deleted_at == None)  # noqa: E711
 
     # Get total count
     count_statement = select(func.count()).select_from(statement.subquery())
     total = session.exec(count_statement).one()
 
     # Apply pagination and ordering
-    statement = statement.order_by(ChatMedia.created_at.desc())
+    statement = statement.order_by(ChatMedia.created_at.desc())  # type: ignore[attr-defined]
     statement = statement.offset(skip).limit(limit)
 
     media_list = list(session.exec(statement).all())
@@ -230,11 +230,11 @@ def get_user_storage_usage(
     """
     statement = select(
         func.coalesce(func.sum(ChatMedia.file_size), 0).label("total_bytes"),
-        func.count(ChatMedia.id).label("file_count"),
+        func.count().label("file_count"),
     ).where(
         ChatMedia.organization_id == organization_id,
         ChatMedia.created_by_id == user_id,
-        ChatMedia.deleted_at.is_(None),
+        ChatMedia.deleted_at == None,  # noqa: E711
     )
 
     if team_id is not None:
@@ -278,9 +278,9 @@ def get_media_by_ids(
         return []
 
     statement = select(ChatMedia).where(
-        ChatMedia.id.in_(media_ids),
+        ChatMedia.id.in_(media_ids),  # type: ignore[attr-defined]
         ChatMedia.created_by_id == user_id,
-        ChatMedia.deleted_at.is_(None),
+        ChatMedia.deleted_at == None,  # noqa: E711
     )
 
     return list(session.exec(statement).all())
