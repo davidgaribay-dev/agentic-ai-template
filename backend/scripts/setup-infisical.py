@@ -110,7 +110,10 @@ def bootstrap_infisical() -> dict | None:
         if resp.status_code == HTTPStatus.OK:
             result = resp.json()
             print("✓ Bootstrap complete")
-        elif resp.status_code == HTTPStatus.BAD_REQUEST and "already" in resp.text.lower():
+        elif (
+            resp.status_code == HTTPStatus.BAD_REQUEST
+            and "already" in resp.text.lower()
+        ):
             print("⚠ Infisical already bootstrapped")
             print("\nTo complete setup manually:")
             print(f"  1. Go to {INFISICAL_URL}")
@@ -212,7 +215,9 @@ def create_machine_identity(token: str, org_id: str) -> tuple[str, str, str] | N
                     )
                     result = None
                 else:
-                    client_id = resp.json().get("identityUniversalAuth", {}).get("clientId")
+                    client_id = (
+                        resp.json().get("identityUniversalAuth", {}).get("clientId")
+                    )
 
                     # Create client secret
                     resp = httpx.post(
@@ -263,7 +268,9 @@ def add_identity_to_project(token: str, project_id: str, identity_id: str) -> bo
             print("✓ Identity added to project")
             success = True
         else:
-            print(f"Warning: Could not add identity to project. Status: {resp.status_code}")
+            print(
+                f"Warning: Could not add identity to project. Status: {resp.status_code}"
+            )
             success = False
 
     except httpx.RequestError as e:

@@ -139,7 +139,9 @@ async def fetch_json(
             url=url,
             status=e.response.status_code,
         )
-        raise ExternalServiceError(service_name, f"HTTP {e.response.status_code}") from e
+        raise ExternalServiceError(
+            service_name, f"HTTP {e.response.status_code}"
+        ) from e
     except ValueError as e:
         logger.warning("http_invalid_json", url=url, error=str(e))
         raise ExternalServiceError(service_name, "Invalid JSON response") from e

@@ -565,7 +565,7 @@ PREDEFINED_THEMES = {
         "chart_1": "oklch(0.55 0.17 145)",  # Green
         "chart_2": "oklch(0.58 0.14 200)",  # Teal
         "chart_3": "oklch(0.56 0.16 280)",  # Purple
-        "chart_4": "oklch(0.6 0.15 50)",   # Orange
+        "chart_4": "oklch(0.6 0.15 50)",  # Orange
         "chart_5": "oklch(0.54 0.13 320)",  # Pink
         "sidebar": "oklch(0.98 0.003 136)",  # Very light green-tinted sidebar
         "sidebar_foreground": "oklch(0.22 0 0)",
@@ -778,7 +778,7 @@ PREDEFINED_THEMES = {
         "chart_1": "oklch(0.62 0.18 145)",  # Green
         "chart_2": "oklch(0.65 0.15 200)",  # Teal
         "chart_3": "oklch(0.6 0.16 280)",  # Purple
-        "chart_4": "oklch(0.68 0.16 50)",   # Orange
+        "chart_4": "oklch(0.68 0.16 50)",  # Orange
         "chart_5": "oklch(0.62 0.14 320)",  # Pink
         "sidebar": "oklch(0.15 0.006 145)",  # Darker sidebar with green tint
         "sidebar_foreground": "oklch(0.92 0 0)",

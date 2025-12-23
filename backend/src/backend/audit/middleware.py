@@ -87,7 +87,10 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
             # Determine log level based on outcome
             if exception_info or status_code >= HTTPStatus.INTERNAL_SERVER_ERROR:
                 level = LogLevel.ERROR
-            elif status_code >= HTTPStatus.BAD_REQUEST or duration_ms > self.slow_request_threshold_ms:
+            elif (
+                status_code >= HTTPStatus.BAD_REQUEST
+                or duration_ms > self.slow_request_threshold_ms
+            ):
                 level = LogLevel.WARNING
             else:
                 level = LogLevel.INFO

@@ -265,7 +265,6 @@ async def process_document_task(
         raise ValueError(f"Document {document_id} not found")
 
     try:
-
         # Update status to processing
         doc.processing_status = "processing"
         doc.processing_error = None
