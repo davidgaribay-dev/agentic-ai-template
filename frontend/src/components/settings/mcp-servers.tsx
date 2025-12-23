@@ -532,7 +532,7 @@ function AddServerDialog({ scope }: AddServerDialogProps) {
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input
@@ -598,7 +598,7 @@ function AddServerDialog({ scope }: AddServerDialogProps) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="auth_type">Authentication</Label>
               <Select
@@ -775,7 +775,7 @@ function EditServerDialog({ server, scope }: EditServerDialogProps) {
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="edit-name">Name</Label>
               <Input
@@ -838,7 +838,7 @@ function EditServerDialog({ server, scope }: EditServerDialogProps) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="edit-auth_type">Authentication</Label>
               <Select

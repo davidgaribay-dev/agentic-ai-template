@@ -7,9 +7,9 @@ export const Route = createFileRoute("/search")({
 
 function SearchPage() {
   return (
-    <div className="container mx-auto max-w-4xl py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Chats</h1>
+    <div className="container mx-auto max-w-4xl px-4 py-4 md:py-8">
+      <div className="mb-6 md:mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold">Chats</h1>
       </div>
       <SearchConversations />
     </div>

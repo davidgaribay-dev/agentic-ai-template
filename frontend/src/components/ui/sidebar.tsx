@@ -153,23 +153,26 @@ const Sidebar = React.forwardRef<
     if (isMobile) {
       return (
         <>
-          {/* Mobile overlay */}
+          {/* Mobile overlay - covers everything including bottom nav */}
           {openMobile && (
             <div
-              className="fixed inset-0 z-40 bg-black/50"
+              className="fixed inset-0 z-[60] bg-black/50"
               onClick={() => setOpenMobile(false)}
             />
           )}
+          {/* Mobile drawer - above overlay, accounts for bottom nav */}
           <div
             ref={ref}
             className={cn(
-              "fixed inset-y-0 left-0 z-50 w-[--sidebar-width] bg-sidebar text-sidebar-foreground transition-transform duration-200 ease-in-out",
+              "fixed top-0 bottom-0 left-0 z-[70] w-[85vw] max-w-[320px] bg-sidebar text-sidebar-foreground transition-transform duration-200 ease-in-out shadow-xl",
               openMobile ? "translate-x-0" : "-translate-x-full",
               className,
             )}
             {...props}
           >
-            <div className="flex h-full w-full flex-col">{children}</div>
+            <div className="flex h-full w-full flex-col overflow-hidden">
+              {children}
+            </div>
           </div>
         </>
       );

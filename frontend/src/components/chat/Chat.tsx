@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { useChat, type ChatMessage } from "@/hooks/useChat";
 import { ChatContainer } from "./ChatContainer";
 import { ChatInput } from "./ChatInput";
+import { ChatError } from "./ChatError";
 import { ToolApprovalCard, ToolRejectionMessage } from "./ToolApprovalCard";
 
 interface ChatProps {
@@ -158,9 +159,12 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
               teamId={teamId}
             />
             {error && (
-              <p className="mt-2 text-center text-xs text-destructive">
-                {error.message}
-              </p>
+              <ChatError
+                error={error}
+                organizationId={organizationId}
+                teamId={teamId}
+                className="mt-4"
+              />
             )}
           </div>
         </div>
@@ -214,7 +218,12 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
               teamId={teamId}
             />
             {error && (
-              <p className="mt-2 text-xs text-destructive">{error.message}</p>
+              <ChatError
+                error={error}
+                organizationId={organizationId}
+                teamId={teamId}
+                className="mt-2"
+              />
             )}
           </div>
         </div>

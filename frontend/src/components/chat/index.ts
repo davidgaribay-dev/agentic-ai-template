@@ -9,3 +9,4 @@ export { StreamingIndicator } from "./StreamingIndicator";
 export { ChatHistoryDropdown } from "./ChatHistoryDropdown";
 export { CodeBlock, MinimalCodeBlock, CopyOnlyCodeBlock } from "./CodeBlock";
 export { ToolApprovalCard, type ToolApprovalData } from "./ToolApprovalCard";
+export { ChatError } from "./ChatError";

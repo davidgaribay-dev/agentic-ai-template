@@ -15,7 +15,8 @@ import { useAuth } from "@/lib/auth";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ErrorBoundary } from "@/components/error-boundary";
-import { PanelRight } from "lucide-react";
+import { PanelRight, PanelLeft } from "lucide-react";
+import { useIsMobile } from "@/hooks";
 import type { RouterContext } from "@/lib/router-context";
 
 export const Route = createRootRouteWithContext<RouterContext>()({
@@ -26,7 +27,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function ChatToggleButton() {
   const { toggle, isOpen } = useSidePanel();
   const effectiveSettings = useEffectiveSettings();
+  const isMobile = useIsMobile();
 
+  // Hide on mobile - side panel not supported
+  if (isMobile) return null;
   if (isOpen) return null;
 
   // Hide the toggle button entirely if chat panel is disabled
@@ -45,7 +49,7 @@ function ChatToggleButton() {
   );
 }
 
-function MainLayout() {
+function DesktopLayout() {
   const { open: sidebarOpen } = useSidebar();
   const { isOpen: panelOpen, width: panelWidth } = useSidePanel();
   const effectiveSettings = useEffectiveSettings();
@@ -57,7 +61,7 @@ function MainLayout() {
 
   return (
     <div
-      className="grid h-screen w-screen overflow-hidden"
+      className="hidden md:grid h-screen w-screen overflow-hidden"
       style={{
         gridTemplateColumns: `${sidebarWidth} 1fr ${rightPanelWidth}`,
         gridTemplateRows: "1fr",
@@ -75,6 +79,49 @@ function MainLayout() {
 
       <ChatToggleButton />
     </div>
+  );
+}
+
+function MobileSidebarToggle() {
+  const { toggleSidebar, openMobile } = useSidebar();
+
+  // Hide when drawer is open
+  if (openMobile) return null;
+
+  return (
+    <button
+      onClick={toggleSidebar}
+      className="fixed top-3 left-3 z-50 flex size-9 items-center justify-center rounded-md bg-background/60 backdrop-blur-sm hover:bg-background/80 active:bg-background/90 md:hidden"
+      aria-label="Open menu"
+    >
+      <PanelLeft className="size-4" />
+    </button>
+  );
+}
+
+function MobileLayout() {
+  return (
+    <div className="flex flex-col h-screen w-screen overflow-hidden md:hidden">
+      {/* Mobile sidebar (off-canvas drawer) is rendered by AppSidebar when isMobile */}
+      <AppSidebar />
+
+      {/* Floating sidebar toggle */}
+      <MobileSidebarToggle />
+
+      {/* Main content area - pt-14 reserves space for floating toggle */}
+      <main className="flex-1 overflow-auto bg-background pt-14">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+
+function MainLayout() {
+  return (
+    <>
+      <DesktopLayout />
+      <MobileLayout />
+    </>
   );
 }
 

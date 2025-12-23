@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import {
   createFileRoute,
   redirect,
@@ -6,7 +6,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, Row } from "@tanstack/react-table";
 import {
   Building2,
   Plus,
@@ -303,12 +303,87 @@ function OrganizationsDataTable({
     [currentOrgId, isCurrentOrgAdmin, onSwitch],
   );
 
+  const renderMobileCard = useCallback(
+    (row: Row<Organization>) => {
+      const org = row.original;
+      const isCurrentOrg = org.id === currentOrgId;
+
+      return (
+        <div className="space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              {isValidImageUrl(org.logo_url) ? (
+                <img
+                  src={org.logo_url}
+                  alt={org.name}
+                  className="size-10 rounded-lg object-cover ring-1 ring-border flex-shrink-0"
+                />
+              ) : (
+                <div className="flex size-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 ring-1 ring-border flex-shrink-0">
+                  <Building2 className="size-5 text-primary/70" />
+                </div>
+              )}
+              <div className="min-w-0">
+                <span className="font-medium block truncate">{org.name}</span>
+                {org.description && (
+                  <span className="text-sm text-muted-foreground line-clamp-1">
+                    {org.description}
+                  </span>
+                )}
+              </div>
+            </div>
+            {isCurrentOrg ? (
+              <Badge
+                variant="secondary"
+                className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0 flex-shrink-0"
+              >
+                <Check className="mr-1 size-3" />
+                Active
+              </Badge>
+            ) : (
+              <Badge
+                variant="outline"
+                className="text-muted-foreground flex-shrink-0"
+              >
+                Inactive
+              </Badge>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {!isCurrentOrg && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => onSwitch(org.id)}
+              >
+                <ArrowRightLeft className="mr-2 size-3.5" />
+                Switch
+              </Button>
+            )}
+            {isCurrentOrgAdmin && isCurrentOrg && (
+              <Button variant="outline" size="sm" className="flex-1" asChild>
+                <Link to="/org/settings">
+                  <Settings className="mr-2 size-3.5" />
+                  Settings
+                </Link>
+              </Button>
+            )}
+          </div>
+        </div>
+      );
+    },
+    [currentOrgId, isCurrentOrgAdmin, onSwitch],
+  );
+
   return (
     <DataTable
       columns={columns}
       data={data}
       searchKey="name"
       searchPlaceholder="Search organizations..."
+      mobileCardView
+      renderMobileCard={renderMobileCard}
     />
   );
 }

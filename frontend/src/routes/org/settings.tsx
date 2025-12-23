@@ -213,28 +213,34 @@ function OrgSettingsPage() {
 
   return (
     <div className="bg-background min-h-screen">
-      <div className="mx-auto max-w-5xl px-6 py-8">
-        <h1 className="text-lg font-semibold mb-6">Organization Settings</h1>
+      <div className="mx-auto max-w-5xl px-4 md:px-6 py-4 md:py-8">
+        <h1 className="text-lg font-semibold mb-4 md:mb-6">Organization Settings</h1>
         <Tabs
           value={currentTab}
           onValueChange={handleTabChange}
           orientation="vertical"
-          className="flex gap-6"
+          className="flex flex-col md:flex-row gap-4 md:gap-6"
         >
-          <div className="w-48 flex-shrink-0">
-            <div className="sticky top-6">
-              <TabsList className="flex flex-col items-stretch h-auto bg-transparent p-0 space-y-0.5">
-                {tabs.map((tab) => (
-                  <TabsTrigger
-                    key={tab.value}
-                    value={tab.value}
-                    className="justify-start px-2.5 py-1.5 h-auto text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 data-[state=active]:bg-muted data-[state=active]:text-foreground rounded-md"
-                  >
-                    <tab.icon className="mr-2 size-3.5" />
-                    {tab.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+          {/* Mobile: horizontal scrollable tabs */}
+          {/* Desktop: vertical sidebar tabs */}
+          <div className="w-full md:w-48 flex-shrink-0">
+            <div className="md:sticky md:top-6 relative">
+              {/* Fade hint on right edge for mobile scroll affordance */}
+              <div className="absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none md:hidden z-10" />
+              <div className="overflow-x-auto md:overflow-visible scrollbar-none -mx-4 md:mx-0">
+                <TabsList className="inline-flex md:flex flex-row md:flex-col items-stretch h-auto bg-transparent p-0 px-4 md:px-0 gap-2 md:gap-0 md:space-y-0.5 pb-2 md:pb-0 min-w-full">
+                  {tabs.map((tab) => (
+                    <TabsTrigger
+                      key={tab.value}
+                      value={tab.value}
+                      className="justify-start px-3 py-2 md:px-2.5 md:py-1.5 h-auto text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 data-[state=active]:bg-muted data-[state=active]:text-foreground rounded-md whitespace-nowrap flex-shrink-0 min-h-[44px] md:min-h-0"
+                    >
+                      <tab.icon className="mr-2 size-4 md:size-3.5" />
+                      {tab.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </div>
             </div>
           </div>
 

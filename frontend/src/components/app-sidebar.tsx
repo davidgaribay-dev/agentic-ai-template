@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, memo, useCallback } from "react";
-import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate, useLocation } from "@tanstack/react-router";
 import {
   Home,
   MessageSquare,
@@ -83,18 +83,19 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const navItems = [
+const baseNavItems = [
   {
     title: "Home",
     url: "/",
     icon: Home,
   },
-  {
-    title: "Chats",
-    url: "/search",
-    icon: MessageSquare,
-  },
 ];
+
+const chatNavItem = {
+  title: "Chats",
+  url: "/search",
+  icon: MessageSquare,
+};
 
 function TeamSwitcher() {
   const { state, toggleSidebar } = useSidebar();
@@ -268,7 +269,7 @@ function TeamSwitcher() {
 }
 
 function NavUser() {
-  const { state } = useSidebar();
+  const { state, isMobile } = useSidebar();
   const { user, logout } = useAuth();
   const { currentOrgRole } = useWorkspace();
 
@@ -276,6 +277,9 @@ function NavUser() {
 
   const initials = getInitials(user.full_name, user.email);
   const isAdmin = currentOrgRole === "owner" || currentOrgRole === "admin";
+
+  // On mobile, always show expanded state since the drawer is full width
+  const isExpanded = isMobile || state === "expanded";
 
   return (
     <SidebarMenu>
@@ -287,8 +291,7 @@ function NavUser() {
               tooltip={user.full_name || user.email}
               className={cn(
                 "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
-                state === "collapsed" &&
-                  "!size-8 !p-0 flex items-center justify-center",
+                !isExpanded && "!size-8 !p-0 flex items-center justify-center",
               )}
             >
               <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs font-medium overflow-hidden">
@@ -303,7 +306,7 @@ function NavUser() {
                   initials
                 )}
               </div>
-              {state === "expanded" && (
+              {isExpanded && (
                 <>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">
@@ -319,9 +322,14 @@ function NavUser() {
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-            side={state === "collapsed" ? "right" : "top"}
-            align="end"
+            className={cn(
+              "min-w-56 rounded-lg",
+              isMobile
+                ? "w-[calc(85vw-1rem)] max-w-[304px]"
+                : "w-[--radix-dropdown-menu-trigger-width]",
+            )}
+            side={isExpanded ? "top" : "right"}
+            align={isMobile ? "start" : "end"}
             sideOffset={4}
           >
             <DropdownMenuLabel className="p-0 font-normal">
@@ -507,7 +515,7 @@ const SidebarConversationItem = memo(function SidebarConversationItem({
 });
 
 function RecentChats() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const navigate = useNavigate();
   const { currentTeam } = useWorkspace();
   const { selectedConversationId, setSelectedConversation } =
@@ -534,11 +542,13 @@ function RecentChats() {
   const handleSelectConversation = (conversationId: string, title: string) => {
     setSelectedConversation(conversationId, title);
     navigate({ to: "/chat", search: { id: conversationId } });
+    if (isMobile) setOpenMobile(false);
   };
 
   const handleNewChat = () => {
     setSelectedConversation(null, null);
     navigate({ to: "/chat", search: {} });
+    if (isMobile) setOpenMobile(false);
   };
 
   const handleOpenRename = (conversation: Conversation) => {
@@ -604,17 +614,6 @@ function RecentChats() {
               <div className="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
                 <Plus className="size-3" />
               </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              tooltip="Chats"
-              asChild
-              className="flex items-center justify-center"
-            >
-              <Link to="/chat">
-                <MessageSquare className="size-4" />
-              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -815,10 +814,22 @@ function DisabledChatSection() {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const router = useRouterState();
   const currentPath = router.location.pathname;
-  const { state } = useSidebar();
+  const location = useLocation();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const effectiveSettings = useEffectiveSettings();
 
+  // Close mobile drawer on navigation
+  useEffect(() => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [location.pathname, isMobile, setOpenMobile]);
+
   const chatEnabled = effectiveSettings.chat_enabled;
+
+  const navItems = chatEnabled
+    ? [...baseNavItems, chatNavItem]
+    : baseNavItems;
 
   return (
     <Sidebar collapsible="icon" {...props}>

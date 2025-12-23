@@ -55,6 +55,15 @@ class LLMError(AgentError):
     """Exception for LLM/model errors."""
 
 
+class LLMConfigurationError(LLMError):
+    """Exception for LLM API key/configuration errors.
+
+    This exception is raised when the LLM cannot be initialized due to
+    missing or invalid API key configuration. The message should be
+    user-friendly as it will be displayed in the UI.
+    """
+
+
 class StreamError(AgentError):
     """Exception for streaming errors."""
 
@@ -585,6 +594,40 @@ async def stream_response(
                 "data": json.dumps({"conversation_id": conversation_id}),
             }
 
+    except LLMConfigurationError as e:
+        # Configuration errors have user-friendly messages - pass them through
+        logger.warning(
+            "stream_llm_config_error", error=str(e), error_type=type(e).__name__
+        )
+        yield {
+            "event": "error",
+            "data": json.dumps(
+                {"error": str(e), "type": "configuration_error"}
+            ),
+        }
+    except ValueError as e:
+        # Check if this is an API key configuration error from the LLM layer
+        error_msg = str(e)
+        if "API key" in error_msg or "api_key" in error_msg.lower():
+            logger.warning(
+                "stream_api_key_error", error=error_msg, error_type=type(e).__name__
+            )
+            yield {
+                "event": "error",
+                "data": json.dumps(
+                    {"error": error_msg, "type": "configuration_error"}
+                ),
+            }
+        else:
+            logger.exception(
+                "stream_value_error", error=error_msg, error_type=type(e).__name__
+            )
+            yield {
+                "event": "error",
+                "data": json.dumps(
+                    {"error": "An unexpected error occurred", "type": "unexpected_error"}
+                ),
+            }
     except (AgentError, LLMError) as e:
         logger.exception(
             "stream_agent_error", error=str(e), error_type=type(e).__name__
@@ -977,6 +1020,46 @@ async def stream_resume_response(
                 "data": json.dumps({"conversation_id": conversation_id}),
             }
 
+    except LLMConfigurationError as e:
+        # Configuration errors have user-friendly messages - pass them through
+        logger.warning(
+            "stream_resume_config_error",
+            error=str(e),
+            conversation_id=conversation_id,
+        )
+        yield {
+            "event": "error",
+            "data": json.dumps(
+                {"error": str(e), "type": "configuration_error"}
+            ),
+        }
+    except ValueError as e:
+        # Check if this is an API key configuration error from the LLM layer
+        error_msg = str(e)
+        if "API key" in error_msg or "api_key" in error_msg.lower():
+            logger.warning(
+                "stream_resume_api_key_error",
+                error=error_msg,
+                conversation_id=conversation_id,
+            )
+            yield {
+                "event": "error",
+                "data": json.dumps(
+                    {"error": error_msg, "type": "configuration_error"}
+                ),
+            }
+        else:
+            logger.exception(
+                "stream_resume_error",
+                error=error_msg,
+                conversation_id=conversation_id,
+            )
+            yield {
+                "event": "error",
+                "data": json.dumps(
+                    {"error": "Failed to resume conversation", "type": "resume_error"}
+                ),
+            }
     except Exception as e:
         logger.exception(
             "stream_resume_error", error=str(e), conversation_id=conversation_id

@@ -2,6 +2,7 @@ import type {
   ColumnDef,
   SortingState,
   ColumnFiltersState,
+  Row,
 } from "@tanstack/react-table";
 import {
   flexRender,
@@ -11,7 +12,7 @@ import {
   getSortedRowModel,
   getFilteredRowModel,
 } from "@tanstack/react-table";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import {
   Table,
@@ -29,6 +30,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
+import { useIsMobile } from "@/hooks";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -36,6 +38,39 @@ interface DataTableProps<TData, TValue> {
   searchKey?: string;
   searchPlaceholder?: string;
   pageSize?: number;
+  /** Enable mobile card view (default: false) */
+  mobileCardView?: boolean;
+  /** Custom render function for mobile card view */
+  renderMobileCard?: (row: Row<TData>) => ReactNode;
+}
+
+function MobileCardList<TData>({
+  rows,
+  renderCard,
+}: {
+  rows: Row<TData>[];
+  renderCard: (row: Row<TData>) => ReactNode;
+}) {
+  if (rows.length === 0) {
+    return (
+      <div className="py-8 text-center text-sm text-muted-foreground">
+        No results.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {rows.map((row) => (
+        <div
+          key={row.id}
+          className="rounded-lg border border-border bg-card p-4 shadow-sm"
+        >
+          {renderCard(row)}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function DataTable<TData, TValue>({
@@ -44,9 +79,12 @@ export function DataTable<TData, TValue>({
   searchKey,
   searchPlaceholder = "Search...",
   pageSize = 10,
+  mobileCardView = false,
+  renderMobileCard,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const isMobile = useIsMobile();
 
   const table = useReactTable({
     data,
@@ -68,6 +106,8 @@ export function DataTable<TData, TValue>({
     },
   });
 
+  const showMobileCards = mobileCardView && isMobile && renderMobileCard;
+
   return (
     <div className="space-y-4">
       {searchKey && (
@@ -80,60 +120,69 @@ export function DataTable<TData, TValue>({
             onChange={(event) =>
               table.getColumn(searchKey)?.setFilterValue(event.target.value)
             }
-            className="max-w-sm"
+            className="w-full sm:max-w-sm"
           />
         </div>
       )}
-      <div className="rounded-lg border border-border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
+
+      {showMobileCards ? (
+        <MobileCardList
+          rows={table.getRowModel().rows}
+          renderCard={renderMobileCard}
+        />
+      ) : (
+        <div className="rounded-lg border border-border overflow-x-auto">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                  {headerGroup.headers.map((header) => {
+                    return (
+                      <TableHead key={header.id}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext(),
+                            )}
+                      </TableHead>
+                    );
+                  })}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center"
+                  >
+                    No results.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
       {table.getPageCount() > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
