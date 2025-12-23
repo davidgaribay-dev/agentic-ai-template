@@ -16,11 +16,11 @@ paths = [
 
   # Test files with dummy secrets
   '''tests/''',
-  '''**/*_test.py''',
-  '''**/test_*.py''',
+  '''.*_test\.py''',
+  '''test_.*\.py''',
 
   # Configuration templates
-  '''**/docker-compose*.yml''',
+  '''docker-compose.*\.yml''',
 
   # Lock files and dependencies
   '''uv.lock''',
