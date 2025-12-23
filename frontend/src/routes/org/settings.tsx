@@ -17,6 +17,7 @@ import {
   Check,
   Crown,
   Shield,
+  ShieldAlert,
   User,
   UserMinus,
   AlertTriangle,
@@ -63,7 +64,9 @@ import {
   OrgDetailsSection,
   MCPSettings,
   MCPServersList,
+  GuardrailSettings,
 } from "@/components/settings";
+import { guardrailsApi, type OrganizationGuardrailsUpdate } from "@/lib/api";
 import { OrgThemeSettings } from "@/components/settings/org-theme-settings";
 import { OrgRAGSettings } from "@/components/settings/org-rag-settings";
 import { Button } from "@/components/ui/button";
@@ -118,7 +121,15 @@ import { DataTable } from "@/components/ui/data-table";
 
 const orgSettingsSearchSchema = z.object({
   tab: z
-    .enum(["general", "people", "ai", "preferences", "theme", "rag"])
+    .enum([
+      "general",
+      "people",
+      "ai",
+      "preferences",
+      "theme",
+      "rag",
+      "guardrails",
+    ])
     .optional(),
 });
 
@@ -163,6 +174,7 @@ function OrgSettingsPage() {
     { value: "preferences", label: "Preferences", icon: Settings2 },
     { value: "theme", label: "Theme", icon: Palette },
     { value: "rag", label: "Document Search", icon: FileSearch },
+    { value: "guardrails", label: "Guardrails", icon: ShieldAlert },
   ];
 
   if (!currentOrg || currentOrgRole === null) {
@@ -214,7 +226,9 @@ function OrgSettingsPage() {
   return (
     <div className="bg-background min-h-screen">
       <div className="mx-auto max-w-5xl px-4 md:px-6 py-4 md:py-8">
-        <h1 className="text-lg font-semibold mb-4 md:mb-6">Organization Settings</h1>
+        <h1 className="text-lg font-semibold mb-4 md:mb-6">
+          Organization Settings
+        </h1>
         <Tabs
           value={currentTab}
           onValueChange={handleTabChange}
@@ -284,6 +298,10 @@ function OrgSettingsPage() {
 
             <TabsContent value="rag" className="mt-0">
               <OrgRAGSettings orgId={currentOrg.id} />
+            </TabsContent>
+
+            <TabsContent value="guardrails" className="mt-0">
+              <OrgGuardrailsSection orgId={currentOrg.id} />
             </TabsContent>
           </div>
         </Tabs>
@@ -1320,6 +1338,62 @@ function MCPSection({
       <div className="mt-4">
         <MCPServersList scope={{ type: "org", orgId }} />
       </div>
+    </div>
+  );
+}
+
+function OrgGuardrailsSection({ orgId }: { orgId: string }) {
+  const queryClient = useQueryClient();
+
+  const { data: guardrails, isLoading } = useQuery({
+    queryKey: ["org-guardrails", orgId],
+    queryFn: () => guardrailsApi.getOrgGuardrails(orgId),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: OrganizationGuardrailsUpdate) =>
+      guardrailsApi.updateOrgGuardrails(orgId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["org-guardrails", orgId] });
+    },
+  });
+
+  if (isLoading || !guardrails) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 py-2">
+        <ShieldAlert className="size-4" />
+        <span className="text-sm font-medium">AI Guardrails</span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Configure content filtering rules that apply to all teams and users in
+        this organization.
+      </p>
+      <GuardrailSettings
+        level="org"
+        orgId={orgId}
+        guardrailsEnabled={guardrails.guardrails_enabled}
+        inputBlockedKeywords={guardrails.input_blocked_keywords}
+        inputBlockedPatterns={guardrails.input_blocked_patterns}
+        inputAction={guardrails.input_action}
+        outputBlockedKeywords={guardrails.output_blocked_keywords}
+        outputBlockedPatterns={guardrails.output_blocked_patterns}
+        outputAction={guardrails.output_action}
+        piiDetectionEnabled={guardrails.pii_detection_enabled}
+        piiTypes={guardrails.pii_types}
+        piiAction={guardrails.pii_action}
+        allowTeamOverride={guardrails.allow_team_override}
+        allowUserOverride={guardrails.allow_user_override}
+        isLoading={updateMutation.isPending}
+        onUpdate={(data) => updateMutation.mutate(data)}
+      />
     </div>
   );
 }

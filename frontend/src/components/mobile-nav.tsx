@@ -44,7 +44,8 @@ export function MobileBottomNav() {
     if (item.matchPaths) {
       return item.matchPaths.some(
         (path) =>
-          location.pathname === path || location.pathname.startsWith(path + "/"),
+          location.pathname === path ||
+          location.pathname.startsWith(path + "/"),
       );
     }
     return location.pathname === item.href;
@@ -66,9 +67,7 @@ export function MobileBottomNav() {
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <item.icon
-                className={cn("size-5", active && "text-primary")}
-              />
+              <item.icon className={cn("size-5", active && "text-primary")} />
               <span className="text-[10px] font-medium">{item.label}</span>
             </Link>
           );

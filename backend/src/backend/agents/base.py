@@ -1,3 +1,4 @@
+import base64
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
@@ -12,7 +13,7 @@ from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.types import Command, interrupt
 from psycopg_pool import AsyncConnectionPool
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from backend.agents.llm import get_chat_model, get_chat_model_with_context
 from backend.agents.tools import get_available_tools, get_context_aware_tools
@@ -20,7 +21,9 @@ from backend.agents.tracing import build_langfuse_config
 from backend.core.config import settings
 from backend.core.db import engine
 from backend.core.logging import get_logger
+from backend.core.storage import get_chat_media_content
 from backend.mcp.client import get_mcp_tools_for_context
+from backend.media.models import ChatMedia
 from backend.memory.extraction import format_memories_for_context
 from backend.memory.service import MemoryService
 from backend.memory.store import get_memory_store
@@ -89,6 +92,77 @@ def _extract_text_content(content: Any) -> str:
     return ""
 
 
+def _extract_media_from_content(
+    content: Any, additional_kwargs: dict | None = None
+) -> list[dict]:
+    """Extract media information from message content blocks.
+
+    Looks for image_url blocks in multimodal content and extracts metadata.
+    Returns media IDs and metadata for history reconstruction.
+
+    Args:
+        content: The message content - can be str or list of dicts
+        additional_kwargs: Optional additional_kwargs from the message
+            containing media_metadata
+
+    Returns:
+        List of media info dicts with structure:
+        {"id": str, "filename": str, "mime_type": str, "type": "image"}
+    """
+    # First, check if we have media_metadata in additional_kwargs (preferred)
+    if additional_kwargs and "media_metadata" in additional_kwargs:
+        metadata = additional_kwargs["media_metadata"]
+        if isinstance(metadata, list):
+            return [
+                {
+                    "id": m.get("id", ""),
+                    "filename": m.get("filename", ""),
+                    "mime_type": m.get("mime_type", "image/png"),
+                    "type": "image",
+                }
+                for m in metadata
+                if isinstance(m, dict) and m.get("id")
+            ]
+
+    # Fall back to extracting from content blocks (for backwards compatibility)
+    if not isinstance(content, list):
+        return []
+
+    media_items = []
+    for block in content:
+        if isinstance(block, dict) and block.get("type") == "image_url":
+            # Check for media_id in the block (new format)
+            media_id = block.get("media_id", "")
+
+            image_url_data = block.get("image_url", {})
+            url = (
+                image_url_data.get("url", "")
+                if isinstance(image_url_data, dict)
+                else ""
+            )
+
+            # Parse mime type from data URL: data:image/jpeg;base64,...
+            mime_type = "image/png"  # default
+            if url.startswith("data:image/"):
+                try:
+                    mime_part = url[5 : url.index(";")]
+                    mime_type = mime_part if "/" in mime_part else f"image/{mime_part}"
+                except (ValueError, IndexError):
+                    pass
+
+            if media_id:
+                media_items.append(
+                    {
+                        "id": media_id,
+                        "filename": "",  # Not available in this format
+                        "mime_type": mime_type,
+                        "type": "image",
+                    }
+                )
+
+    return media_items
+
+
 def _is_memory_enabled(
     org_id: str | None,
     team_id: str | None,
@@ -114,6 +188,110 @@ def _is_memory_enabled(
     except Exception as e:
         logger.warning("failed_to_check_memory_settings", error=str(e))
         return False
+
+
+def _build_multimodal_message(
+    message: str,
+    media_list: list[ChatMedia],
+) -> HumanMessage:
+    """Build a multimodal HumanMessage with text and images.
+
+    Creates a message with content blocks for text and images.
+    Images are encoded as base64 data URLs for LLM consumption.
+    Media metadata (id, filename, mime_type) is stored for history reconstruction.
+
+    Args:
+        message: The text message content
+        media_list: List of ChatMedia records to include as images
+
+    Returns:
+        HumanMessage with multimodal content and media metadata
+    """
+    content_blocks: list[dict] = []
+
+    # Add text content first
+    content_blocks.append({"type": "text", "text": message})
+
+    # Collect media metadata for reconstruction in history
+    media_metadata: list[dict] = []
+
+    # Add images
+    for media in media_list:
+        try:
+            # Get image content from storage
+            image_bytes = get_chat_media_content(media.file_path)
+            base64_data = base64.b64encode(image_bytes).decode("utf-8")
+
+            # Add image block with data URL and media ID for reference
+            content_blocks.append(
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{media.mime_type};base64,{base64_data}",
+                    },
+                    # Store media ID for history reconstruction
+                    "media_id": str(media.id),
+                }
+            )
+
+            # Store metadata for history
+            media_metadata.append(
+                {
+                    "id": str(media.id),
+                    "filename": media.filename,
+                    "mime_type": media.mime_type,
+                }
+            )
+
+            logger.debug(
+                "multimodal_image_added",
+                media_id=str(media.id),
+                filename=media.filename,
+                mime_type=media.mime_type,
+            )
+        except Exception as e:
+            logger.warning(
+                "multimodal_image_failed",
+                media_id=str(media.id),
+                error=str(e),
+            )
+            # Continue without this image
+
+    # Return message with media metadata stored in additional_kwargs
+    # This allows reconstruction of media URLs when loading history
+    return HumanMessage(
+        content=content_blocks,
+        additional_kwargs={"media_metadata": media_metadata} if media_metadata else {},
+    )
+
+
+def _get_media_for_message(
+    media_ids: list[str],
+    user_id: str,
+) -> list[ChatMedia]:
+    """Fetch media records for the given IDs, filtered by user ownership.
+
+    Args:
+        media_ids: List of media ID strings
+        user_id: User ID (must own the media)
+
+    Returns:
+        List of ChatMedia records
+    """
+    if not media_ids:
+        return []
+
+    try:
+        with Session(engine) as session:
+            statement = select(ChatMedia).where(
+                ChatMedia.id.in_([uuid.UUID(mid) for mid in media_ids]),
+                ChatMedia.created_by_id == uuid.UUID(user_id),
+                ChatMedia.deleted_at.is_(None),
+            )
+            return list(session.exec(statement).all())
+    except Exception as e:
+        logger.warning("failed_to_fetch_media", error=str(e), media_ids=media_ids)
+        return []
 
 
 def _is_mcp_enabled(
@@ -1347,11 +1525,14 @@ async def run_agent_with_context(
     thread_id: str | None = None,
     provider: str | None = None,
     user_id: str | None = None,
+    media_ids: list[str] | None = None,
 ) -> str:
     """Run the agent with organization/team context for Infisical API keys.
 
     This version uses the context variable to pass org/team info to the chat node,
     which then fetches the appropriate API key from Infisical and system prompt.
+
+    Supports multimodal messages with images when media_ids are provided.
 
     Args:
         message: User message to process
@@ -1360,6 +1541,7 @@ async def run_agent_with_context(
         thread_id: Optional thread ID for conversation persistence
         provider: Optional LLM provider override
         user_id: Optional user ID for Langfuse tracing and system prompt lookup
+        media_ids: Optional list of media IDs (images) to include in the message
 
     Returns:
         Agent response as a string
@@ -1393,8 +1575,23 @@ async def run_agent_with_context(
             langfuse_enabled=settings.langfuse_enabled,
         )
 
+        # Build the input message (text-only or multimodal with images)
+        if media_ids and user_id:
+            media_list = _get_media_for_message(media_ids, user_id)
+            if media_list:
+                logger.info(
+                    "multimodal_message_building_sync",
+                    thread_id=thread_id,
+                    media_count=len(media_list),
+                )
+                input_message = _build_multimodal_message(message, media_list)
+            else:
+                input_message = HumanMessage(content=message)
+        else:
+            input_message = HumanMessage(content=message)
+
         result = await agent.ainvoke(
-            {"messages": [HumanMessage(content=message)]},
+            {"messages": [input_message]},
             config=config if config else None,
         )
 
@@ -1414,6 +1611,7 @@ async def stream_agent_with_context(
     thread_id: str | None = None,
     provider: str | None = None,
     user_id: str | None = None,
+    media_ids: list[str] | None = None,
 ) -> AsyncGenerator[dict | str, None]:
     """Stream the agent response with organization/team context.
 
@@ -1424,6 +1622,8 @@ async def stream_agent_with_context(
     When tool approval is required and an MCP tool is called, yields a dict with
     interrupt information instead of string tokens.
 
+    Supports multimodal messages with images when media_ids are provided.
+
     Args:
         message: User message to process
         org_id: Organization ID for API key scoping
@@ -1431,6 +1631,7 @@ async def stream_agent_with_context(
         thread_id: Optional thread ID for conversation persistence
         provider: Optional LLM provider override
         user_id: Optional user ID for Langfuse tracing and system prompt lookup
+        media_ids: Optional list of media IDs (images) to include in the message
 
     Yields:
         Response tokens as strings, or a dict with interrupt info for tool approval
@@ -1507,8 +1708,23 @@ async def stream_agent_with_context(
             except Exception as e:
                 logger.warning("stream_get_state_failed", error=str(e))
 
+        # Build the input message (text-only or multimodal with images)
+        if media_ids and user_id:
+            media_list = _get_media_for_message(media_ids, user_id)
+            if media_list:
+                logger.info(
+                    "multimodal_message_building",
+                    thread_id=thread_id,
+                    media_count=len(media_list),
+                )
+                input_message = _build_multimodal_message(message, media_list)
+            else:
+                input_message = HumanMessage(content=message)
+        else:
+            input_message = HumanMessage(content=message)
+
         async for event in agent.astream_events(
-            {"messages": [HumanMessage(content=message)]},
+            {"messages": [input_message]},
             config=config if config else None,
             version="v2",
         ):
@@ -1678,7 +1894,10 @@ async def get_conversation_history(thread_id: str) -> list[dict]:
         thread_id: The thread ID to retrieve history for
 
     Returns:
-        List of messages in the conversation
+        List of messages in the conversation. Each message contains:
+        - role: "user" or "assistant"
+        - content: The text content
+        - media: Optional list of media info for multimodal messages
     """
     agent = await get_agent()
     config = get_thread_config(thread_id)
@@ -1695,12 +1914,21 @@ async def get_conversation_history(thread_id: str) -> list[dict]:
             # Skip empty messages (e.g., tool invocation responses)
             if not content:
                 continue
-            messages.append(
-                {
-                    "role": "user" if isinstance(m, HumanMessage) else "assistant",
-                    "content": content,
-                }
-            )
+
+            msg_dict: dict = {
+                "role": "user" if isinstance(m, HumanMessage) else "assistant",
+                "content": content,
+            }
+
+            # For user messages, check for media attachments
+            if isinstance(m, HumanMessage):
+                # Pass additional_kwargs which may contain media_metadata
+                additional_kwargs = getattr(m, "additional_kwargs", None)
+                media_info = _extract_media_from_content(m.content, additional_kwargs)
+                if media_info:
+                    msg_dict["media"] = media_info
+
+            messages.append(msg_dict)
         return messages
 
     return []

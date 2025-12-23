@@ -6,6 +6,7 @@ import {
   Users,
   Loader2,
   Shield,
+  ShieldAlert,
   User,
   Eye,
   UserMinus,
@@ -51,7 +52,9 @@ import {
   TeamDetailsSection,
   MCPSettings,
   MCPServersList,
+  GuardrailSettings,
 } from "@/components/settings";
+import { guardrailsApi, type TeamGuardrailsUpdate } from "@/lib/api";
 import { TeamThemeSettings } from "@/components/settings/team-theme-settings";
 import { TeamRAGSettings } from "@/components/settings/team-rag-settings";
 import { Button } from "@/components/ui/button";
@@ -104,7 +107,15 @@ import { DataTable } from "@/components/ui/data-table";
 
 const teamSettingsSearchSchema = z.object({
   tab: z
-    .enum(["general", "people", "ai", "preferences", "theme", "rag"])
+    .enum([
+      "general",
+      "people",
+      "ai",
+      "preferences",
+      "theme",
+      "rag",
+      "guardrails",
+    ])
     .optional(),
 });
 
@@ -174,6 +185,7 @@ function TeamSettingsPage() {
     { value: "preferences", label: "Preferences", icon: Settings2 },
     { value: "theme", label: "Theme", icon: Palette },
     { value: "rag", label: "Document Search", icon: FileSearch },
+    { value: "guardrails", label: "Guardrails", icon: ShieldAlert },
   ];
 
   if (!currentOrg || !team) {
@@ -292,6 +304,13 @@ function TeamSettingsPage() {
 
                 <TabsContent value="rag" className="mt-0">
                   <TeamRAGSettings orgId={currentOrg.id} teamId={team.id} />
+                </TabsContent>
+
+                <TabsContent value="guardrails" className="mt-0">
+                  <TeamGuardrailsSection
+                    orgId={currentOrg.id}
+                    teamId={team.id}
+                  />
                 </TabsContent>
               </>
             )}
@@ -1035,6 +1054,81 @@ function TeamMCPSection({
           <MCPServersList scope={{ type: "team", orgId, teamId }} />
         </div>
       )}
+    </div>
+  );
+}
+
+function TeamGuardrailsSection({
+  orgId,
+  teamId,
+}: {
+  orgId: string;
+  teamId: string;
+}) {
+  const queryClient = useQueryClient();
+
+  const { data: orgGuardrails, isLoading: isLoadingOrg } = useQuery({
+    queryKey: ["org-guardrails", orgId],
+    queryFn: () => guardrailsApi.getOrgGuardrails(orgId),
+  });
+
+  const { data: teamGuardrails, isLoading: isLoadingTeam } = useQuery({
+    queryKey: ["team-guardrails", orgId, teamId],
+    queryFn: () => guardrailsApi.getTeamGuardrails(orgId, teamId),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: TeamGuardrailsUpdate) =>
+      guardrailsApi.updateTeamGuardrails(orgId, teamId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["team-guardrails", orgId, teamId],
+      });
+    },
+  });
+
+  const isLoading = isLoadingOrg || isLoadingTeam;
+
+  if (isLoading || !teamGuardrails) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Check if guardrails are disabled by org
+  const disabledByOrg = orgGuardrails && !orgGuardrails.allow_team_override;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 py-2">
+        <ShieldAlert className="size-4" />
+        <span className="text-sm font-medium">AI Guardrails</span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Configure content filtering rules for this team.
+        {disabledByOrg &&
+          " Team-level guardrails are disabled by organization settings."}
+      </p>
+      <GuardrailSettings
+        level="team"
+        orgId={orgId}
+        teamId={teamId}
+        guardrailsEnabled={teamGuardrails.guardrails_enabled}
+        inputBlockedKeywords={teamGuardrails.input_blocked_keywords}
+        inputBlockedPatterns={teamGuardrails.input_blocked_patterns}
+        inputAction={teamGuardrails.input_action}
+        outputBlockedKeywords={teamGuardrails.output_blocked_keywords}
+        outputBlockedPatterns={teamGuardrails.output_blocked_patterns}
+        outputAction={teamGuardrails.output_action}
+        piiDetectionEnabled={teamGuardrails.pii_detection_enabled}
+        piiTypes={teamGuardrails.pii_types}
+        piiAction={teamGuardrails.pii_action}
+        isLoading={updateMutation.isPending}
+        disabledBy={disabledByOrg ? "org" : null}
+        onUpdate={(data) => updateMutation.mutate(data)}
+      />
     </div>
   );
 }

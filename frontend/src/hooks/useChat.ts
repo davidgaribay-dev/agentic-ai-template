@@ -14,11 +14,17 @@
 
 import { useCallback, useRef, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { agentApi, type MessageSource } from "@/lib/api";
+import {
+  agentApi,
+  type MessageSource,
+  type MessageMediaInfo,
+  mediaApi,
+} from "@/lib/api";
 import { queryKeys } from "@/lib/queries";
 import {
   useChatMessagesStore,
   type ChatMessage,
+  type ChatMediaAttachment,
   type PendingToolApproval,
   type RejectedToolCall,
 } from "@/lib/chat-store";
@@ -26,9 +32,11 @@ import { useShallow } from "zustand/react/shallow";
 
 export type {
   ChatMessage,
+  ChatMediaAttachment,
   PendingToolApproval,
   RejectedToolCall,
   MessageSource,
+  MessageMediaInfo,
 };
 
 interface UseChatOptions {
@@ -43,14 +51,25 @@ interface UseChatOptions {
   onTitleUpdate?: (conversationId: string, title: string) => void;
 }
 
+/** Options for sending a message with optional media */
+interface SendMessageOptions {
+  /** Media attachments to include with the message */
+  media?: ChatMediaAttachment[];
+}
+
 interface UseChatReturn {
   messages: ChatMessage[];
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, options?: SendMessageOptions) => Promise<void>;
   stopStreaming: () => void;
   clearMessages: () => void;
   loadConversation: (
     conversationId: string,
-    history: { role: "user" | "assistant"; content: string }[],
+    history: {
+      role: "user" | "assistant";
+      content: string;
+      sources?: MessageSource[] | null;
+      media?: MessageMediaInfo[] | null;
+    }[],
   ) => Promise<void>;
   isStreaming: boolean;
   error: Error | null;
@@ -138,7 +157,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   }, []);
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, options?: SendMessageOptions) => {
       if (!content.trim() || isStreaming) return;
 
       // If there's a pending tool approval, auto-reject it before sending new message
@@ -180,6 +199,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         id: crypto.randomUUID(),
         role: "user",
         content: content.trim(),
+        media: options?.media,
       };
 
       const assistantMessageId = crypto.randomUUID();
@@ -207,6 +227,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
             conversation_id: conversationId ?? undefined,
             organization_id: organizationId,
             team_id: teamId,
+            media_ids: options?.media?.map((m) => m.id),
           },
           abortControllerRef.current.signal,
         )) {
@@ -259,6 +280,17 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
                 isStreaming: false,
               });
               return; // Exit early, user needs to approve/reject
+
+            case "guardrail_block":
+              // Guardrail blocked the message - update with the block message
+              actions.updateMessage(instanceId, assistantMessageId, {
+                content: event.data.message,
+                isStreaming: false,
+                guardrail_blocked: true,
+              });
+              newConversationId = event.data.conversation_id;
+              actions.setConversationId(instanceId, newConversationId);
+              break;
 
             case "error":
               throw new Error(event.data);
@@ -326,14 +358,32 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         role: "user" | "assistant";
         content: string;
         sources?: MessageSource[] | null;
+        media?: MessageMediaInfo[] | null;
+        guardrail_blocked?: boolean;
       }[],
     ) => {
-      const newMessages = history.map((msg) => ({
-        id: crypto.randomUUID(),
-        role: msg.role,
-        content: msg.content,
-        sources: msg.sources ?? undefined,
-      }));
+      // Convert history to ChatMessages, including media attachments
+      const newMessages: ChatMessage[] = history.map((msg) => {
+        const chatMsg: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: msg.role,
+          content: msg.content,
+          sources: msg.sources ?? undefined,
+          guardrail_blocked: msg.guardrail_blocked ?? false,
+        };
+
+        // Convert media info to media attachments with URLs
+        if (msg.media && msg.media.length > 0) {
+          chatMsg.media = msg.media.map((m) => ({
+            id: m.id,
+            url: mediaApi.getContentUrl(m.id),
+            filename: m.filename || "",
+            mime_type: m.mime_type,
+          }));
+        }
+
+        return chatMsg;
+      });
       actions.setConversationId(instanceId, newConversationId);
       actions.setError(instanceId, null);
       actions.setMessages(instanceId, newMessages);

@@ -18,7 +18,18 @@ ALLOWED_IMAGE_TYPES = {
     "image/webp": ".webp",
 }
 
-MAX_FILE_SIZE = 5 * 1024 * 1024
+# Profile image limits
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+# Chat media limits (configurable per org, these are defaults)
+ALLOWED_CHAT_MEDIA_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+}
+DEFAULT_MAX_CHAT_MEDIA_SIZE = 10 * 1024 * 1024  # 10MB
+DEFAULT_MAX_MEDIA_PER_MESSAGE = 5
 
 
 class StorageError(Exception):
@@ -262,3 +273,170 @@ def get_document_url(object_key: str) -> str:
         The full URL to access the document
     """
     return f"{settings.s3_public_base_url}/{settings.S3_BUCKET_NAME}/{object_key}"
+
+
+# =============================================================================
+# Chat Media Functions (for multimodal chat)
+# =============================================================================
+
+
+class ChatMediaError(StorageError):
+    """Exception for chat media operations."""
+
+
+class InvalidChatMediaTypeError(ChatMediaError):
+    """Raised when chat media type is not allowed."""
+
+
+class ChatMediaTooLargeError(ChatMediaError):
+    """Raised when chat media exceeds size limit."""
+
+
+def upload_chat_media(
+    content: bytes,
+    filename: str,
+    content_type: str,
+    org_id: uuid.UUID,
+    team_id: uuid.UUID | None = None,
+    user_id: uuid.UUID | None = None,
+    max_size: int | None = None,
+) -> str:
+    """Upload chat media (images) to S3-compatible storage (SeaweedFS).
+
+    Chat media is stored with a hierarchical path:
+    - User-level: chat-media/{org_id}/{team_id}/{user_id}/{uuid}_{filename}
+    - Team-level: chat-media/{org_id}/{team_id}/{uuid}_{filename}
+    - Org-level: chat-media/{org_id}/{uuid}_{filename}
+
+    Args:
+        content: File content as bytes
+        filename: Original filename
+        content_type: MIME type of the file
+        org_id: Organization ID
+        team_id: Optional team ID
+        user_id: Optional user ID (for user-scoped media)
+        max_size: Optional max size override (defaults to DEFAULT_MAX_CHAT_MEDIA_SIZE)
+
+    Returns:
+        The S3 object key (path) for the uploaded file
+
+    Raises:
+        InvalidChatMediaTypeError: If content type is not allowed
+        ChatMediaTooLargeError: If file exceeds size limit
+        StorageError: For storage errors
+    """
+    # Validate content type
+    if content_type not in ALLOWED_CHAT_MEDIA_TYPES:
+        raise InvalidChatMediaTypeError(
+            f"Invalid media type: {content_type}. "
+            f"Allowed types: {', '.join(ALLOWED_CHAT_MEDIA_TYPES.keys())}"
+        )
+
+    # Validate size
+    effective_max_size = max_size or DEFAULT_MAX_CHAT_MEDIA_SIZE
+    if len(content) > effective_max_size:
+        raise ChatMediaTooLargeError(
+            f"File too large: {len(content)} bytes. "
+            f"Maximum size: {effective_max_size} bytes"
+        )
+
+    # Build hierarchical path
+    path_parts = ["chat-media", str(org_id)]
+    if team_id:
+        path_parts.append(str(team_id))
+    if user_id:
+        path_parts.append(str(user_id))
+
+    # Add unique prefix to filename to avoid collisions
+    unique_filename = f"{uuid.uuid4()}_{filename}"
+    path_parts.append(unique_filename)
+    object_key = "/".join(path_parts)
+
+    client = get_s3_client()
+    ensure_bucket_exists(client)
+
+    try:
+        client.put_object(
+            Bucket=settings.S3_BUCKET_NAME,
+            Key=object_key,
+            Body=content,
+            ContentType=content_type,
+        )
+        logger.info("chat_media_uploaded", key=object_key, size=len(content))
+    except ClientError as e:
+        logger.exception("chat_media_upload_failed", key=object_key, error=str(e))
+        raise StorageError(f"Failed to upload chat media: {e}") from e
+
+    return object_key
+
+
+def get_chat_media_content(object_key: str) -> bytes:
+    """Download chat media content from S3-compatible storage.
+
+    Args:
+        object_key: The S3 object key (path) of the media
+
+    Returns:
+        The file content as bytes
+
+    Raises:
+        StorageError: If file not found or download fails
+    """
+    client = get_s3_client()
+
+    try:
+        response = client.get_object(Bucket=settings.S3_BUCKET_NAME, Key=object_key)
+        content: bytes = response["Body"].read()
+        logger.debug("chat_media_downloaded", key=object_key, size=len(content))
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code")
+        if error_code == "NoSuchKey":
+            raise StorageError(f"Chat media not found: {object_key}") from e
+        logger.exception("chat_media_download_failed", key=object_key, error=str(e))
+        raise StorageError(f"Failed to download chat media: {e}") from e
+    else:
+        return content
+
+
+def delete_chat_media(object_key: str) -> bool:
+    """Delete chat media from S3-compatible storage.
+
+    Args:
+        object_key: The S3 object key (path) of the media
+
+    Returns:
+        True if deleted successfully, False if file didn't exist
+    """
+    client = get_s3_client()
+    try:
+        client.delete_object(Bucket=settings.S3_BUCKET_NAME, Key=object_key)
+        logger.info("chat_media_deleted", key=object_key)
+    except ClientError as e:
+        logger.exception("chat_media_delete_failed", key=object_key, error=str(e))
+        return False
+    else:
+        return True
+
+
+def get_chat_media_url(object_key: str) -> str:
+    """Get the URL for chat media.
+
+    Args:
+        object_key: The S3 object key (path) of the media
+
+    Returns:
+        The full URL to access the media
+    """
+    return f"{settings.s3_public_base_url}/{settings.S3_BUCKET_NAME}/{object_key}"
+
+
+def validate_chat_media_type(content_type: str) -> bool:
+    """Check if a content type is allowed for chat media.
+
+    Args:
+        content_type: MIME type to check
+
+    Returns:
+        True if allowed, False otherwise
+    """
+    return content_type in ALLOWED_CHAT_MEDIA_TYPES

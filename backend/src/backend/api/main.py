@@ -7,9 +7,11 @@ from backend.api.routes import (
     auth,
     conversations,
     documents,
+    guardrails,
     invitations,
     items,
     mcp,
+    media,
     memory,
     organizations,
     prompts,
@@ -42,3 +44,5 @@ api_router.include_router(memory.router)
 api_router.include_router(mcp.org_router)
 api_router.include_router(mcp.team_router)
 api_router.include_router(mcp.user_router)
+api_router.include_router(media.router)
+api_router.include_router(guardrails.router)

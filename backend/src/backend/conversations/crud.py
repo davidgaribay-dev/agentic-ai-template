@@ -257,11 +257,15 @@ def create_conversation_message(
     team_id: uuid.UUID | None,
     created_by_id: uuid.UUID | None,
     sources_json: str | None = None,
+    media_json: str | None = None,
+    guardrail_blocked: bool = False,
 ) -> ConversationMessage:
     """Create a searchable message index entry.
 
     Messages are indexed for fast search without coupling to LangGraph internals.
     Sources are stored as JSON for RAG citation display.
+    Media is stored as JSON for image attachment display.
+    Guardrail-blocked messages are flagged for special UI display.
     """
     message = ConversationMessage(
         conversation_id=conversation_id,
@@ -271,6 +275,8 @@ def create_conversation_message(
         team_id=team_id,
         created_by_id=created_by_id,
         sources_json=sources_json,
+        media_json=media_json,
+        guardrail_blocked=guardrail_blocked,
     )
     session.add(message)
     session.commit()

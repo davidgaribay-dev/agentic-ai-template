@@ -20,6 +20,8 @@ import {
   Plug,
   Palette,
   FileSearch,
+  Image as ImageIcon,
+  Shield,
 } from "lucide-react";
 import { useAuth, authKeys } from "@/lib/auth";
 import {
@@ -47,7 +49,10 @@ import {
   CreatePromptDialog,
   MCPSettings,
   MCPServersList,
+  MediaLibrary,
+  GuardrailSettings,
 } from "@/components/settings";
+import { guardrailsApi, type UserGuardrailsUpdate } from "@/lib/api";
 import { getInitials, isValidImageUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,7 +72,16 @@ import {
 
 const settingsSearchSchema = z.object({
   tab: z
-    .enum(["profile", "ai", "memory", "preferences", "theme", "rag"])
+    .enum([
+      "profile",
+      "ai",
+      "memory",
+      "preferences",
+      "theme",
+      "rag",
+      "media",
+      "guardrails",
+    ])
     .optional(),
 });
 
@@ -104,6 +118,8 @@ function SettingsPage() {
     { value: "preferences", label: "Preferences", icon: Settings2 },
     { value: "theme", label: "Theme", icon: Palette },
     { value: "rag", label: "Document Search", icon: FileSearch },
+    { value: "media", label: "Media", icon: ImageIcon },
+    { value: "guardrails", label: "Guardrails", icon: Shield },
   ];
 
   return (
@@ -162,6 +178,14 @@ function SettingsPage() {
 
             <TabsContent value="rag" className="mt-0">
               <UserRAGSettings />
+            </TabsContent>
+
+            <TabsContent value="media" className="mt-0">
+              <MediaSection />
+            </TabsContent>
+
+            <TabsContent value="guardrails" className="mt-0">
+              <UserGuardrailsSection />
             </TabsContent>
           </div>
         </Tabs>
@@ -756,6 +780,88 @@ function MemorySection() {
         </div>
         <MemoryViewer />
       </div>
+    </div>
+  );
+}
+
+function MediaSection() {
+  const { currentOrg, currentTeam } = useWorkspace();
+
+  if (!currentOrg?.id) {
+    return (
+      <div className="text-sm text-muted-foreground py-8 text-center">
+        Select an organization to view your uploaded media.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <div className="flex items-center gap-2 py-2">
+          <ImageIcon className="size-4" />
+          <span className="text-sm font-medium">Uploaded Media</span>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Images you&apos;ve attached to chat messages.
+        </p>
+      </div>
+      <MediaLibrary organizationId={currentOrg.id} teamId={currentTeam?.id} />
+    </div>
+  );
+}
+
+function UserGuardrailsSection() {
+  const queryClient = useQueryClient();
+
+  const { data: guardrails, isLoading } = useQuery({
+    queryKey: ["user-guardrails"],
+    queryFn: () => guardrailsApi.getUserGuardrails(),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: UserGuardrailsUpdate) =>
+      guardrailsApi.updateUserGuardrails(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-guardrails"] });
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <div className="flex items-center gap-2 py-2">
+          <Shield className="size-4" />
+          <span className="text-sm font-medium">Content Guardrails</span>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Configure personal content filtering rules. These are combined with
+          organization and team rules.
+        </p>
+      </div>
+      <GuardrailSettings
+        level="user"
+        guardrailsEnabled={guardrails?.guardrails_enabled ?? true}
+        inputBlockedKeywords={guardrails?.input_blocked_keywords ?? []}
+        inputBlockedPatterns={guardrails?.input_blocked_patterns ?? []}
+        inputAction={guardrails?.input_action ?? "block"}
+        outputBlockedKeywords={guardrails?.output_blocked_keywords ?? []}
+        outputBlockedPatterns={guardrails?.output_blocked_patterns ?? []}
+        outputAction={guardrails?.output_action ?? "redact"}
+        piiDetectionEnabled={guardrails?.pii_detection_enabled ?? false}
+        piiTypes={guardrails?.pii_types ?? []}
+        piiAction={guardrails?.pii_action ?? "redact"}
+        isLoading={isLoading || updateMutation.isPending}
+        onUpdate={(data) => updateMutation.mutate(data)}
+      />
     </div>
   );
 }

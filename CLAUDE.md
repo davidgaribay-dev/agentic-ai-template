@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Full-stack AI agent platform with FastAPI + LangGraph backend and React 19 + TanStack frontend. Features JWT authentication, multi-tenant architecture (Organizations → Teams → Users), SSE streaming chat, MCP (Model Context Protocol) tool integration, and enterprise integrations (Infisical secrets, OpenSearch audit logging, Langfuse LLM tracing).
+Full-stack AI agent platform with FastAPI + LangGraph backend and React 19 + TanStack frontend. Features JWT authentication, multi-tenant architecture (Organizations → Teams → Users), SSE streaming chat, MCP (Model Context Protocol) tool integration, mobile-responsive UI, and enterprise integrations (Infisical secrets, OpenSearch audit logging, Langfuse LLM tracing).
 
 See also: [backend/CLAUDE.md](backend/CLAUDE.md) for API patterns, [frontend/CLAUDE.md](frontend/CLAUDE.md) for UI patterns.
 
@@ -68,6 +68,26 @@ SSE streaming: `POST /v1/agent/chat` with `stream: true`
 System prompts: Hierarchical concatenation (org → team → user) prepended to messages.
 
 LLM key resolution: team-level → org-level → environment variable (via Infisical)
+
+**Multimodal Chat (Image Uploads)**: Send images with chat messages
+- Supports JPEG, PNG, GIF, WebP (max 10MB per file, 5 files per message)
+- Images stored in SeaweedFS with multi-tenant scoping (org → team → user)
+- `useMediaUpload()` hook handles validation, preview, and upload
+- Media library UI at user settings for viewing/deleting uploads
+- Org-level configurable limits: `max_media_file_size_mb`, `max_media_storage_mb`
+- Backend: `backend/media/` module, API at `/v1/media`
+- Frontend: `ImagePreview` component for inline display, `MediaLibrary` for management
+
+**Guardrails (Content Filtering)**: AI safety controls for input/output
+- Hierarchical configuration: org → team → user (patterns merged, most restrictive action wins)
+- Input guardrails: Block/warn/redact user messages matching keywords or regex patterns
+- Output guardrails: Block/warn/redact LLM responses matching keywords or regex patterns
+- PII detection: Auto-detect email, phone, SSN, credit card, IP addresses
+- Actions: `block` (reject message), `warn` (allow but log), `redact` (replace with [REDACTED])
+- Test endpoint: `POST /v1/guardrails/test` for dry-run validation
+- Org controls: `allow_team_override`, `allow_user_override` to lock down settings
+- Backend: `backend/guardrails/` module, API at `/v1/guardrails`
+- Frontend: `GuardrailSettings` component with test panel, `guardrailsApi` client
 
 **Conversation Search**: Full-text search across conversation titles and message content
 - Uses PostgreSQL pg_trgm extension with GIN indexes for fast trigram similarity search
@@ -143,6 +163,8 @@ OpenSearch indices: `audit-logs-YYYY.MM.DD` (90-day retention), `app-logs-YYYY.M
 │   │   ├── organizations/  # Org + OrganizationMember
 │   │   ├── teams/          # Team + TeamMember
 │   │   ├── conversations/  # Multi-tenant chat history + message index
+│   │   ├── guardrails/     # AI content filtering (input/output, PII detection)
+│   │   ├── media/          # Chat media uploads (images)
 │   │   ├── audit/          # OpenSearch logging
 │   │   └── core/           # Config, DB, security, secrets, cache, HTTP, tasks, UoW, exceptions
 │   ├── scripts/            # Setup scripts (setup-infisical.py, backfill_message_index.py, etc.)
@@ -152,7 +174,7 @@ OpenSearch indices: `audit-logs-YYYY.MM.DD` (90-day retention), `app-logs-YYYY.M
     └── src/
         ├── routes/         # File-based routing
         ├── components/     # UI (shadcn/ui) + chat
-        ├── hooks/          # useChat SSE streaming
+        ├── hooks/          # useChat SSE streaming, useIsMobile
         └── lib/
             ├── api/        # Modular API client (agent, auth, orgs, teams, etc.)
             ├── auth.ts     # Token management & auth hooks
@@ -167,23 +189,38 @@ OpenSearch indices: `audit-logs-YYYY.MM.DD` (90-day retention), `app-logs-YYYY.M
 uv run ruff check .                        # Lint check (MUST pass before commit)
 uv run ruff check . --fix                  # Auto-fix lint issues
 uv run ruff format .                       # Format code
+uv run ruff format --check .               # Check formatting without changes
 uv run pytest                              # Run tests
 uv run alembic revision --autogenerate -m "msg"  # Create migration
 
 # Frontend (from frontend/)
 npm run build                              # TypeScript + Vite build
 npm run lint                               # ESLint
+npm run format                             # Format code with Prettier
+npm run format:check                       # Check formatting without changes
 npx shadcn@latest add <name>               # Add UI component
 ```
 
 ## Pre-Commit/Push Checklist
 
-**CRITICAL**: Always run these before committing backend changes:
+**CRITICAL**: Always run these before committing to avoid CI failures:
+
 ```bash
-cd backend && uv run ruff check . && uv run ruff format --check .
+# Backend (from backend/)
+uv run ruff check . && uv run ruff format --check .
+
+# Frontend (from frontend/)
+npm run lint && npm run format:check
 ```
 
-If CI fails, run `uv run ruff check . --fix` to auto-fix most issues.
+Auto-fix commands if checks fail:
+```bash
+# Backend
+cd backend && uv run ruff check . --fix && uv run ruff format .
+
+# Frontend
+cd frontend && npm run format
+```
 
 ## Critical Integration Points
 

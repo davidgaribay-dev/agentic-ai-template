@@ -19,11 +19,28 @@ class MessageSource(BaseModel):
     document_id: str = Field(..., description="Document UUID")
 
 
+class MessageMediaInfo(BaseModel):
+    """Media info for multimodal messages (images)."""
+
+    id: str = Field(..., description="Media ID for fetching from storage")
+    filename: str = Field(default="", description="Original filename")
+    mime_type: str = Field(..., description="MIME type (e.g., 'image/jpeg')")
+    type: str = Field(default="image", description="Media type: 'image'")
+
+
 class ChatMessage(BaseModel):
     role: str = Field(..., description="Message role: 'user' or 'assistant'")
     content: str = Field(..., description="Message content")
     sources: list[MessageSource] | None = Field(
         default=None, description="RAG sources used for this response (assistant only)"
+    )
+    media: list[MessageMediaInfo] | None = Field(
+        default=None,
+        description="Media attachments (images) for user messages",
+    )
+    guardrail_blocked: bool = Field(
+        default=False,
+        description="Whether this message was blocked by guardrails",
     )
 
 
@@ -49,6 +66,10 @@ class ChatRequest(BaseModel):
     stream: bool = Field(
         default=True,
         description="Whether to stream the response via SSE",
+    )
+    media_ids: list[str] | None = Field(
+        default=None,
+        description="Optional list of media IDs (images) to attach to the message",
     )
 
 

@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { ChatMessage } from "./ChatMessage";
-import type { MessageSource } from "@/lib/chat-store";
+import type { MessageSource, ChatMediaAttachment } from "@/lib/chat-store";
 
 export interface Message {
   id: string;
@@ -9,6 +9,9 @@ export interface Message {
   content: string;
   isStreaming?: boolean;
   sources?: MessageSource[];
+  media?: ChatMediaAttachment[];
+  /** Whether this message was blocked by guardrails */
+  guardrail_blocked?: boolean;
 }
 
 interface ChatContainerProps {
@@ -39,6 +42,8 @@ export const ChatContainer = memo(function ChatContainer({
           content={message.content}
           isStreaming={message.isStreaming}
           sources={message.sources}
+          media={message.media}
+          guardrail_blocked={message.guardrail_blocked}
         />
       ))}
     </div>

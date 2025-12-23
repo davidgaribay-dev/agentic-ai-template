@@ -13,11 +13,19 @@ from backend.documents.models import (  # noqa: F401 - Import models for autogen
     Document,
     DocumentChunk,
 )
+from backend.guardrails.models import (  # noqa: F401 - Import models for autogenerate
+    OrganizationGuardrails,
+    TeamGuardrails,
+    UserGuardrails,
+)
 from backend.invitations.models import (
     Invitation,  # noqa: F401 - Import models for autogenerate
 )
 from backend.items.models import Item  # noqa: F401 - Import models for autogenerate
 from backend.mcp.models import MCPServer  # noqa: F401 - Import models for autogenerate
+from backend.media.models import (
+    ChatMedia,  # noqa: F401 - Import models for autogenerate
+)
 from backend.organizations.models import (  # noqa: F401 - Import models for autogenerate
     Organization,
     OrganizationMember,

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-React 19 + TypeScript + Vite 7 frontend for an agentic AI template with FastAPI backend. Features multi-tenant workspace management (Organizations → Teams), SSE streaming chat, hierarchical settings, LLM API key management, MCP (Model Context Protocol) server management, and system prompts at org/team/user levels.
+React 19 + TypeScript + Vite 7 frontend for an agentic AI template with FastAPI backend. Features multi-tenant workspace management (Organizations → Teams), SSE streaming chat, hierarchical settings, LLM API key management, MCP (Model Context Protocol) server management, system prompts at org/team/user levels, and mobile-responsive design.
 
 ## Commands
 
@@ -28,7 +28,9 @@ src/
 │   └── side-panel.tsx   # Collapsible chat panel with dual-pane support
 ├── hooks/
 │   ├── useChat.ts       # SSE streaming chat hook
-│   └── useDebounce.ts   # Generic debounce hook for search inputs
+│   ├── useDebounce.ts   # Generic debounce hook for search inputs
+│   ├── useIsMobile.ts   # Mobile viewport detection (768px breakpoint)
+│   └── useMediaUpload.ts # Image upload with validation and progress
 └── lib/
     ├── api/             # Modular API client (see API Architecture below)
     ├── auth.ts          # Token management & auth hooks
@@ -59,7 +61,9 @@ lib/api/
 ├── chat-settings.ts  # chatSettingsApi: feature visibility settings
 ├── memory.ts         # memoryApi: user memory management
 ├── mcp-servers.ts    # mcpServersApi: MCP server management
-└── api-keys.ts       # apiKeysApi: LLM API key management
+├── api-keys.ts       # apiKeysApi: LLM API key management
+├── guardrails.ts     # guardrailsApi: content filtering (input/output, PII)
+└── media.ts          # mediaApi: chat image uploads
 ```
 
 Import patterns (both work):
@@ -264,6 +268,83 @@ Tool picker (`components/chat/ToolPicker.tsx`):
 - Allows enabling/disabling individual tools
 - Queries `listEffectiveTools` for tool discovery
 
+## Guardrails (Content Filtering)
+
+AI safety controls for input/output messages. Managed at org/team/user levels.
+
+Components (`components/settings/`):
+- `GuardrailSettings` - Full configuration UI with collapsible sections
+  - Input/output keyword and regex pattern management
+  - PII detection toggles and type selection
+  - Action selection (block/warn/redact)
+  - Org-level override controls
+  - Inline test panel for dry-run validation
+
+API (`lib/api/guardrails.ts`):
+```typescript
+guardrailsApi.getOrgGuardrails(orgId)
+guardrailsApi.updateOrgGuardrails(orgId, data)
+guardrailsApi.getTeamGuardrails(orgId, teamId)
+guardrailsApi.updateTeamGuardrails(orgId, teamId, data)
+guardrailsApi.getUserGuardrails()
+guardrailsApi.updateUserGuardrails(data)
+guardrailsApi.getEffectiveGuardrails(orgId?, teamId?)  // Computed hierarchy
+guardrailsApi.testGuardrails(request, orgId?, teamId?) // Dry-run test
+```
+
+Types:
+- `GuardrailAction`: `"block" | "warn" | "redact"`
+- `PIIType`: `"email" | "phone" | "ssn" | "credit_card" | "ip_address"`
+- Pattern merging: Lower levels can add patterns, most restrictive action wins
+- Org controls: `allow_team_override`, `allow_user_override`
+
+Settings integration:
+- Available in org settings, team settings, and user settings tabs
+- Respects hierarchy - disabled state shows which level disabled it
+- Test panel allows validation before saving
+
+## Chat Media (Image Uploads)
+
+Multimodal chat with image attachments. Stored in SeaweedFS with multi-tenant scoping.
+
+Hook (`hooks/useMediaUpload.ts`):
+```typescript
+const {
+  pendingUploads,    // Files queued for upload with preview URLs
+  isUploading,       // Upload in progress
+  addFiles,          // Add files to queue (validates type/size)
+  removeUpload,      // Remove from queue
+  clearUploads,      // Clear all pending
+  uploadAll,         // Upload all pending → returns ChatMedia[]
+  validateFile,      // Manual validation check
+} = useMediaUpload({
+  organizationId,
+  teamId,
+  maxFiles: 5,       // Default 5 per message
+  maxFileSize: 10 * 1024 * 1024,  // Default 10MB
+  onUploadComplete,
+  onError,
+})
+```
+
+API (`lib/api/media.ts`):
+```typescript
+mediaApi.upload({ file, organizationId, teamId })
+mediaApi.list({ organizationId, teamId, skip, limit })
+mediaApi.get(id)
+mediaApi.getContentUrl(id)  // For embedding in img src (includes auth token)
+mediaApi.delete(id)
+mediaApi.getUsage(organizationId, teamId?)  // Storage stats
+```
+
+Components:
+- `ImagePreview` (`components/chat/`) - Inline thumbnail with expand/download
+- `MediaLibrary` (`components/settings/`) - Grid view of uploads with delete
+- Chat input supports drag-drop and file picker for images
+
+Supported types: JPEG, PNG, GIF, WebP
+Limits: Configurable at org level via `max_media_file_size_mb`, `max_media_storage_mb`
+
 ## Layout System
 
 IMPORTANT - CSS Grid 3-column layout:
@@ -289,6 +370,48 @@ Page Template (authenticated routes):
 ```
 
 Exceptions: Login/signup use `min-h-screen` centering. Chat page uses `h-full` for internal scrolling.
+
+## Mobile Responsive Design
+
+Breakpoint: 768px (md). Uses `useIsMobile()` hook for viewport detection via MediaQuery API.
+
+Layout switching:
+- Desktop (≥768px): 3-column CSS Grid with sidebar, main content, and optional side panel
+- Mobile (<768px): Single-column flex layout with off-canvas sidebar drawer
+
+Key components:
+- `MobileLayout` / `DesktopLayout` in `__root.tsx` - Separate layouts rendered based on viewport
+- `MobileSidebarToggle` - Floating button (top-left) to open sidebar drawer on mobile
+- `AppSidebar` - Automatically renders as off-canvas drawer when `isMobile` (via shadcn/ui `SidebarProvider`)
+
+Mobile-specific behaviors:
+- Side panel disabled on mobile (chat toggle button hidden)
+- DataTable supports mobile card view via `mobileCardView` + `renderMobileCard` props
+- Settings pages use responsive tab layouts (scrollable horizontal on mobile)
+- Touch-friendly tap targets (min 44px)
+- iOS safe area support (`env(safe-area-inset-bottom)`)
+
+```typescript
+// Using mobile detection
+import { useIsMobile } from "@/hooks";
+
+function MyComponent() {
+  const isMobile = useIsMobile();
+  return isMobile ? <MobileView /> : <DesktopView />;
+}
+```
+
+DataTable mobile cards:
+```typescript
+<DataTable
+  columns={columns}
+  data={data}
+  mobileCardView={true}
+  renderMobileCard={(row) => (
+    <div>{row.original.name}</div>
+  )}
+/>
+```
 
 ## Side Panel
 

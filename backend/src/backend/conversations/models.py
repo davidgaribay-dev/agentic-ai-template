@@ -115,6 +115,18 @@ class ConversationMessage(SQLModel, table=True):
         description="JSON array of RAG sources for this message",
     )
 
+    # Media attachments (JSON array of media info for image display)
+    media_json: str | None = Field(
+        default=None,
+        description="JSON array of media attachments for this message",
+    )
+
+    # Guardrail metadata for blocked messages
+    guardrail_blocked: bool = Field(
+        default=False,
+        description="True if this message was blocked by guardrails",
+    )
+
     # Multi-tenant denormalization for fast filtering
     organization_id: uuid.UUID | None = Field(default=None, index=True)
     team_id: uuid.UUID | None = Field(default=None, index=True)

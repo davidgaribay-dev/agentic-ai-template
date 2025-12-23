@@ -174,6 +174,8 @@ ignore = [
     "B008",    # Function call in default argument (FastAPI Query/Depends pattern)
     "PLR0912", # Too many branches (complex route handlers)
     "PLR0915", # Too many statements (complex route handlers)
+    "PT028",   # Test function parameter default (false positive: FastAPI route, not pytest)
+    "TRY301",  # Abstract raise to inner function (HTTPException raises in try blocks are clearer inline)
 ]
 "src/backend/api/routes/**/*.py" = [
     "ARG001",  # Unused function argument (FastAPI dependency injection)
@@ -234,6 +236,10 @@ ignore = [
 "src/backend/settings/service.py" = [
     "PLR0912", # Too many branches (complex settings resolution)
     "PLR0915", # Too many statements (complex settings resolution)
+]
+"src/backend/guardrails/service.py" = [
+    "PLR0912", # Too many branches (complex guardrails hierarchy resolution)
+    "PLR0915", # Too many statements (complex guardrails hierarchy resolution)
 ]
 "src/backend/core/tasks.py" = [
     "PLR0915", # Too many statements (document processing pipeline)

@@ -12,6 +12,8 @@ export interface ChatRequest {
   organization_id?: string;
   team_id?: string;
   stream?: boolean;
+  /** Media IDs to attach to the message */
+  media_ids?: string[];
 }
 
 export interface ChatResponse {
@@ -24,10 +26,21 @@ export interface HealthResponse {
   llm_configured: boolean;
 }
 
+/** Media info for multimodal messages */
+export interface MessageMediaInfo {
+  id: string;
+  filename: string;
+  mime_type: string;
+  type: string;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   sources?: MessageSource[] | null;
+  media?: MessageMediaInfo[] | null;
+  /** Whether this message was blocked by guardrails */
+  guardrail_blocked?: boolean;
 }
 
 /** SSE Stream Event Types - Discriminated Union for type-safe event handling */
@@ -85,6 +98,14 @@ export type StreamSourcesEvent = {
   };
 };
 
+export type StreamGuardrailBlockEvent = {
+  type: "guardrail_block";
+  data: {
+    message: string;
+    conversation_id: string;
+  };
+};
+
 /** Union of all possible stream events */
 export type StreamEvent =
   | StreamTokenEvent
@@ -92,7 +113,8 @@ export type StreamEvent =
   | StreamDoneEvent
   | StreamErrorEvent
   | StreamToolApprovalEvent
-  | StreamSourcesEvent;
+  | StreamSourcesEvent
+  | StreamGuardrailBlockEvent;
 
 export interface ToolApprovalRequest {
   conversation_id: string;
@@ -236,6 +258,14 @@ export const agentApi = {
                     sources: parsed.sources || [],
                   },
                 } satisfies StreamSourcesEvent;
+              } else if (currentEvent === "guardrail_block") {
+                yield {
+                  type: "guardrail_block",
+                  data: {
+                    message: parsed.message,
+                    conversation_id: parsed.conversation_id,
+                  },
+                } satisfies StreamGuardrailBlockEvent;
               } else if (parsed.token) {
                 yield {
                   type: "token",

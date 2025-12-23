@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect, memo, useCallback } from "react";
-import { Link, useRouterState, useNavigate, useLocation } from "@tanstack/react-router";
+import {
+  Link,
+  useRouterState,
+  useNavigate,
+  useLocation,
+} from "@tanstack/react-router";
 import {
   Home,
   MessageSquare,
@@ -827,9 +832,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const chatEnabled = effectiveSettings.chat_enabled;
 
-  const navItems = chatEnabled
-    ? [...baseNavItems, chatNavItem]
-    : baseNavItems;
+  const navItems = chatEnabled ? [...baseNavItems, chatNavItem] : baseNavItems;
 
   return (
     <Sidebar collapsible="icon" {...props}>

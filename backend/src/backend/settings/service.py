@@ -33,6 +33,9 @@ def get_or_create_org_settings(
             mcp_allow_custom_servers=True,
             mcp_max_servers_per_team=10,
             mcp_max_servers_per_user=5,
+            max_media_file_size_mb=10,
+            max_media_per_message=5,
+            max_media_storage_mb=None,
         )
         session.add(settings)
         session.commit()

@@ -42,6 +42,13 @@ from backend.core.config import Settings, get_settings
 from backend.core.db import engine
 from backend.core.logging import get_logger
 from backend.core.secrets import get_secrets_service
+from backend.guardrails.models import GuardrailAction
+from backend.guardrails.service import (
+    check_input,
+    check_output,
+    get_effective_guardrails,
+)
+from backend.media.service import get_chat_media
 from backend.memory.extraction import extract_and_store_memories
 from backend.organizations.models import OrganizationMember
 from backend.settings.service import get_effective_settings
@@ -195,6 +202,31 @@ async def chat(
         is_new=is_new_conversation,
     )
 
+    # Build media_json from media_ids if present
+    media_json = None
+    if request.media_ids:
+        media_list = []
+        for media_id_str in request.media_ids:
+            try:
+                media = get_chat_media(session, uuid.UUID(media_id_str))
+                if media:
+                    media_list.append(
+                        {
+                            "id": str(media.id),
+                            "filename": media.filename,
+                            "mime_type": media.mime_type,
+                            "type": "image",
+                        }
+                    )
+            except Exception as e:
+                logger.warning(
+                    "failed_to_fetch_media_for_index",
+                    media_id=media_id_str,
+                    error=str(e),
+                )
+        if media_list:
+            media_json = json.dumps(media_list)
+
     # Index user message for search
     try:
         create_conversation_message(
@@ -207,6 +239,7 @@ async def chat(
             else None,
             team_id=uuid.UUID(request.team_id) if request.team_id else None,
             created_by_id=current_user.id,
+            media_json=media_json,
         )
     except Exception as e:
         logger.warning(
@@ -226,25 +259,131 @@ async def chat(
                 user_id=str(current_user.id),
                 current_user=current_user,
                 session=session,
+                media_ids=request.media_ids,
             ),
             media_type="text/event-stream",
         )
 
+    # Non-streaming path with guardrails
+    guardrails = None
+    effective_message = request.message
+
+    # Check input guardrails before calling LLM
+    if has_org_context:
+        try:
+            guardrails = get_effective_guardrails(
+                session=session,
+                user_id=current_user.id,
+                organization_id=uuid.UUID(request.organization_id),
+                team_id=uuid.UUID(request.team_id) if request.team_id else None,
+            )
+
+            if guardrails.guardrails_enabled:
+                input_result = check_input(request.message, guardrails)
+
+                if not input_result.passed:
+                    # Persist the guardrail block as an assistant message
+                    block_message = (
+                        input_result.message or "Message blocked by content policy"
+                    )
+                    try:
+                        create_conversation_message(
+                            session=session,
+                            conversation_id=uuid.UUID(conversation_id),
+                            role="assistant",
+                            content=block_message,
+                            organization_id=uuid.UUID(request.organization_id)
+                            if request.organization_id
+                            else None,
+                            team_id=uuid.UUID(request.team_id)
+                            if request.team_id
+                            else None,
+                            created_by_id=current_user.id,
+                            guardrail_blocked=True,
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "failed_to_index_guardrail_block",
+                            error=str(e),
+                            conversation_id=conversation_id,
+                        )
+                    # Return the block message as a response instead of raising
+                    return ChatResponse(
+                        message=block_message,
+                        conversation_id=conversation_id,
+                    )
+
+                if input_result.action == GuardrailAction.REDACT:
+                    effective_message = input_result.redacted_content or request.message
+                    logger.info(
+                        "guardrail_input_redacted_sync",
+                        conversation_id=conversation_id,
+                        match_count=len(input_result.matches),
+                    )
+                elif input_result.action == GuardrailAction.WARN:
+                    logger.warning(
+                        "guardrail_input_warning_sync",
+                        conversation_id=conversation_id,
+                        match_count=len(input_result.matches),
+                    )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.warning(
+                "guardrail_input_check_failed_sync",
+                error=str(e),
+                conversation_id=conversation_id,
+            )
+
     try:
         if has_org_context:
             response = await run_agent_with_context(
-                message=request.message,
+                message=effective_message,
                 org_id=request.organization_id,
                 team_id=request.team_id,
                 thread_id=conversation_id,
                 user_id=str(current_user.id),
+                media_ids=request.media_ids,
             )
         else:
             response = await run_agent(
-                request.message,
+                effective_message,
                 thread_id=conversation_id,
                 user_id=str(current_user.id),
             )
+
+        # Check output guardrails
+        stored_response = response
+        if guardrails and guardrails.guardrails_enabled and response:
+            try:
+                output_result = check_output(response, guardrails)
+                if not output_result.passed:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Response blocked by content policy",
+                    )
+                if output_result.action == GuardrailAction.REDACT:
+                    stored_response = output_result.redacted_content or response
+                    response = stored_response  # Return redacted to user
+                    logger.info(
+                        "guardrail_output_redacted_sync",
+                        conversation_id=conversation_id,
+                        match_count=len(output_result.matches),
+                    )
+                elif output_result.action == GuardrailAction.WARN:
+                    logger.warning(
+                        "guardrail_output_warning_sync",
+                        conversation_id=conversation_id,
+                        match_count=len(output_result.matches),
+                    )
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.warning(
+                    "guardrail_output_check_failed_sync",
+                    error=str(e),
+                    conversation_id=conversation_id,
+                )
 
         if is_new_conversation:
             await _update_conversation_title(
@@ -261,7 +400,7 @@ async def chat(
                 session=session,
                 conversation_id=uuid.UUID(conversation_id),
                 role="assistant",
-                content=response,
+                content=stored_response,
                 organization_id=uuid.UUID(request.organization_id)
                 if request.organization_id
                 else None,
@@ -408,6 +547,7 @@ async def stream_response(
     user_id: str | None = None,
     current_user=None,
     session=None,
+    media_ids: list[str] | None = None,
 ):
     """Generate SSE events for streaming response.
 
@@ -421,18 +561,101 @@ async def stream_response(
     full_response = ""
     is_interrupted = False
     collected_sources: list[dict] = []  # Track sources for persistence
+    guardrails = None
+    effective_message = message
+
+    # Check input guardrails before calling LLM
+    if org_id and user_id and session:
+        try:
+            guardrails = get_effective_guardrails(
+                session=session,
+                user_id=uuid.UUID(user_id),
+                organization_id=uuid.UUID(org_id),
+                team_id=uuid.UUID(team_id) if team_id else None,
+            )
+
+            if guardrails.guardrails_enabled:
+                input_result = check_input(message, guardrails)
+
+                if not input_result.passed:
+                    # Input blocked - persist as assistant message and return block event
+                    block_message = (
+                        input_result.message or "Message blocked by content policy"
+                    )
+                    logger.warning(
+                        "guardrail_input_blocked",
+                        conversation_id=conversation_id,
+                        match_count=len(input_result.matches),
+                    )
+                    # Persist the guardrail block for conversation history
+                    if session:
+                        try:
+                            create_conversation_message(
+                                session=session,
+                                conversation_id=uuid.UUID(conversation_id),
+                                role="assistant",
+                                content=block_message,
+                                organization_id=uuid.UUID(org_id) if org_id else None,
+                                team_id=uuid.UUID(team_id) if team_id else None,
+                                created_by_id=uuid.UUID(user_id) if user_id else None,
+                                guardrail_blocked=True,
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                "failed_to_index_guardrail_block_stream",
+                                error=str(e),
+                                conversation_id=conversation_id,
+                            )
+                    # Send guardrail_block event (not error) so frontend can display it properly
+                    yield {
+                        "event": "guardrail_block",
+                        "data": json.dumps(
+                            {
+                                "message": block_message,
+                                "conversation_id": conversation_id,
+                            }
+                        ),
+                    }
+                    yield {
+                        "event": "done",
+                        "data": json.dumps({"conversation_id": conversation_id}),
+                    }
+                    return
+
+                if input_result.action == GuardrailAction.REDACT:
+                    # Use redacted message for LLM
+                    effective_message = input_result.redacted_content or message
+                    logger.info(
+                        "guardrail_input_redacted",
+                        conversation_id=conversation_id,
+                        match_count=len(input_result.matches),
+                    )
+                elif input_result.action == GuardrailAction.WARN:
+                    logger.warning(
+                        "guardrail_input_warning",
+                        conversation_id=conversation_id,
+                        match_count=len(input_result.matches),
+                    )
+        except Exception as e:
+            logger.warning(
+                "guardrail_input_check_failed",
+                error=str(e),
+                conversation_id=conversation_id,
+            )
+
     try:
         if org_id:
             stream_gen = stream_agent_with_context(
-                message,
+                effective_message,
                 org_id=org_id,
                 team_id=team_id,
                 thread_id=conversation_id,
                 user_id=user_id,
+                media_ids=media_ids,
             )
         else:
             stream_gen = stream_agent(
-                message, thread_id=conversation_id, user_id=user_id
+                effective_message, thread_id=conversation_id, user_id=user_id
             )
 
         async for chunk in stream_gen:
@@ -513,6 +736,41 @@ async def stream_response(
 
         # Only do post-processing if we weren't interrupted
         if not is_interrupted:
+            # Check output guardrails on full response
+            stored_response = full_response
+            if guardrails and guardrails.guardrails_enabled and full_response:
+                try:
+                    output_result = check_output(full_response, guardrails)
+                    if not output_result.passed:
+                        # Output blocked - log warning (response already streamed)
+                        logger.warning(
+                            "guardrail_output_blocked_post_stream",
+                            conversation_id=conversation_id,
+                            match_count=len(output_result.matches),
+                        )
+                    elif output_result.action == GuardrailAction.REDACT:
+                        # Apply redactions to stored content
+                        stored_response = (
+                            output_result.redacted_content or full_response
+                        )
+                        logger.info(
+                            "guardrail_output_redacted",
+                            conversation_id=conversation_id,
+                            match_count=len(output_result.matches),
+                        )
+                    elif output_result.action == GuardrailAction.WARN:
+                        logger.warning(
+                            "guardrail_output_warning",
+                            conversation_id=conversation_id,
+                            match_count=len(output_result.matches),
+                        )
+                except Exception as e:
+                    logger.warning(
+                        "guardrail_output_check_failed",
+                        error=str(e),
+                        conversation_id=conversation_id,
+                    )
+
             if is_new_conversation and full_response:
                 title = await _update_conversation_title(
                     conversation_id=conversation_id,
@@ -530,7 +788,7 @@ async def stream_response(
                     }
 
             # Index assistant response for search (with sources for citation display)
-            if full_response and session:
+            if stored_response and session:
                 try:
                     sources_json = (
                         json.dumps(collected_sources) if collected_sources else None
@@ -539,7 +797,7 @@ async def stream_response(
                         session=session,
                         conversation_id=uuid.UUID(conversation_id),
                         role="assistant",
-                        content=full_response,
+                        content=stored_response,
                         organization_id=uuid.UUID(org_id) if org_id else None,
                         team_id=uuid.UUID(team_id) if team_id else None,
                         created_by_id=uuid.UUID(user_id) if user_id else None,
@@ -601,9 +859,7 @@ async def stream_response(
         )
         yield {
             "event": "error",
-            "data": json.dumps(
-                {"error": str(e), "type": "configuration_error"}
-            ),
+            "data": json.dumps({"error": str(e), "type": "configuration_error"}),
         }
     except ValueError as e:
         # Check if this is an API key configuration error from the LLM layer
@@ -614,9 +870,7 @@ async def stream_response(
             )
             yield {
                 "event": "error",
-                "data": json.dumps(
-                    {"error": error_msg, "type": "configuration_error"}
-                ),
+                "data": json.dumps({"error": error_msg, "type": "configuration_error"}),
             }
         else:
             logger.exception(
@@ -625,7 +879,10 @@ async def stream_response(
             yield {
                 "event": "error",
                 "data": json.dumps(
-                    {"error": "An unexpected error occurred", "type": "unexpected_error"}
+                    {
+                        "error": "An unexpected error occurred",
+                        "type": "unexpected_error",
+                    }
                 ),
             }
     except (AgentError, LLMError) as e:
@@ -731,10 +988,12 @@ async def get_history(
     )
 
     if indexed_messages:
-        # Use indexed messages which include sources
+        # Use indexed messages which include sources and media
         result = []
         for msg in indexed_messages:
             sources = None
+            media = None
+
             if msg.sources_json:
                 try:
                     parsed_sources = json.loads(msg.sources_json)
@@ -753,8 +1012,25 @@ async def get_history(
                         conversation_id=conversation_id,
                         message_id=str(msg.id),
                     )
+
+            if msg.media_json:
+                try:
+                    media = json.loads(msg.media_json)
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "failed_to_parse_media_json",
+                        conversation_id=conversation_id,
+                        message_id=str(msg.id),
+                    )
+
             result.append(
-                ChatMessage(role=msg.role, content=msg.content, sources=sources)
+                ChatMessage(
+                    role=msg.role,
+                    content=msg.content,
+                    sources=sources,
+                    media=media,
+                    guardrail_blocked=msg.guardrail_blocked,
+                )
             )
         return result
 
@@ -1029,9 +1305,7 @@ async def stream_resume_response(
         )
         yield {
             "event": "error",
-            "data": json.dumps(
-                {"error": str(e), "type": "configuration_error"}
-            ),
+            "data": json.dumps({"error": str(e), "type": "configuration_error"}),
         }
     except ValueError as e:
         # Check if this is an API key configuration error from the LLM layer
@@ -1044,9 +1318,7 @@ async def stream_resume_response(
             )
             yield {
                 "event": "error",
-                "data": json.dumps(
-                    {"error": error_msg, "type": "configuration_error"}
-                ),
+                "data": json.dumps({"error": error_msg, "type": "configuration_error"}),
             }
         else:
             logger.exception(

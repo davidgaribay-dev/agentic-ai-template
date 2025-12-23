@@ -12,6 +12,16 @@ export interface MessageSource {
   document_id?: string;
 }
 
+/** Media attachment for a chat message */
+export interface ChatMediaAttachment {
+  id: string;
+  url: string;
+  filename: string;
+  mime_type: string;
+  width?: number | null;
+  height?: number | null;
+}
+
 /** Shared message type for chat state */
 export interface ChatMessage {
   id: string;
@@ -19,6 +29,10 @@ export interface ChatMessage {
   content: string;
   isStreaming?: boolean;
   sources?: MessageSource[];
+  /** Media attachments (images) for this message */
+  media?: ChatMediaAttachment[];
+  /** Whether this message was blocked by guardrails */
+  guardrail_blocked?: boolean;
 }
 
 /** Pending tool approval data */

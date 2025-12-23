@@ -220,3 +220,38 @@ export {
   type DocumentScope,
   type ProcessingStatus,
 } from "./documents";
+
+// Media module
+export {
+  mediaApi,
+  ALLOWED_MEDIA_TYPES,
+  isAllowedMediaType,
+  formatFileSize,
+  type ChatMedia,
+  type ChatMediasPublic,
+  type MediaUploadResponse,
+  type StorageUsage,
+  type ListMediaParams,
+  type UploadMediaParams,
+  type AllowedMediaType,
+} from "./media";
+
+// Guardrails module
+export {
+  guardrailsApi,
+  PII_TYPES,
+  PII_TYPE_LABELS,
+  type GuardrailAction,
+  type PIIType,
+  type GuardrailSettingsBase,
+  type OrganizationGuardrails,
+  type TeamGuardrails,
+  type UserGuardrails,
+  type OrganizationGuardrailsUpdate,
+  type TeamGuardrailsUpdate,
+  type UserGuardrailsUpdate,
+  type EffectiveGuardrails,
+  type GuardrailMatch,
+  type GuardrailTestResult,
+  type GuardrailTestRequest,
+} from "./guardrails";

@@ -56,6 +56,11 @@ class OrganizationSettings(ChatSettingsBase, TimestampedTable, table=True):
     mcp_max_servers_per_team: int = Field(default=10)
     mcp_max_servers_per_user: int = Field(default=5)
 
+    # Media settings (for multimodal chat)
+    max_media_file_size_mb: int = Field(default=10)
+    max_media_per_message: int = Field(default=5)
+    max_media_storage_mb: int | None = Field(default=None)  # None = unlimited
+
     organization: "Organization" = Relationship(back_populates="settings")
 
 
@@ -70,6 +75,10 @@ class OrganizationSettingsUpdate(SQLModel):
     mcp_max_servers_per_user: int | None = None
     disabled_mcp_servers: list[str] | None = None
     disabled_tools: list[str] | None = None
+    # Media settings
+    max_media_file_size_mb: int | None = None
+    max_media_per_message: int | None = None
+    max_media_storage_mb: int | None = None
 
 
 class OrganizationSettingsPublic(ChatSettingsBase, TimestampResponseMixin):
@@ -78,6 +87,9 @@ class OrganizationSettingsPublic(ChatSettingsBase, TimestampResponseMixin):
     mcp_allow_custom_servers: bool
     mcp_max_servers_per_team: int
     mcp_max_servers_per_user: int
+    max_media_file_size_mb: int
+    max_media_per_message: int
+    max_media_storage_mb: int | None
 
 
 class TeamSettings(ChatSettingsBase, TimestampedTable, table=True):
