@@ -32,6 +32,11 @@ class OrgPermission(str, Enum):
     PROMPTS_READ = "prompts:read"
     PROMPTS_MANAGE = "prompts:manage"
 
+    # Document management (org-level documents)
+    DOCUMENTS_UPLOAD_ORG = "documents:upload_org"
+    DOCUMENTS_MANAGE_ORG = "documents:manage_org"
+    DOCUMENTS_DELETE_ANY = "documents:delete_any"
+
     # Billing (future)
     BILLING_READ = "billing:read"
     BILLING_UPDATE = "billing:update"
@@ -65,6 +70,12 @@ class TeamPermission(str, Enum):
     PROMPTS_READ = "prompts:read"
     PROMPTS_MANAGE = "prompts:manage"
 
+    # Document management (team-level documents)
+    DOCUMENTS_UPLOAD_TEAM = "documents:upload_team"
+    DOCUMENTS_MANAGE_TEAM = "documents:manage_team"
+    DOCUMENTS_UPLOAD_PERSONAL = "documents:upload_personal"
+    DOCUMENTS_MANAGE_PERSONAL = "documents:manage_personal"
+
 
 ORG_ROLE_PERMISSIONS: dict[OrgRole, set[OrgPermission]] = {
     OrgRole.OWNER: {
@@ -86,6 +97,9 @@ ORG_ROLE_PERMISSIONS: dict[OrgRole, set[OrgPermission]] = {
         OrgPermission.INVITATIONS_REVOKE,
         OrgPermission.PROMPTS_READ,
         OrgPermission.PROMPTS_MANAGE,
+        OrgPermission.DOCUMENTS_UPLOAD_ORG,
+        OrgPermission.DOCUMENTS_MANAGE_ORG,
+        OrgPermission.DOCUMENTS_DELETE_ANY,
         OrgPermission.BILLING_READ,
         OrgPermission.BILLING_UPDATE,
     },
@@ -106,6 +120,9 @@ ORG_ROLE_PERMISSIONS: dict[OrgRole, set[OrgPermission]] = {
         OrgPermission.INVITATIONS_REVOKE,
         OrgPermission.PROMPTS_READ,
         OrgPermission.PROMPTS_MANAGE,
+        OrgPermission.DOCUMENTS_UPLOAD_ORG,
+        OrgPermission.DOCUMENTS_MANAGE_ORG,
+        OrgPermission.DOCUMENTS_DELETE_ANY,
         OrgPermission.BILLING_READ,
     },
     OrgRole.MEMBER: {
@@ -137,6 +154,10 @@ TEAM_ROLE_PERMISSIONS: dict[TeamRole, set[TeamPermission]] = {
         TeamPermission.OWN_RESOURCES_DELETE,
         TeamPermission.PROMPTS_READ,
         TeamPermission.PROMPTS_MANAGE,
+        TeamPermission.DOCUMENTS_UPLOAD_TEAM,
+        TeamPermission.DOCUMENTS_MANAGE_TEAM,
+        TeamPermission.DOCUMENTS_UPLOAD_PERSONAL,
+        TeamPermission.DOCUMENTS_MANAGE_PERSONAL,
     },
     TeamRole.MEMBER: {
         # Can create and manage own resources, read team resources
@@ -148,6 +169,8 @@ TEAM_ROLE_PERMISSIONS: dict[TeamRole, set[TeamPermission]] = {
         TeamPermission.OWN_RESOURCES_UPDATE,
         TeamPermission.OWN_RESOURCES_DELETE,
         TeamPermission.PROMPTS_READ,
+        TeamPermission.DOCUMENTS_UPLOAD_PERSONAL,
+        TeamPermission.DOCUMENTS_MANAGE_PERSONAL,
     },
     TeamRole.VIEWER: {
         # Read-only access

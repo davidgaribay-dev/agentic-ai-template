@@ -18,7 +18,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface PromptPickerProps {
   organizationId?: string
@@ -123,14 +122,14 @@ export function PromptPicker({
           variant="ghost"
           size="icon"
           disabled={disabled}
-          className="h-8 w-8 rounded-full"
+          className="h-8 w-8 rounded-md hover:bg-muted transition-colors"
           aria-label="Insert template"
         >
           <FileText className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-80 p-0"
+        className="w-[500px] max-w-[calc(100vw-2rem)] p-0"
         align="start"
         side="top"
         sideOffset={8}
@@ -158,7 +157,7 @@ export function PromptPicker({
           </div>
 
           {/* Content */}
-          <ScrollArea className="max-h-[300px]">
+          <div className="max-h-[300px] overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -212,7 +211,7 @@ export function PromptPicker({
                 ))}
               </div>
             )}
-          </ScrollArea>
+          </div>
         </div>
       </PopoverContent>
     </Popover>

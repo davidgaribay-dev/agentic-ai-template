@@ -109,17 +109,21 @@ export async function api<T>(
 ): Promise<T> {
   const { method = "GET", body, headers = {}, signal } = options
 
+  const isFormData = body instanceof FormData
+
   const config: RequestInit = {
     method,
     headers: {
-      "Content-Type": "application/json",
+      // Don't set Content-Type for FormData - browser sets it with boundary
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...headers,
     },
     signal,
   }
 
   if (body) {
-    config.body = JSON.stringify(body)
+    // Don't stringify FormData
+    config.body = isFormData ? body : JSON.stringify(body)
   }
 
   const response = await fetch(`${API_BASE}${endpoint}`, config)

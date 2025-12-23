@@ -14,8 +14,10 @@ from backend.core.base_models import (
 if TYPE_CHECKING:
     from backend.auth.models import User
     from backend.invitations.models import Invitation
+    from backend.rag_settings.models import OrganizationRAGSettings
     from backend.settings.models import OrganizationSettings
     from backend.teams.models import Team, TeamMember
+    from backend.theme_settings.models import OrganizationThemeSettings
 
 
 class OrgRole(str, Enum):
@@ -60,6 +62,14 @@ class Organization(OrganizationBase, TimestampedTable, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
     settings: "OrganizationSettings" = Relationship(
+        back_populates="organization",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan", "uselist": False},
+    )
+    theme_settings: "OrganizationThemeSettings" = Relationship(
+        back_populates="organization",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan", "uselist": False},
+    )
+    rag_settings: "OrganizationRAGSettings" = Relationship(
         back_populates="organization",
         sa_relationship_kwargs={"cascade": "all, delete-orphan", "uselist": False},
     )
@@ -146,8 +156,10 @@ OrganizationMembersPublic = PaginatedResponse[OrganizationMemberWithUser]
 
 
 from backend.invitations.models import Invitation  # noqa: E402, F401
+from backend.rag_settings.models import OrganizationRAGSettings  # noqa: E402, F401
 from backend.settings.models import OrganizationSettings  # noqa: E402, F401
 from backend.teams.models import Team, TeamMember  # noqa: E402, F401
+from backend.theme_settings.models import OrganizationThemeSettings  # noqa: E402, F401
 
 Organization.model_rebuild()
 OrganizationMember.model_rebuild()

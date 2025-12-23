@@ -66,10 +66,11 @@ function ChatPage() {
     const abortController = new AbortController()
     abortControllerRef.current = abortController
 
-    lastLoadedIdRef.current = conversationIdFromUrl
     agentApi.getHistory(conversationIdFromUrl).then((history) => {
       if (abortController.signal.aborted) return
       chatRef.current?.loadConversation(conversationIdFromUrl, history)
+      // Only mark as loaded after successfully loading
+      lastLoadedIdRef.current = conversationIdFromUrl
     }).catch((error) => {
       if (error instanceof Error && error.name === "AbortError") return
       console.error("Failed to load conversation:", error)

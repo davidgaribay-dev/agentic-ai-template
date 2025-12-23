@@ -15,6 +15,7 @@ from backend.conversations import (
     get_conversation,
     get_conversations_by_team,
     get_conversations_by_user,
+    search_conversations_by_team,
     set_star_conversation,
     soft_delete_conversation,
     update_conversation,
@@ -30,14 +31,29 @@ def read_conversations(
     skip: int = 0,
     limit: int = 100,
     team_id: Annotated[uuid.UUID | None, Query(description="Filter by team ID")] = None,
+    search: Annotated[str | None, Query(description="Search in conversation titles and messages")] = None,
 ) -> Any:
     """Retrieve conversations for chat history.
 
     If team_id is provided, returns conversations scoped to that team.
     Otherwise falls back to user-owned conversations (legacy behavior).
-    Returns conversations ordered by most recently updated first.
+
+    If search is provided with team_id, searches both conversation titles and message content.
+    Search results are ordered by starred status first, then by most recently updated.
+
+    Returns conversations ordered by most recently updated first (or by relevance if searching).
     """
-    if team_id:
+    # Search requires team_id for proper scoping
+    if search and team_id:
+        conversations, count = search_conversations_by_team(
+            session=session,
+            team_id=team_id,
+            user_id=current_user.id,
+            search_query=search,
+            skip=skip,
+            limit=limit,
+        )
+    elif team_id:
         conversations, count = get_conversations_by_team(
             session=session,
             team_id=team_id,

@@ -89,6 +89,11 @@ const navItems = [
     url: "/",
     icon: Home,
   },
+  {
+    title: "Chats",
+    url: "/search",
+    icon: MessageSquare,
+  },
 ]
 
 function TeamSwitcher() {

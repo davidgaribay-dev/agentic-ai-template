@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as OrganizationsRouteImport } from './routes/organizations'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InviteRouteImport } from './routes/invite'
@@ -22,6 +23,7 @@ import { Route as OrgPromptsRouteImport } from './routes/org/prompts'
 import { Route as OrgApiKeysRouteImport } from './routes/org/api-keys'
 import { Route as OrgTeamTeamIdSettingsRouteImport } from './routes/org/team/$teamId.settings'
 import { Route as OrgTeamTeamIdPromptsRouteImport } from './routes/org/team/$teamId.prompts'
+import { Route as OrgTeamTeamIdDocumentsRouteImport } from './routes/org/team/$teamId.documents'
 import { Route as OrgTeamTeamIdApiKeysRouteImport } from './routes/org/team/$teamId.api-keys'
 
 const SignupRoute = SignupRouteImport.update({
@@ -32,6 +34,11 @@ const SignupRoute = SignupRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrganizationsRoute = OrganizationsRouteImport.update({
@@ -89,6 +96,11 @@ const OrgTeamTeamIdPromptsRoute = OrgTeamTeamIdPromptsRouteImport.update({
   path: '/org/team/$teamId/prompts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrgTeamTeamIdDocumentsRoute = OrgTeamTeamIdDocumentsRouteImport.update({
+  id: '/org/team/$teamId/documents',
+  path: '/org/team/$teamId/documents',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrgTeamTeamIdApiKeysRoute = OrgTeamTeamIdApiKeysRouteImport.update({
   id: '/org/team/$teamId/api-keys',
   path: '/org/team/$teamId/api-keys',
@@ -101,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/organizations': typeof OrganizationsRoute
+  '/search': typeof SearchRoute
   '/settings': typeof SettingsRouteWithChildren
   '/signup': typeof SignupRoute
   '/org/api-keys': typeof OrgApiKeysRoute
@@ -108,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/org/settings': typeof OrgSettingsRoute
   '/settings/prompts': typeof SettingsPromptsRoute
   '/org/team/$teamId/api-keys': typeof OrgTeamTeamIdApiKeysRoute
+  '/org/team/$teamId/documents': typeof OrgTeamTeamIdDocumentsRoute
   '/org/team/$teamId/prompts': typeof OrgTeamTeamIdPromptsRoute
   '/org/team/$teamId/settings': typeof OrgTeamTeamIdSettingsRoute
 }
@@ -117,6 +131,7 @@ export interface FileRoutesByTo {
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/organizations': typeof OrganizationsRoute
+  '/search': typeof SearchRoute
   '/settings': typeof SettingsRouteWithChildren
   '/signup': typeof SignupRoute
   '/org/api-keys': typeof OrgApiKeysRoute
@@ -124,6 +139,7 @@ export interface FileRoutesByTo {
   '/org/settings': typeof OrgSettingsRoute
   '/settings/prompts': typeof SettingsPromptsRoute
   '/org/team/$teamId/api-keys': typeof OrgTeamTeamIdApiKeysRoute
+  '/org/team/$teamId/documents': typeof OrgTeamTeamIdDocumentsRoute
   '/org/team/$teamId/prompts': typeof OrgTeamTeamIdPromptsRoute
   '/org/team/$teamId/settings': typeof OrgTeamTeamIdSettingsRoute
 }
@@ -134,6 +150,7 @@ export interface FileRoutesById {
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/organizations': typeof OrganizationsRoute
+  '/search': typeof SearchRoute
   '/settings': typeof SettingsRouteWithChildren
   '/signup': typeof SignupRoute
   '/org/api-keys': typeof OrgApiKeysRoute
@@ -141,6 +158,7 @@ export interface FileRoutesById {
   '/org/settings': typeof OrgSettingsRoute
   '/settings/prompts': typeof SettingsPromptsRoute
   '/org/team/$teamId/api-keys': typeof OrgTeamTeamIdApiKeysRoute
+  '/org/team/$teamId/documents': typeof OrgTeamTeamIdDocumentsRoute
   '/org/team/$teamId/prompts': typeof OrgTeamTeamIdPromptsRoute
   '/org/team/$teamId/settings': typeof OrgTeamTeamIdSettingsRoute
 }
@@ -152,6 +170,7 @@ export interface FileRouteTypes {
     | '/invite'
     | '/login'
     | '/organizations'
+    | '/search'
     | '/settings'
     | '/signup'
     | '/org/api-keys'
@@ -159,6 +178,7 @@ export interface FileRouteTypes {
     | '/org/settings'
     | '/settings/prompts'
     | '/org/team/$teamId/api-keys'
+    | '/org/team/$teamId/documents'
     | '/org/team/$teamId/prompts'
     | '/org/team/$teamId/settings'
   fileRoutesByTo: FileRoutesByTo
@@ -168,6 +188,7 @@ export interface FileRouteTypes {
     | '/invite'
     | '/login'
     | '/organizations'
+    | '/search'
     | '/settings'
     | '/signup'
     | '/org/api-keys'
@@ -175,6 +196,7 @@ export interface FileRouteTypes {
     | '/org/settings'
     | '/settings/prompts'
     | '/org/team/$teamId/api-keys'
+    | '/org/team/$teamId/documents'
     | '/org/team/$teamId/prompts'
     | '/org/team/$teamId/settings'
   id:
@@ -184,6 +206,7 @@ export interface FileRouteTypes {
     | '/invite'
     | '/login'
     | '/organizations'
+    | '/search'
     | '/settings'
     | '/signup'
     | '/org/api-keys'
@@ -191,6 +214,7 @@ export interface FileRouteTypes {
     | '/org/settings'
     | '/settings/prompts'
     | '/org/team/$teamId/api-keys'
+    | '/org/team/$teamId/documents'
     | '/org/team/$teamId/prompts'
     | '/org/team/$teamId/settings'
   fileRoutesById: FileRoutesById
@@ -201,12 +225,14 @@ export interface RootRouteChildren {
   InviteRoute: typeof InviteRoute
   LoginRoute: typeof LoginRoute
   OrganizationsRoute: typeof OrganizationsRoute
+  SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   SignupRoute: typeof SignupRoute
   OrgApiKeysRoute: typeof OrgApiKeysRoute
   OrgPromptsRoute: typeof OrgPromptsRoute
   OrgSettingsRoute: typeof OrgSettingsRoute
   OrgTeamTeamIdApiKeysRoute: typeof OrgTeamTeamIdApiKeysRoute
+  OrgTeamTeamIdDocumentsRoute: typeof OrgTeamTeamIdDocumentsRoute
   OrgTeamTeamIdPromptsRoute: typeof OrgTeamTeamIdPromptsRoute
   OrgTeamTeamIdSettingsRoute: typeof OrgTeamTeamIdSettingsRoute
 }
@@ -225,6 +251,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/organizations': {
@@ -304,6 +337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgTeamTeamIdPromptsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/org/team/$teamId/documents': {
+      id: '/org/team/$teamId/documents'
+      path: '/org/team/$teamId/documents'
+      fullPath: '/org/team/$teamId/documents'
+      preLoaderRoute: typeof OrgTeamTeamIdDocumentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/org/team/$teamId/api-keys': {
       id: '/org/team/$teamId/api-keys'
       path: '/org/team/$teamId/api-keys'
@@ -332,12 +372,14 @@ const rootRouteChildren: RootRouteChildren = {
   InviteRoute: InviteRoute,
   LoginRoute: LoginRoute,
   OrganizationsRoute: OrganizationsRoute,
+  SearchRoute: SearchRoute,
   SettingsRoute: SettingsRouteWithChildren,
   SignupRoute: SignupRoute,
   OrgApiKeysRoute: OrgApiKeysRoute,
   OrgPromptsRoute: OrgPromptsRoute,
   OrgSettingsRoute: OrgSettingsRoute,
   OrgTeamTeamIdApiKeysRoute: OrgTeamTeamIdApiKeysRoute,
+  OrgTeamTeamIdDocumentsRoute: OrgTeamTeamIdDocumentsRoute,
   OrgTeamTeamIdPromptsRoute: OrgTeamTeamIdPromptsRoute,
   OrgTeamTeamIdSettingsRoute: OrgTeamTeamIdSettingsRoute,
 }

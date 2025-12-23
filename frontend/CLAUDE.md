@@ -22,9 +22,13 @@ src/
 ├── routes/              # File-based routing → routeTree.gen.ts (auto-generated, never edit)
 ├── components/
 │   ├── ui/              # shadcn/ui (add: npx shadcn@latest add <name>)
-│   ├── chat/            # Chat, ChatInput, ChatMessage, CodeBlock, PromptPicker
-│   └── settings/        # MemorySettings, MemoryViewer, ApiKeys, Prompts, etc.
-├── hooks/useChat.ts     # SSE streaming chat hook
+│   ├── chat/            # Chat, ChatInput, ChatMessage, CodeBlock, PromptPicker, ToolPicker
+│   ├── settings/        # MemorySettings, MemoryViewer, ApiKeys, Prompts, etc.
+│   ├── search-conversations.tsx  # Full-text conversation search with debouncing
+│   └── side-panel.tsx   # Collapsible chat panel with dual-pane support
+├── hooks/
+│   ├── useChat.ts       # SSE streaming chat hook
+│   └── useDebounce.ts   # Generic debounce hook for search inputs
 └── lib/
     ├── api/             # Modular API client (see API Architecture below)
     ├── auth.ts          # Token management & auth hooks
@@ -32,7 +36,8 @@ src/
     ├── chat-store.ts    # Zustand: multi-instance chat state
     ├── ui-store.ts      # Zustand: persisted sidebar/panel state
     ├── workspace.tsx    # Context: org/team selection
-    └── settings-context.tsx  # Context: effective chat settings
+    ├── settings-context.tsx  # Context: effective chat settings
+    └── utils.ts         # Utilities (formatRelativeTime, cn, etc.)
 ```
 
 ## API Architecture
@@ -155,6 +160,49 @@ Tool approval flow:
 - Abandoned approvals (user sends new message) are auto-cleaned by backend
 - `pendingToolApproval` state in chat store tracks current pending approval
 - `handleToolApproval(approved)` in `useChat` sends approval/rejection to backend
+
+## Conversation Search
+
+Full-text search across conversation titles and message content with real-time results.
+
+Route: `/search` - Dedicated search page with table view
+
+Component: `SearchConversations` ([search-conversations.tsx](src/components/search-conversations.tsx))
+
+Key features:
+- **Real-time debounced search**: 300ms debounce via `useDebounce` hook prevents excessive API calls
+- **Multi-modal navigation**: Open in main page or side panel (dual-pane support)
+- **Smart filtering**: Searches both conversation titles and message content
+- **Relative timestamps**: `formatRelativeTime()` displays human-friendly dates (e.g., "2 hours ago")
+- **Team-scoped**: Automatically scopes to current team from workspace context
+- **Empty states**: Different UI for "no search yet", "no results", and error states
+
+Query hook ([lib/queries.ts](src/lib/queries.ts#L30)):
+```typescript
+const { data, isLoading } = useConversations(
+  teamId,
+  searchQuery,  // Optional search param
+  skip,
+  limit
+)
+// Returns: { data: Conversation[], count: number }
+```
+
+UX patterns:
+- Auto-focus search input on mount
+- Clear button appears when query is present
+- Loading spinner during debounce + fetch
+- Starred conversations show star icon
+- Click row → navigate to `/chat?id={conversationId}`
+- Dropdown menu → "Open in Panel" (if enabled) or "Open Standalone"
+- Displays message count per conversation
+- Sorted by starred first, then most recent
+
+Settings integration:
+- Respects `chat_enabled` and `chat_panel_enabled` from effective settings
+- Conditionally shows "Open in Panel" option based on `chat_panel_enabled`
+
+Backend API: `GET /v1/conversations?team_id={id}&search={query}`
 
 ## Memory System
 
@@ -310,7 +358,88 @@ VITE_PORT=5173
 VITE_API_URL=http://localhost:8000
 ```
 
-## Code Style
+## Code Quality & Development Tools
+
+### Quick Commands
+
+```bash
+# Install dependencies
+npm install
+
+# Lint and auto-fix
+npm run lint
+
+# Build for production (includes type checking)
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+### Tools Stack
+
+| Tool | Purpose | Config Location |
+|------|---------|-----------------|
+| **ESLint** | Linting with TypeScript support | [eslint.config.js](eslint.config.js) |
+| **TypeScript** | Type checking (strict mode) | [tsconfig.json](tsconfig.json) |
+| **Prettier** | Code formatting | Via pre-commit hooks |
+| **Pre-commit** | Git hooks for automated checks | [.pre-commit-config.yaml](../.pre-commit-config.yaml) |
+
+### ESLint Configuration
+
+Uses `typescript-eslint` v8 with recommended rules.
+
+**Enabled rules**:
+- TypeScript-specific linting
+- React hooks rules
+- React refresh rules
+- Unused variable detection
+
+**Disabled rules**:
+- `@typescript-eslint/no-unused-vars` - TypeScript handles this
+
+### TypeScript Configuration
+
+**Strict mode enabled** with:
+- `noUncheckedIndexedAccess` - Safer array/object access
+- `noEmit` - Vite handles compilation
+- Path aliases: `@/*` → `./src/*`
+
+### Pre-commit Hooks
+
+Frontend-specific hooks run automatically:
+- ✅ **Prettier** - Code formatting
+- ✅ **ESLint** - Linting with auto-fix
+- ✅ Trailing whitespace, EOF fixes
+- ✅ JSON/YAML validation
+
+### VS Code Integration
+
+Install recommended extensions (see [.vscode/extensions.json](../.vscode/extensions.json)):
+- ESLint
+- Prettier
+- Tailwind CSS IntelliSense
+- TypeScript
+
+Settings in [.vscode/settings.json](../.vscode/settings.json):
+- Auto-format on save (Prettier)
+- Auto-fix on save (ESLint)
+- Tailwind CSS IntelliSense
+
+Run tasks from Command Palette (`Cmd+Shift+P` → Tasks: Run Task):
+- Frontend: Lint
+- Frontend: Build
+- Frontend: Dev Server
+
+### Best Practices
+
+1. **Enable auto-format on save** - Prettier handles formatting
+2. **Fix ESLint warnings** - Don't ignore linter warnings
+3. **Use TypeScript strict mode** - Helps catch bugs early
+4. **Run build before committing** - Catches type errors
+5. **Use path aliases** - Import with `@/` instead of relative paths
+
+### Code Style
 
 Comments: Keep WHY comments, remove WHAT comments. JSDoc for exported functions only.
 

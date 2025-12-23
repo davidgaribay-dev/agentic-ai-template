@@ -27,6 +27,7 @@ export interface HealthResponse {
 export interface ChatMessage {
   role: "user" | "assistant"
   content: string
+  sources?: MessageSource[] | null
 }
 
 /** SSE Stream Event Types - Discriminated Union for type-safe event handling */
@@ -66,6 +67,24 @@ export type StreamToolApprovalEvent = {
   }
 }
 
+export type MessageSource = {
+  content: string
+  source: string
+  file_type: string
+  metadata: Record<string, unknown> | null
+  relevance_score: number
+  chunk_index: number
+  document_id: string
+}
+
+export type StreamSourcesEvent = {
+  type: "sources"
+  data: {
+    conversation_id: string
+    sources: MessageSource[]
+  }
+}
+
 /** Union of all possible stream events */
 export type StreamEvent =
   | StreamTokenEvent
@@ -73,6 +92,7 @@ export type StreamEvent =
   | StreamDoneEvent
   | StreamErrorEvent
   | StreamToolApprovalEvent
+  | StreamSourcesEvent
 
 export interface ToolApprovalRequest {
   conversation_id: string
@@ -194,6 +214,14 @@ export const agentApi = {
                     tool_description: parsed.tool_description || "",
                   }
                 } satisfies StreamToolApprovalEvent
+              } else if (currentEvent === "sources" && parsed.sources) {
+                yield {
+                  type: "sources",
+                  data: {
+                    conversation_id: parsed.conversation_id,
+                    sources: parsed.sources || [],
+                  }
+                } satisfies StreamSourcesEvent
               } else if (parsed.token) {
                 yield {
                   type: "token",
@@ -306,6 +334,14 @@ export const agentApi = {
                     tool_description: parsed.tool_description || "",
                   }
                 } satisfies StreamToolApprovalEvent
+              } else if (currentEvent === "sources" && parsed.sources) {
+                yield {
+                  type: "sources",
+                  data: {
+                    conversation_id: parsed.conversation_id,
+                    sources: parsed.sources || [],
+                  }
+                } satisfies StreamSourcesEvent
               } else if (parsed.token) {
                 yield {
                   type: "token",

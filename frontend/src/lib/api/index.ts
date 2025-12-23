@@ -77,9 +77,11 @@ export {
   type StreamDoneEvent,
   type StreamErrorEvent,
   type StreamToolApprovalEvent,
+  type StreamSourcesEvent,
   type StreamEvent,
   type ToolApprovalRequest,
   type ToolApprovalInfo,
+  type MessageSource,
 } from "./agent"
 
 // Organizations module
@@ -176,3 +178,45 @@ export {
   type MCPToolsList,
   type ToolConfigUpdate,
 } from "./mcp-servers"
+
+// Theme Settings module
+export {
+  themeSettingsApi,
+  type ThemeColors,
+  type ThemeMode,
+  type ThemeSettingsBase,
+  type OrganizationThemeSettings,
+  type TeamThemeSettings,
+  type UserThemeSettings,
+  type OrganizationThemeSettingsUpdate,
+  type TeamThemeSettingsUpdate,
+  type UserThemeSettingsUpdate,
+  type EffectiveThemeSettings,
+} from "./theme-settings"
+
+// RAG Settings module
+export {
+  ragSettingsApi,
+  type RAGSettingsBase,
+  type OrganizationRAGSettings,
+  type TeamRAGSettings,
+  type UserRAGSettings,
+  type OrganizationRAGSettingsUpdate,
+  type TeamRAGSettingsUpdate,
+  type UserRAGSettingsUpdate,
+  type EffectiveRAGSettings,
+} from "./rag-settings"
+
+// Documents module
+export {
+  documentsApi,
+  type Document,
+  type DocumentChunk,
+  type DocumentContent,
+  type PaginatedDocuments,
+  type UploadDocumentParams,
+  type ListDocumentsParams,
+  type SearchResult,
+  type DocumentScope,
+  type ProcessingStatus,
+} from "./documents"

@@ -18,6 +18,7 @@ import {
   conversationsApi,
   memoryApi,
   mcpServersApi,
+  themeSettingsApi,
   type ChatRequest,
   type ChatMessage,
   type OrgSettingsUpdate,
@@ -26,6 +27,17 @@ import {
   type ConversationUpdate,
   type MCPServerCreate,
   type MCPServerUpdate,
+  type OrganizationThemeSettingsUpdate,
+  type TeamThemeSettingsUpdate,
+  type UserThemeSettingsUpdate,
+} from "./api"
+import { ragSettingsApi, documentsApi } from "./api"
+import type {
+  OrganizationRAGSettingsUpdate,
+  TeamRAGSettingsUpdate,
+  UserRAGSettingsUpdate,
+  UploadDocumentParams,
+  ListDocumentsParams,
 } from "./api"
 
 export const queryKeys = {
@@ -36,7 +48,7 @@ export const queryKeys = {
   },
   conversations: {
     all: ["conversations"] as const,
-    list: (teamId?: string) => ["conversations", "list", teamId] as const,
+    list: (teamId?: string, searchQuery?: string) => ["conversations", "list", teamId, searchQuery] as const,
     detail: (id: string) => ["conversations", "detail", id] as const,
   },
   chatSettings: {
@@ -46,6 +58,15 @@ export const queryKeys = {
     user: ["chatSettings", "user"] as const,
     effective: (orgId?: string, teamId?: string) =>
       ["chatSettings", "effective", orgId, teamId] as const,
+  },
+  themeSettings: {
+    org: (orgId: string) => ["themeSettings", "org", orgId] as const,
+    team: (orgId: string, teamId: string) =>
+      ["themeSettings", "team", orgId, teamId] as const,
+    user: ["themeSettings", "user"] as const,
+    effective: (orgId?: string, teamId?: string, systemPrefersDark?: boolean) =>
+      ["themeSettings", "effective", orgId, teamId, systemPrefersDark] as const,
+    predefined: ["themeSettings", "predefined"] as const,
   },
   memory: {
     user: (orgId?: string, teamId?: string) =>
@@ -59,6 +80,20 @@ export const queryKeys = {
       ["mcpServers", "user", orgId, teamId] as const,
     effective: (orgId: string, teamId?: string) =>
       ["mcpServers", "effective", orgId, teamId] as const,
+  },
+  ragSettings: {
+    org: (orgId: string) => ["ragSettings", "org", orgId] as const,
+    team: (orgId: string, teamId: string) =>
+      ["ragSettings", "team", orgId, teamId] as const,
+    user: ["ragSettings", "user"] as const,
+    effective: (orgId?: string, teamId?: string) =>
+      ["ragSettings", "effective", orgId, teamId] as const,
+  },
+  documents: {
+    all: ["documents"] as const,
+    list: (orgId?: string, teamId?: string, status?: string) =>
+      ["documents", "list", orgId, teamId, status] as const,
+    detail: (id: string) => ["documents", "detail", id] as const,
   },
 }
 
@@ -110,11 +145,11 @@ export function useChatMutation() {
   })
 }
 
-/** Hook to fetch paginated conversations list, optionally filtered by team. */
-export function useConversations(teamId?: string, skip = 0, limit = 100) {
+/** Hook to fetch paginated conversations list, optionally filtered by team and/or search query. */
+export function useConversations(teamId?: string, searchQuery?: string, skip = 0, limit = 100) {
   return useQuery({
-    queryKey: queryKeys.conversations.list(teamId),
-    queryFn: () => conversationsApi.getConversations(skip, limit, teamId),
+    queryKey: queryKeys.conversations.list(teamId, searchQuery),
+    queryFn: () => conversationsApi.getConversations(skip, limit, teamId, searchQuery),
     enabled: !!teamId,
   })
 }
@@ -127,7 +162,7 @@ export function useUpdateConversation(teamId?: string) {
     mutationFn: ({ id, data }: { id: string; data: ConversationUpdate }) =>
       conversationsApi.updateConversation(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.list(teamId) })
+      queryClient.invalidateQueries({ queryKey: ["conversations", "list", teamId] })
     },
     onError: (error) => {
       console.error("Failed to update conversation:", error)
@@ -142,7 +177,7 @@ export function useDeleteConversation(teamId?: string) {
   return useMutation({
     mutationFn: (id: string) => conversationsApi.deleteConversation(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.list(teamId) })
+      queryClient.invalidateQueries({ queryKey: ["conversations", "list", teamId] })
     },
     onError: (error) => {
       console.error("Failed to delete conversation:", error)
@@ -158,7 +193,7 @@ export function useStarConversation(teamId?: string) {
     mutationFn: ({ id, isStarred }: { id: string; isStarred: boolean }) =>
       conversationsApi.starConversation(id, isStarred),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.list(teamId) })
+      queryClient.invalidateQueries({ queryKey: ["conversations", "list", teamId] })
     },
     onError: (error) => {
       console.error("Failed to update star status:", error)
@@ -465,6 +500,264 @@ export function useUpdateUserToolConfig() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.chatSettings.user })
       queryClient.invalidateQueries({ queryKey: ["chatSettings", "effective"] })
+    },
+  })
+}
+
+// ============================================================================
+// Theme Settings Hooks
+// ============================================================================
+
+/** Hook to fetch organization theme settings. */
+export function useOrgThemeSettings(orgId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.themeSettings.org(orgId ?? ""),
+    queryFn: () => themeSettingsApi.getOrgSettings(orgId!),
+    enabled: !!orgId,
+  })
+}
+
+/** Mutation hook for updating organization theme settings. */
+export function useUpdateOrgThemeSettings(orgId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (settings: OrganizationThemeSettingsUpdate) =>
+      themeSettingsApi.updateOrgSettings(orgId!, settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.themeSettings.org(orgId!) })
+      queryClient.invalidateQueries({ queryKey: ["themeSettings", "effective"] })
+    },
+  })
+}
+
+/** Hook to fetch team theme settings. */
+export function useTeamThemeSettings(orgId: string | undefined, teamId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.themeSettings.team(orgId ?? "", teamId ?? ""),
+    queryFn: () => themeSettingsApi.getTeamSettings(orgId!, teamId!),
+    enabled: !!orgId && !!teamId,
+  })
+}
+
+/** Mutation hook for updating team theme settings. */
+export function useUpdateTeamThemeSettings(
+  orgId: string | undefined,
+  teamId: string | undefined
+) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (settings: TeamThemeSettingsUpdate) =>
+      themeSettingsApi.updateTeamSettings(orgId!, teamId!, settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.themeSettings.team(orgId!, teamId!),
+      })
+      queryClient.invalidateQueries({ queryKey: ["themeSettings", "effective"] })
+    },
+  })
+}
+
+/** Hook to fetch user theme settings. */
+export function useUserThemeSettings() {
+  return useQuery({
+    queryKey: queryKeys.themeSettings.user,
+    queryFn: () => themeSettingsApi.getUserSettings(),
+  })
+}
+
+/** Mutation hook for updating user theme settings. */
+export function useUpdateUserThemeSettings() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (settings: UserThemeSettingsUpdate) =>
+      themeSettingsApi.updateUserSettings(settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.themeSettings.user })
+      queryClient.invalidateQueries({ queryKey: ["themeSettings", "effective"] })
+    },
+  })
+}
+
+/** Hook to fetch effective (computed) theme settings. */
+export function useEffectiveThemeSettings(
+  orgId: string | undefined,
+  teamId: string | undefined,
+  systemPrefersDark?: boolean
+) {
+  return useQuery({
+    queryKey: queryKeys.themeSettings.effective(orgId, teamId, systemPrefersDark),
+    queryFn: () => themeSettingsApi.getEffectiveSettings(orgId, teamId, systemPrefersDark),
+    enabled: !!orgId,
+  })
+}
+
+/** Hook to fetch all predefined theme color palettes. */
+export function usePredefinedThemes() {
+  return useQuery({
+    queryKey: queryKeys.themeSettings.predefined,
+    queryFn: () => themeSettingsApi.getPredefinedThemes(),
+    staleTime: Infinity, // Predefined themes never change
+  })
+}
+
+// ============================================================================
+// RAG Settings Hooks
+// ============================================================================
+
+/** Hook to fetch organization RAG settings. */
+export function useOrgRAGSettings(orgId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.ragSettings.org(orgId ?? ""),
+    queryFn: () => ragSettingsApi.getOrgSettings(orgId!),
+    enabled: !!orgId,
+  })
+}
+
+/** Mutation hook for updating organization RAG settings. */
+export function useUpdateOrgRAGSettings(orgId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (settings: OrganizationRAGSettingsUpdate) =>
+      ragSettingsApi.updateOrgSettings(orgId!, settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.ragSettings.org(orgId!) })
+      queryClient.invalidateQueries({ queryKey: ["ragSettings", "effective"] })
+    },
+  })
+}
+
+/** Hook to fetch team RAG settings. */
+export function useTeamRAGSettings(orgId: string | undefined, teamId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.ragSettings.team(orgId ?? "", teamId ?? ""),
+    queryFn: () => ragSettingsApi.getTeamSettings(orgId!, teamId!),
+    enabled: !!orgId && !!teamId,
+  })
+}
+
+/** Mutation hook for updating team RAG settings. */
+export function useUpdateTeamRAGSettings(
+  orgId: string | undefined,
+  teamId: string | undefined
+) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (settings: TeamRAGSettingsUpdate) =>
+      ragSettingsApi.updateTeamSettings(orgId!, teamId!, settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.ragSettings.team(orgId!, teamId!),
+      })
+      queryClient.invalidateQueries({ queryKey: ["ragSettings", "effective"] })
+    },
+  })
+}
+
+/** Hook to fetch user RAG settings. */
+export function useUserRAGSettings() {
+  return useQuery({
+    queryKey: queryKeys.ragSettings.user,
+    queryFn: () => ragSettingsApi.getUserSettings(),
+  })
+}
+
+/** Mutation hook for updating user RAG settings. */
+export function useUpdateUserRAGSettings() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (settings: UserRAGSettingsUpdate) =>
+      ragSettingsApi.updateUserSettings(settings),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.ragSettings.user })
+      queryClient.invalidateQueries({ queryKey: ["ragSettings", "effective"] })
+    },
+  })
+}
+
+/** Hook to fetch effective (computed) RAG settings. */
+export function useEffectiveRAGSettings(
+  orgId: string | undefined,
+  teamId: string | undefined
+) {
+  return useQuery({
+    queryKey: queryKeys.ragSettings.effective(orgId, teamId),
+    queryFn: () => ragSettingsApi.getEffectiveSettings(orgId, teamId),
+    enabled: !!orgId,
+    staleTime: 1000 * 60, // 1 minute
+  })
+}
+
+// ============================================================================
+// Documents Hooks
+// ============================================================================
+
+/** Hook to fetch paginated documents list with optional filters. */
+export function useDocuments(params: ListDocumentsParams) {
+  return useQuery({
+    queryKey: queryKeys.documents.list(
+      params.organization_id,
+      params.team_id,
+      params.status
+    ),
+    queryFn: () => documentsApi.list(params),
+    enabled: !!params.organization_id,
+  })
+}
+
+/** Hook to fetch a single document by ID. */
+export function useDocument(documentId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.documents.detail(documentId ?? ""),
+    queryFn: () => documentsApi.get(documentId!),
+    enabled: !!documentId,
+  })
+}
+
+/** Mutation hook for uploading a document. */
+export function useUploadDocument() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (params: UploadDocumentParams) => documentsApi.upload(params),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.documents.list(
+          variables.organization_id,
+          variables.team_id
+        ),
+      })
+    },
+  })
+}
+
+/** Mutation hook for deleting a document. */
+export function useDeleteDocument() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (documentId: string) => documentsApi.delete(documentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.documents.all })
+    },
+  })
+}
+
+/** Mutation hook for reprocessing a failed document. */
+export function useReprocessDocument() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (documentId: string) => documentsApi.reprocess(documentId),
+    onSuccess: (_, documentId) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.documents.detail(documentId),
+      })
     },
   })
 }

@@ -69,6 +69,14 @@ System prompts: Hierarchical concatenation (org → team → user) prepended to 
 
 LLM key resolution: team-level → org-level → environment variable (via Infisical)
 
+**Conversation Search**: Full-text search across conversation titles and message content
+- Uses PostgreSQL pg_trgm extension with GIN indexes for fast trigram similarity search
+- Separate `conversation_message` index table (avoids querying LangGraph checkpointer)
+- Messages auto-indexed on send (user + assistant messages)
+- Search endpoint: `GET /v1/conversations?team_id={id}&search={query}`
+- Backfill script for existing conversations: `backend/scripts/backfill_message_index.py`
+- Dedicated search UI at `/search` route with real-time debounced search
+
 ## MCP (Model Context Protocol)
 
 External tool integration via MCP servers. Supports HTTP, SSE, and Streamable HTTP transports.
@@ -127,17 +135,17 @@ OpenSearch indices: `audit-logs-YYYY.MM.DD` (90-day retention), `app-logs-YYYY.M
 ├── docker-compose-local.yml # Infrastructure only (for local dev)
 ├── backend/
 │   ├── src/backend/
-│   │   ├── agents/         # LangGraph agent, tools, tracing
-│   │   ├── mcp/            # MCP server registry, client, tool loading
+│   │   ├── agents/         # LangGraph agent, tools, tracing, context, factory
+│   │   ├── mcp/            # MCP server registry, client, tool loading, types
 │   │   ├── api/routes/     # REST endpoints (/v1 prefix)
 │   │   ├── auth/           # User model, JWT, dependencies
 │   │   ├── rbac/           # Permissions, role mappings
 │   │   ├── organizations/  # Org + OrganizationMember
 │   │   ├── teams/          # Team + TeamMember
-│   │   ├── conversations/  # Multi-tenant chat history
+│   │   ├── conversations/  # Multi-tenant chat history + message index
 │   │   ├── audit/          # OpenSearch logging
-│   │   └── core/           # Config, DB, security, secrets
-│   ├── scripts/            # Setup scripts (setup-infisical.py, setup-langfuse.py, etc.)
+│   │   └── core/           # Config, DB, security, secrets, cache, HTTP, tasks, UoW, exceptions
+│   ├── scripts/            # Setup scripts (setup-infisical.py, backfill_message_index.py, etc.)
 │   ├── opensearch/         # Default dashboards config
 │   └── alembic/            # Database migrations
 └── frontend/               # React 19 + TanStack + Tailwind v4

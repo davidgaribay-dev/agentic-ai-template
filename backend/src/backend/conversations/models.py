@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
@@ -86,6 +86,41 @@ class ConversationPublic(ConversationBase, TimestampResponseMixin):
 
 # ConversationsPublic is now PaginatedResponse[ConversationPublic]
 ConversationsPublic = PaginatedResponse[ConversationPublic]
+
+
+class ConversationMessage(SQLModel, table=True):
+    """Indexed message content for fast search.
+
+    Separate from LangGraph checkpointer for performance.
+    Automatically populated when messages are sent/received.
+    Follows industry best practice of separating UI search concerns
+    from checkpoint state management.
+    """
+
+    __tablename__ = "conversation_message"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    conversation_id: uuid.UUID = Field(
+        foreign_key="conversation.id",
+        ondelete="CASCADE",
+        index=True,
+    )
+    role: str = Field(..., description="'user' or 'assistant'")
+    content: str = Field(..., description="Message text content")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    # RAG sources (JSON array of source objects for citation display)
+    sources_json: str | None = Field(
+        default=None,
+        description="JSON array of RAG sources for this message",
+    )
+
+    # Multi-tenant denormalization for fast filtering
+    organization_id: uuid.UUID | None = Field(default=None, index=True)
+    team_id: uuid.UUID | None = Field(default=None, index=True)
+    created_by_id: uuid.UUID | None = Field(
+        default=None, index=True
+    )  # User who owns the conversation
 
 
 # Forward reference resolution

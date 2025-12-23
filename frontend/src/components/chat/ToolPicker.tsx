@@ -21,7 +21,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   useEffectiveMCPTools,
@@ -213,7 +212,7 @@ export function ToolPicker({
           variant="ghost"
           size="icon"
           disabled={disabled}
-          className="h-8 w-8 rounded-full"
+          className="h-8 w-8 rounded-md hover:bg-muted transition-colors"
           aria-label="Configure tools"
         >
           <Wrench className="h-4 w-4" />
@@ -252,7 +251,7 @@ export function ToolPicker({
           </div>
 
           {/* Content */}
-          <ScrollArea className="max-h-[400px]">
+          <div className="max-h-[400px] overflow-y-auto">
             {mcpDisabled ? (
               <div className="py-8 text-center">
                 <ServerOff className="mx-auto h-8 w-8 text-muted-foreground/50" />
@@ -320,7 +319,7 @@ export function ToolPicker({
                 ))}
               </div>
             )}
-          </ScrollArea>
+          </div>
         </div>
       </PopoverContent>
     </Popover>
@@ -411,6 +410,13 @@ function ServerRow({
         >
           MCP Server: {server.server_name}
         </span>
+
+        {/* Tool count */}
+        {hasTools && isServerEnabled && (
+          <span className="text-xs text-muted-foreground shrink-0">
+            {enabledToolCount}/{server.tools.length} tools
+          </span>
+        )}
 
         {/* Error indicator */}
         {hasError && (

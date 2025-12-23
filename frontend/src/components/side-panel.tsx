@@ -18,6 +18,7 @@ import {
   MAX_SIDE_PANEL_WIDTH,
 } from "@/lib/ui-store"
 import { useWorkspace } from "@/lib/workspace"
+import { useChatSelection } from "@/lib/chat-store"
 
 type PanelMode = "chat" | "custom"
 
@@ -99,6 +100,7 @@ export function SidePanelProvider({ children }: { children: React.ReactNode }) {
 export function SidePanel() {
   const { isOpen, title, mode, toggle, content, setWidth } = useSidePanel()
   const { currentOrg, currentTeam } = useWorkspace()
+  const { selectedConversationId } = useChatSelection()
   const isResizing = useRef(false)
   const panelRef = useRef<HTMLDivElement>(null)
   const chatRef = useRef<ChatHandle>(null)
@@ -156,6 +158,13 @@ export function SidePanel() {
       setCurrentConversationId(chatRef.current.conversationId)
     }
   }, [mode])
+
+  // Watch for global conversation selection changes (from search page, etc.)
+  useEffect(() => {
+    if (selectedConversationId && mode === "chat" && isOpen && selectedConversationId !== currentConversationId) {
+      handleSelectConversation(selectedConversationId)
+    }
+  }, [selectedConversationId, mode, isOpen, currentConversationId])
 
   const handleSelectConversation = useCallback(async (conversationId: string) => {
     try {

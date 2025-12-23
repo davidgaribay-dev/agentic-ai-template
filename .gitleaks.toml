@@ -1,0 +1,52 @@
+# Gitleaks configuration for detecting secrets in code
+# See https://github.com/gitleaks/gitleaks for more information
+
+title = "Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlisted files and patterns"
+paths = [
+  # Example files and documentation
+  '''.env.example''',
+  '''backend/.env.example''',
+  '''frontend/.env.example''',
+
+  # Test files with dummy secrets
+  '''tests/''',
+  '''**/*_test.py''',
+  '''**/test_*.py''',
+
+  # Configuration templates
+  '''**/docker-compose*.yml''',
+
+  # Lock files and dependencies
+  '''uv.lock''',
+  '''package-lock.json''',
+  '''pnpm-lock.yaml''',
+]
+
+regexes = [
+  # Common test/example patterns
+  '''test-secret-key''',
+  '''changethis''',
+  '''example\.com''',
+  '''localhost''',
+  '''127\.0\.0\.1''',
+
+  # Placeholder values
+  '''your-.*-here''',
+  '''<YOUR_.*>''',
+  '''TODO:.*''',
+]
+
+# Stop words to reduce false positives
+stopwords = [
+  "example",
+  "test",
+  "demo",
+  "sample",
+  "changethis",
+]
