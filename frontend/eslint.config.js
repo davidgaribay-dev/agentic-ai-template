@@ -6,7 +6,14 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'src/routeTree.gen.ts']),
+  globalIgnores([
+    'dist',
+    'node_modules',
+    'src/routeTree.gen.ts',
+    '*.tsbuildinfo',
+    '.vite',
+    'coverage',
+  ]),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -24,6 +31,14 @@ export default defineConfig([
       'react-refresh/only-export-components': [
         'warn',
         { allowExportNames: ['badgeVariants', 'buttonVariants'] },
+      ],
+      // Allow setState in useEffect for syncing state with props/external data
+      // This is a common and legitimate pattern
+      'react-hooks/set-state-in-effect': 'off',
+      // Allow unused variables prefixed with _
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
     },
   },

@@ -1,30 +1,38 @@
-import * as React from "react"
-import { useState, useCallback } from "react"
-import { ChevronLeft, ChevronRight, ChevronDown, FileText, Search, Check, ExternalLink } from "lucide-react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { useState, useCallback } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  FileText,
+  Search,
+  Check,
+  ExternalLink,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
+} from "@/components/ui/popover";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { Button } from "@/components/ui/button"
-import { DocumentViewer } from "@/components/documents/document-viewer"
-import type { MessageSource } from "@/lib/chat-store"
+} from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
+import { DocumentViewer } from "@/components/documents/document-viewer";
+import type { MessageSource } from "@/lib/chat-store";
 
 /** Regex to match inline citation markers like [[filename.md]] */
-const CITATION_REGEX = /\[\[([^\]]+)\]\]/g
+const CITATION_REGEX = /\[\[([^\]]+)\]\]/g;
 
 /** Result of parsing content for inline citations */
 export interface ParsedCitation {
   /** The citation marker text (e.g., "filename.md") */
-  marker: string
+  marker: string;
   /** Matching sources from the message's sources array */
-  sources: MessageSource[]
+  sources: MessageSource[];
 }
 
 /**
@@ -32,26 +40,28 @@ export interface ParsedCitation {
  */
 export function parseCitations(
   content: string,
-  sources: MessageSource[]
+  sources: MessageSource[],
 ): { cleanContent: string; citations: Map<string, ParsedCitation> } {
-  const citations = new Map<string, ParsedCitation>()
+  const citations = new Map<string, ParsedCitation>();
 
   // Find all citation markers
-  const matches = content.matchAll(CITATION_REGEX)
+  const matches = content.matchAll(CITATION_REGEX);
   for (const match of matches) {
-    const marker = match[1]
+    const marker = match[1];
     if (!citations.has(marker)) {
       // Find matching sources (by filename)
       const matchingSources = sources.filter((s) => {
-        const filename = s.source.split("/").pop() || s.source
-        return filename === marker || filename.toLowerCase() === marker.toLowerCase()
-      })
-      citations.set(marker, { marker, sources: matchingSources })
+        const filename = s.source.split("/").pop() || s.source;
+        return (
+          filename === marker || filename.toLowerCase() === marker.toLowerCase()
+        );
+      });
+      citations.set(marker, { marker, sources: matchingSources });
     }
   }
 
   // Clean content is returned as-is - we'll replace markers during rendering
-  return { cleanContent: content, citations }
+  return { cleanContent: content, citations };
 }
 
 /**
@@ -59,29 +69,29 @@ export function parseCitations(
  */
 export function hasInlineCitations(content: string): boolean {
   // Create a new regex instance to avoid global state issues
-  const regex = new RegExp(CITATION_REGEX.source)
-  return regex.test(content)
+  const regex = new RegExp(CITATION_REGEX.source);
+  return regex.test(content);
 }
 
 /**
  * Split content into segments: text and citations
  */
 export interface ContentSegment {
-  type: "text" | "citation"
-  content: string
-  sources?: MessageSource[]
+  type: "text" | "citation";
+  content: string;
+  sources?: MessageSource[];
 }
 
 export function splitContentWithCitations(
   content: string,
-  sources: MessageSource[]
+  sources: MessageSource[],
 ): ContentSegment[] {
-  const segments: ContentSegment[] = []
-  let lastIndex = 0
+  const segments: ContentSegment[] = [];
+  let lastIndex = 0;
 
   // Reset regex state
-  const regex = new RegExp(CITATION_REGEX.source, "g")
-  let match
+  const regex = new RegExp(CITATION_REGEX.source, "g");
+  let match;
 
   while ((match = regex.exec(content)) !== null) {
     // Add text before the citation
@@ -89,23 +99,25 @@ export function splitContentWithCitations(
       segments.push({
         type: "text",
         content: content.slice(lastIndex, match.index),
-      })
+      });
     }
 
     // Find matching sources for this citation
-    const marker = match[1]
+    const marker = match[1];
     const matchingSources = sources.filter((s) => {
-      const filename = s.source.split("/").pop() || s.source
-      return filename === marker || filename.toLowerCase() === marker.toLowerCase()
-    })
+      const filename = s.source.split("/").pop() || s.source;
+      return (
+        filename === marker || filename.toLowerCase() === marker.toLowerCase()
+      );
+    });
 
     segments.push({
       type: "citation",
       content: marker,
       sources: matchingSources.length > 0 ? matchingSources : undefined,
-    })
+    });
 
-    lastIndex = match.index + match[0].length
+    lastIndex = match.index + match[0].length;
   }
 
   // Add remaining text
@@ -113,27 +125,30 @@ export function splitContentWithCitations(
     segments.push({
       type: "text",
       content: content.slice(lastIndex),
-    })
+    });
   }
 
-  return segments
+  return segments;
 }
 
 /**
  * Remove citation markers from content for clean display
  */
 export function stripCitationMarkers(content: string): string {
-  return content.replace(CITATION_REGEX, "").replace(/\s{2,}/g, " ").trim()
+  return content
+    .replace(CITATION_REGEX, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 interface CitationBadgeProps {
   /** Primary source to display */
-  source: MessageSource
+  source: MessageSource;
   /** Additional sources grouped with this citation */
-  additionalSources?: MessageSource[]
+  additionalSources?: MessageSource[];
   /** Display style */
-  variant?: "inline" | "standalone"
-  className?: string
+  variant?: "inline" | "standalone";
+  className?: string;
 }
 
 /**
@@ -142,25 +157,29 @@ interface CitationBadgeProps {
 function getFaviconUrl(source: string): string | null {
   try {
     if (source.includes("://")) {
-      const url = new URL(source)
-      return `https://www.google.com/s2/favicons?domain=${url.hostname}&sz=32`
+      const url = new URL(source);
+      return `https://www.google.com/s2/favicons?domain=${url.hostname}&sz=32`;
     }
-    if (source.includes(".") && !source.includes(" ") && !source.includes("/")) {
-      return `https://www.google.com/s2/favicons?domain=${source}&sz=32`
+    if (
+      source.includes(".") &&
+      !source.includes(" ") &&
+      !source.includes("/")
+    ) {
+      return `https://www.google.com/s2/favicons?domain=${source}&sz=32`;
     }
   } catch {
     // Not a valid URL
   }
-  return null
+  return null;
 }
 
 /**
  * Get display name from source path/filename
  */
 function getDisplayName(source: string): string {
-  const parts = source.split("/")
-  const filename = parts[parts.length - 1] || source
-  return filename.replace(/\.[^/.]+$/, "")
+  const parts = source.split("/");
+  const filename = parts[parts.length - 1] || source;
+  return filename.replace(/\.[^/.]+$/, "");
 }
 
 /**
@@ -169,15 +188,15 @@ function getDisplayName(source: string): string {
 function getDomain(source: string): string {
   try {
     if (source.includes("://")) {
-      const url = new URL(source)
-      return url.hostname.replace("www.", "")
+      const url = new URL(source);
+      return url.hostname.replace("www.", "");
     }
   } catch {
     // Not a valid URL
   }
   // Return file extension or type
-  const ext = source.split(".").pop()
-  return ext || "document"
+  const ext = source.split(".").pop();
+  return ext || "document";
 }
 
 /**
@@ -187,22 +206,22 @@ function getBadgeLabel(source: string): string {
   // For URLs, return domain
   try {
     if (source.includes("://")) {
-      const url = new URL(source)
-      return url.hostname.replace("www.", "")
+      const url = new URL(source);
+      return url.hostname.replace("www.", "");
     }
   } catch {
     // Not a valid URL
   }
   // For files, return filename without extension
-  return getDisplayName(source)
+  return getDisplayName(source);
 }
 
 interface InlineCitationBadgeProps {
   /** Citation marker text (e.g., "filename.md") */
-  marker: string
+  marker: string;
   /** Matching sources for this citation */
-  sources?: MessageSource[]
-  className?: string
+  sources?: MessageSource[];
+  className?: string;
 }
 
 /**
@@ -214,36 +233,39 @@ export function InlineCitationBadge({
   sources,
   className,
 }: InlineCitationBadgeProps) {
-  const [viewerOpen, setViewerOpen] = useState(false)
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   // Get display label (filename without extension)
-  const displayLabel = marker.replace(/\.[^/.]+$/, "")
+  const displayLabel = marker.replace(/\.[^/.]+$/, "");
 
   // Compute values that are safe even when sources is empty
-  const hasSources = sources && sources.length > 0
-  const totalSources = hasSources ? sources.length : 0
-  const primarySource = hasSources ? sources[0] : null
-  const additionalSources = hasSources ? sources.slice(1) : []
-  const currentSource = hasSources ? sources[currentIndex] : null
-  const faviconUrl = primarySource ? getFaviconUrl(primarySource.source) : null
+  const hasSources = sources && sources.length > 0;
+  const totalSources = hasSources ? sources.length : 0;
+  const currentSource = hasSources ? sources[currentIndex] : null;
 
-  const handlePrev = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : totalSources - 1))
-  }, [totalSources])
+  const handlePrev = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setCurrentIndex((prev) => (prev > 0 ? prev - 1 : totalSources - 1));
+    },
+    [totalSources],
+  );
 
-  const handleNext = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    setCurrentIndex((prev) => (prev < totalSources - 1 ? prev + 1 : 0))
-  }, [totalSources])
+  const handleNext = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setCurrentIndex((prev) => (prev < totalSources - 1 ? prev + 1 : 0));
+    },
+    [totalSources],
+  );
 
   const handleViewDocument = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    setViewerOpen(true)
-  }, [])
+    e.stopPropagation();
+    setViewerOpen(true);
+  }, []);
 
-  const isDocument = !!currentSource?.document_id
+  const isDocument = !!currentSource?.document_id;
 
   // If no sources match, show a simple badge without popover
   if (!hasSources) {
@@ -253,13 +275,13 @@ export function InlineCitationBadge({
           "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium",
           "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400",
           "whitespace-nowrap align-baseline",
-          className
+          className,
         )}
       >
         <FileText className="h-3 w-3 flex-shrink-0" />
         <span className="truncate">{displayLabel}</span>
       </span>
-    )
+    );
   }
 
   return (
@@ -271,13 +293,15 @@ export function InlineCitationBadge({
             "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400",
             "hover:bg-zinc-200 dark:hover:bg-zinc-700",
             "whitespace-nowrap align-baseline cursor-pointer",
-            className
+            className,
           )}
         >
           <FileText className="h-3 w-3 flex-shrink-0" />
           <span className="truncate">{displayLabel}</span>
           {totalSources > 1 && (
-            <span className="text-zinc-400 dark:text-zinc-500">+{totalSources - 1}</span>
+            <span className="text-zinc-400 dark:text-zinc-500">
+              +{totalSources - 1}
+            </span>
           )}
         </button>
       </PopoverTrigger>
@@ -325,7 +349,7 @@ export function InlineCitationBadge({
                     alt=""
                     className="h-4 w-4 rounded"
                     onError={(e) => {
-                      e.currentTarget.style.display = "none"
+                      e.currentTarget.style.display = "none";
                     }}
                   />
                 ) : (
@@ -373,7 +397,7 @@ export function InlineCitationBadge({
         />
       )}
     </Popover>
-  )
+  );
 }
 
 /**
@@ -385,33 +409,42 @@ export function CitationBadge({
   variant = "inline",
   className,
 }: CitationBadgeProps) {
-  const allSources = [source, ...additionalSources]
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [viewerOpen, setViewerOpen] = useState(false)
-  const currentSource = allSources[currentIndex]
-  const totalSources = allSources.length
+  const allSources = [source, ...additionalSources];
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const currentSource = allSources[currentIndex];
+  const totalSources = allSources.length;
 
-  const handlePrev = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : totalSources - 1))
-  }, [totalSources])
+  const handlePrev = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setCurrentIndex((prev) => (prev > 0 ? prev - 1 : totalSources - 1));
+    },
+    [totalSources],
+  );
 
-  const handleNext = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    setCurrentIndex((prev) => (prev < totalSources - 1 ? prev + 1 : 0))
-  }, [totalSources])
+  const handleNext = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setCurrentIndex((prev) => (prev < totalSources - 1 ? prev + 1 : 0));
+    },
+    [totalSources],
+  );
 
-  const handleViewDocument = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    setViewerOpen(true)
-  }, [])
+  const handleViewDocument = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setViewerOpen(true);
+    },
+    [setViewerOpen],
+  );
 
-  const faviconUrl = getFaviconUrl(source.source)
-  const additionalCount = additionalSources.length
-  const badgeLabel = getBadgeLabel(source.source)
+  const faviconUrl = getFaviconUrl(source.source);
+  const additionalCount = additionalSources.length;
+  const badgeLabel = getBadgeLabel(source.source);
 
   // Check if current source is a document (has document_id)
-  const isDocument = !!currentSource.document_id
+  const isDocument = !!currentSource.document_id;
 
   return (
     <Popover>
@@ -421,7 +454,7 @@ export function CitationBadge({
             "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium transition-colors",
             "bg-muted/80 text-muted-foreground hover:bg-muted hover:text-foreground",
             variant === "inline" && "mx-0.5 align-baseline",
-            className
+            className,
           )}
         >
           {faviconUrl && (
@@ -430,7 +463,7 @@ export function CitationBadge({
               alt=""
               className="h-3 w-3 rounded-sm"
               onError={(e) => {
-                e.currentTarget.style.display = "none"
+                e.currentTarget.style.display = "none";
               }}
             />
           )}
@@ -474,7 +507,7 @@ export function CitationBadge({
               <div className="flex items-center gap-2">
                 <div className="flex -space-x-1.5">
                   {allSources.slice(0, 4).map((s, i) => {
-                    const favicon = getFaviconUrl(s.source)
+                    const favicon = getFaviconUrl(s.source);
                     return favicon ? (
                       <img
                         key={i}
@@ -482,10 +515,10 @@ export function CitationBadge({
                         alt=""
                         className={cn(
                           "h-5 w-5 rounded-full border-2 border-popover",
-                          i === currentIndex && "ring-2 ring-primary"
+                          i === currentIndex && "ring-2 ring-primary",
                         )}
                         onError={(e) => {
-                          e.currentTarget.style.display = "none"
+                          e.currentTarget.style.display = "none";
                         }}
                       />
                     ) : (
@@ -493,12 +526,12 @@ export function CitationBadge({
                         key={i}
                         className={cn(
                           "h-5 w-5 rounded-full border-2 border-popover bg-muted flex items-center justify-center",
-                          i === currentIndex && "ring-2 ring-primary"
+                          i === currentIndex && "ring-2 ring-primary",
                         )}
                       >
                         <FileText className="h-2.5 w-2.5 text-muted-foreground" />
                       </div>
-                    )
+                    );
                   })}
                 </div>
                 <span className="text-sm text-muted-foreground">
@@ -518,7 +551,7 @@ export function CitationBadge({
                   alt=""
                   className="h-5 w-5 rounded"
                   onError={(e) => {
-                    e.currentTarget.style.display = "none"
+                    e.currentTarget.style.display = "none";
                   }}
                 />
               ) : (
@@ -568,12 +601,12 @@ export function CitationBadge({
         />
       )}
     </Popover>
-  )
+  );
 }
 
 interface SourcesHeaderProps {
-  sources: MessageSource[]
-  className?: string
+  sources: MessageSource[];
+  className?: string;
 }
 
 /**
@@ -581,43 +614,52 @@ interface SourcesHeaderProps {
  * Similar to the "Reviewed X sources" UI in the reference
  */
 export function SourcesHeader({ sources, className }: SourcesHeaderProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [viewerDocId, setViewerDocId] = useState<string | null>(null)
-  const [viewerFilename, setViewerFilename] = useState<string>("")
-  const [viewerFileType, setViewerFileType] = useState<string>("")
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [viewerDocId, setViewerDocId] = useState<string | null>(null);
+  const [viewerFilename, setViewerFilename] = useState<string>("");
+  const [viewerFileType, setViewerFileType] = useState<string>("");
 
-  if (sources.length === 0) return null
+  if (sources.length === 0) return null;
 
   // Group sources by filename/domain for cleaner display
-  const groupedSources = sources.reduce((acc, source) => {
-    const key = getDisplayName(source.source)
-    if (!acc[key]) {
-      acc[key] = []
-    }
-    acc[key].push(source)
-    return acc
-  }, {} as Record<string, MessageSource[]>)
+  const groupedSources = sources.reduce(
+    (acc, source) => {
+      const key = getDisplayName(source.source);
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(source);
+      return acc;
+    },
+    {} as Record<string, MessageSource[]>,
+  );
 
-  const uniqueSources = Object.values(groupedSources).map(group => group[0])
-  const uniqueCount = uniqueSources.length
+  const uniqueSources = Object.values(groupedSources).map((group) => group[0]);
+  const uniqueCount = uniqueSources.length;
 
   const handleSourceClick = (source: MessageSource) => {
     if (source.document_id) {
-      setViewerDocId(source.document_id)
-      setViewerFilename(source.source)
-      setViewerFileType(source.file_type)
+      setViewerDocId(source.document_id);
+      setViewerFilename(source.source);
+      setViewerFileType(source.file_type);
     }
-  }
+  };
 
   return (
     <>
-      <Collapsible open={isExpanded} onOpenChange={setIsExpanded} className={className}>
+      <Collapsible
+        open={isExpanded}
+        onOpenChange={setIsExpanded}
+        className={className}
+      >
         <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group">
-          <span>Reviewed {uniqueCount} {uniqueCount === 1 ? "source" : "sources"}</span>
+          <span>
+            Reviewed {uniqueCount} {uniqueCount === 1 ? "source" : "sources"}
+          </span>
           <ChevronDown
             className={cn(
               "h-4 w-4 transition-transform",
-              isExpanded && "rotate-180"
+              isExpanded && "rotate-180",
             )}
           />
         </CollapsibleTrigger>
@@ -639,10 +681,10 @@ export function SourcesHeader({ sources, className }: SourcesHeaderProps) {
             {/* Source list */}
             <div className="divide-y max-h-64 overflow-y-auto">
               {uniqueSources.map((source, index) => {
-                const faviconUrl = getFaviconUrl(source.source)
-                const domain = getDomain(source.source)
-                const title = getDisplayName(source.source)
-                const isClickable = !!source.document_id
+                const faviconUrl = getFaviconUrl(source.source);
+                const domain = getDomain(source.source);
+                const title = getDisplayName(source.source);
+                const isClickable = !!source.document_id;
 
                 return (
                   <button
@@ -654,7 +696,7 @@ export function SourcesHeader({ sources, className }: SourcesHeaderProps) {
                       "flex items-center gap-3 px-3 py-2.5 w-full text-left transition-colors",
                       isClickable
                         ? "hover:bg-muted/50 cursor-pointer"
-                        : "cursor-default"
+                        : "cursor-default",
                     )}
                   >
                     {faviconUrl ? (
@@ -663,7 +705,7 @@ export function SourcesHeader({ sources, className }: SourcesHeaderProps) {
                         alt=""
                         className="h-5 w-5 rounded flex-shrink-0"
                         onError={(e) => {
-                          e.currentTarget.style.display = "none"
+                          e.currentTarget.style.display = "none";
                         }}
                       />
                     ) : (
@@ -683,7 +725,7 @@ export function SourcesHeader({ sources, className }: SourcesHeaderProps) {
                       <ExternalLink className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                     )}
                   </button>
-                )
+                );
               })}
             </div>
 
@@ -705,9 +747,9 @@ export function SourcesHeader({ sources, className }: SourcesHeaderProps) {
         fileType={viewerFileType}
         open={!!viewerDocId}
         onOpenChange={(open) => {
-          if (!open) setViewerDocId(null)
+          if (!open) setViewerDocId(null);
         }}
       />
     </>
-  )
+  );
 }

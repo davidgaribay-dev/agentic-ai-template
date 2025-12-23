@@ -1,7 +1,12 @@
-import { useState, useMemo } from "react"
-import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router"
-import { z } from "zod"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useState, useMemo } from "react";
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useNavigate,
+} from "@tanstack/react-router";
+import { z } from "zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
   Users,
@@ -26,13 +31,13 @@ import {
   Plug,
   Palette,
   FileSearch,
-} from "lucide-react"
-import { useAuth } from "@/lib/auth"
+} from "lucide-react";
+import { useAuth } from "@/lib/auth";
 import {
   useWorkspace,
   useOrganizationMembers,
   workspaceKeys,
-} from "@/lib/workspace"
+} from "@/lib/workspace";
 import {
   teamsApi,
   promptsApi,
@@ -45,10 +50,10 @@ import {
   type OrganizationChatSettings,
   type LLMProvider,
   ApiError,
-} from "@/lib/api"
-import { useOrgChatSettings, useUpdateOrgChatSettings } from "@/lib/queries"
-import { ChatSettings } from "@/components/chat-settings"
-import { MemorySettings } from "@/components/settings/memory-settings"
+} from "@/lib/api";
+import { useOrgChatSettings, useUpdateOrgChatSettings } from "@/lib/queries";
+import { ChatSettings } from "@/components/chat-settings";
+import { MemorySettings } from "@/components/settings/memory-settings";
 import {
   PromptRow,
   CreatePromptDialog,
@@ -58,20 +63,20 @@ import {
   OrgDetailsSection,
   MCPSettings,
   MCPServersList,
-} from "@/components/settings"
-import { OrgThemeSettings } from "@/components/settings/org-theme-settings"
-import { OrgRAGSettings } from "@/components/settings/org-rag-settings"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/components/settings";
+import { OrgThemeSettings } from "@/components/settings/org-theme-settings";
+import { OrgRAGSettings } from "@/components/settings/org-rag-settings";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -80,7 +85,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -91,57 +96,65 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
+} from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { isValidImageUrl, getInitials } from "@/lib/utils"
-import type { ColumnDef } from "@tanstack/react-table"
-import { DataTable } from "@/components/ui/data-table"
+} from "@/components/ui/collapsible";
+import { isValidImageUrl, getInitials } from "@/lib/utils";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/ui/data-table";
 
 const orgSettingsSearchSchema = z.object({
-  tab: z.enum(["general", "people", "ai", "preferences", "theme", "rag"]).optional(),
-})
+  tab: z
+    .enum(["general", "people", "ai", "preferences", "theme", "rag"])
+    .optional(),
+});
 
 export const Route = createFileRoute("/org/settings")({
   beforeLoad: ({ context }) => {
     if (!context.auth.isAuthenticated && !context.auth.isLoading) {
-      throw redirect({ to: "/login" })
+      throw redirect({ to: "/login" });
     }
   },
   component: OrgSettingsPage,
   validateSearch: orgSettingsSearchSchema,
-})
+});
 
-type OrgSettingsTab = z.infer<typeof orgSettingsSearchSchema>["tab"]
+type OrgSettingsTab = z.infer<typeof orgSettingsSearchSchema>["tab"];
 
 function OrgSettingsPage() {
-  const navigate = useNavigate()
-  const { tab: tabFromUrl } = Route.useSearch()
-  const { currentOrg, currentOrgRole, teams, refresh, isLoadingTeams } = useWorkspace()
-  const { data: membersData, isLoading: isLoadingMembers } = useOrganizationMembers(currentOrg?.id)
-  const members = membersData?.data ?? []
+  const navigate = useNavigate();
+  const { tab: tabFromUrl } = Route.useSearch();
+  const { currentOrg, currentOrgRole, teams, refresh, isLoadingTeams } =
+    useWorkspace();
+  const { data: membersData, isLoading: isLoadingMembers } =
+    useOrganizationMembers(currentOrg?.id);
+  const members = membersData?.data ?? [];
 
-  const currentTab = tabFromUrl || "general"
+  const currentTab = tabFromUrl || "general";
 
   const handleTabChange = (value: string) => {
-    navigate({ to: "/org/settings", search: { tab: value as OrgSettingsTab }, replace: true })
-  }
+    navigate({
+      to: "/org/settings",
+      search: { tab: value as OrgSettingsTab },
+      replace: true,
+    });
+  };
 
-  const isOwner = currentOrgRole === "owner"
-  const isAdmin = currentOrgRole === "owner" || currentOrgRole === "admin"
+  const isOwner = currentOrgRole === "owner";
+  const isAdmin = currentOrgRole === "owner" || currentOrgRole === "admin";
 
   const tabs = [
     { value: "general", label: "General", icon: Building2 },
@@ -150,7 +163,7 @@ function OrgSettingsPage() {
     { value: "preferences", label: "Preferences", icon: Settings2 },
     { value: "theme", label: "Theme", icon: Palette },
     { value: "rag", label: "Document Search", icon: FileSearch },
-  ]
+  ];
 
   if (!currentOrg || currentOrgRole === null) {
     return (
@@ -174,7 +187,7 @@ function OrgSettingsPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (!isAdmin) {
@@ -195,14 +208,19 @@ function OrgSettingsPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="bg-background min-h-screen">
       <div className="mx-auto max-w-5xl px-6 py-8">
         <h1 className="text-lg font-semibold mb-6">Organization Settings</h1>
-        <Tabs value={currentTab} onValueChange={handleTabChange} orientation="vertical" className="flex gap-6">
+        <Tabs
+          value={currentTab}
+          onValueChange={handleTabChange}
+          orientation="vertical"
+          className="flex gap-6"
+        >
           <div className="w-48 flex-shrink-0">
             <div className="sticky top-6">
               <TabsList className="flex flex-col items-stretch h-auto bg-transparent p-0 space-y-0.5">
@@ -265,41 +283,59 @@ function OrgSettingsPage() {
         </Tabs>
       </div>
     </div>
-  )
+  );
 }
 
 type OrgMember = {
-  id: string
-  user_id: string
-  role: OrgRole
-  user_email: string
-  user_full_name: string | null
-  user_profile_image_url: string | null
-}
+  id: string;
+  user_id: string;
+  role: OrgRole;
+  user_email: string;
+  user_full_name: string | null;
+  user_profile_image_url: string | null;
+};
 
-type Team = { id: string; name: string; description: string | null; logo_url: string | null }
+type Team = {
+  id: string;
+  name: string;
+  description: string | null;
+  logo_url: string | null;
+};
 
 interface PeopleSectionProps {
-  orgId: string
-  members: OrgMember[]
-  teams: Team[]
-  isLoadingMembers: boolean
-  isLoadingTeams: boolean
-  isAdmin: boolean
-  isOwner: boolean
-  onUpdate: () => void
+  orgId: string;
+  members: OrgMember[];
+  teams: Team[];
+  isLoadingMembers: boolean;
+  isLoadingTeams: boolean;
+  isAdmin: boolean;
+  isOwner: boolean;
+  onUpdate: () => void;
 }
 
-function PeopleSection({ orgId, members, teams, isLoadingMembers, isLoadingTeams, isAdmin, isOwner, onUpdate }: PeopleSectionProps) {
-  const [membersOpen, setMembersOpen] = useState(true)
-  const [teamsOpen, setTeamsOpen] = useState(true)
+function PeopleSection({
+  orgId,
+  members,
+  teams,
+  isLoadingMembers,
+  isLoadingTeams,
+  isAdmin,
+  isOwner,
+  onUpdate,
+}: PeopleSectionProps) {
+  const [membersOpen, setMembersOpen] = useState(true);
+  const [teamsOpen, setTeamsOpen] = useState(true);
 
   return (
     <div className="space-y-4">
       <Collapsible open={membersOpen} onOpenChange={setMembersOpen}>
         <div className="flex items-center justify-between py-2">
           <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:text-foreground/80">
-            {membersOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+            {membersOpen ? (
+              <ChevronDown className="size-4" />
+            ) : (
+              <ChevronRight className="size-4" />
+            )}
             <Users className="size-4" />
             Members
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
@@ -325,7 +361,11 @@ function PeopleSection({ orgId, members, teams, isLoadingMembers, isLoadingTeams
       <Collapsible open={teamsOpen} onOpenChange={setTeamsOpen}>
         <div className="flex items-center justify-between py-2">
           <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:text-foreground/80">
-            {teamsOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+            {teamsOpen ? (
+              <ChevronDown className="size-4" />
+            ) : (
+              <ChevronRight className="size-4" />
+            )}
             <Users className="size-4" />
             Teams
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
@@ -345,53 +385,63 @@ function PeopleSection({ orgId, members, teams, isLoadingMembers, isLoadingTeams
         </CollapsibleContent>
       </Collapsible>
     </div>
-  )
+  );
 }
 
-function InviteMemberDialog({ orgId, isOwner }: { orgId: string; isOwner: boolean }) {
-  const [open, setOpen] = useState(false)
-  const [email, setEmail] = useState("")
-  const [role, setRole] = useState<OrgRole>("member")
-  const [inviteLink, setInviteLink] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+function InviteMemberDialog({
+  orgId,
+  isOwner,
+}: {
+  orgId: string;
+  isOwner: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<OrgRole>("member");
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const inviteMutation = useMutation({
-    mutationFn: (data: InvitationCreate) => invitationsApi.createInvitation(orgId, data),
+    mutationFn: (data: InvitationCreate) =>
+      invitationsApi.createInvitation(orgId, data),
     onSuccess: (data) => {
-      const baseUrl = window.location.origin
-      setInviteLink(`${baseUrl}/invite?token=${data.token}`)
-      setError(null)
+      const baseUrl = window.location.origin;
+      setInviteLink(`${baseUrl}/invite?token=${data.token}`);
+      setError(null);
     },
     onError: (err: ApiError) => {
-      const detail = (err.body as { detail?: string })?.detail
-      setError(detail || "Failed to send invitation")
+      const detail = (err.body as { detail?: string })?.detail;
+      setError(detail || "Failed to send invitation");
     },
-  })
+  });
 
   const handleInvite = () => {
-    setInviteLink(null)
-    inviteMutation.mutate({ email, org_role: role })
-  }
+    setInviteLink(null);
+    inviteMutation.mutate({ email, org_role: role });
+  };
 
   const handleCopyLink = () => {
     if (inviteLink) {
-      navigator.clipboard.writeText(inviteLink)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      navigator.clipboard.writeText(inviteLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
-  }
+  };
 
   const resetDialog = () => {
-    setEmail("")
-    setRole("member")
-    setInviteLink(null)
-    setError(null)
-    setOpen(false)
-  }
+    setEmail("");
+    setRole("member");
+    setInviteLink(null);
+    setError(null);
+    setOpen(false);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => o ? setOpen(true) : resetDialog()}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => (o ? setOpen(true) : resetDialog())}
+    >
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="h-7 text-xs">
           <Plus className="size-3 mr-1" />
@@ -412,8 +462,17 @@ function InviteMemberDialog({ orgId, isOwner }: { orgId: string; isOwner: boolea
             </p>
             <div className="flex gap-2">
               <Input value={inviteLink} readOnly className="h-8 text-xs" />
-              <Button variant="outline" size="icon" className="size-8" onClick={handleCopyLink}>
-                {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8"
+                onClick={handleCopyLink}
+              >
+                {copied ? (
+                  <Check className="size-3.5" />
+                ) : (
+                  <Copy className="size-3.5" />
+                )}
               </Button>
             </div>
             <Button size="sm" className="w-full" onClick={resetDialog}>
@@ -424,7 +483,9 @@ function InviteMemberDialog({ orgId, isOwner }: { orgId: string; isOwner: boolea
           <>
             <div className="space-y-3 py-3">
               <div className="space-y-1.5">
-                <Label htmlFor="invite-email" className="text-xs">Email</Label>
+                <Label htmlFor="invite-email" className="text-xs">
+                  Email
+                </Label>
                 <Input
                   id="invite-email"
                   type="email"
@@ -436,7 +497,10 @@ function InviteMemberDialog({ orgId, isOwner }: { orgId: string; isOwner: boolea
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Role</Label>
-                <Select value={role} onValueChange={(v) => setRole(v as OrgRole)}>
+                <Select
+                  value={role}
+                  onValueChange={(v) => setRole(v as OrgRole)}
+                >
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue />
                   </SelectTrigger>
@@ -453,8 +517,14 @@ function InviteMemberDialog({ orgId, isOwner }: { orgId: string; isOwner: boolea
               <Button variant="ghost" size="sm" onClick={resetDialog}>
                 Cancel
               </Button>
-              <Button size="sm" onClick={handleInvite} disabled={!email || inviteMutation.isPending}>
-                {inviteMutation.isPending && <Loader2 className="mr-1.5 size-3 animate-spin" />}
+              <Button
+                size="sm"
+                onClick={handleInvite}
+                disabled={!email || inviteMutation.isPending}
+              >
+                {inviteMutation.isPending && (
+                  <Loader2 className="mr-1.5 size-3 animate-spin" />
+                )}
                 Send Invitation
               </Button>
             </DialogFooter>
@@ -462,62 +532,83 @@ function InviteMemberDialog({ orgId, isOwner }: { orgId: string; isOwner: boolea
         )}
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
-function MembersTable({ orgId, members, isLoading, isAdmin, isOwner, onUpdate }: {
-  orgId: string
-  members: OrgMember[]
-  isLoading: boolean
-  isAdmin: boolean
-  isOwner: boolean
-  onUpdate: () => void
+function MembersTable({
+  orgId,
+  members,
+  isLoading,
+  isAdmin,
+  isOwner,
+  onUpdate,
+}: {
+  orgId: string;
+  members: OrgMember[];
+  isLoading: boolean;
+  isAdmin: boolean;
+  isOwner: boolean;
+  onUpdate: () => void;
 }) {
-  const { user } = useAuth()
-  const queryClient = useQueryClient()
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const updateRoleMutation = useMutation({
     mutationFn: ({ memberId, role }: { memberId: string; role: OrgRole }) =>
       organizationsApi.updateMemberRole(orgId, memberId, role),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.membership(orgId) })
-      onUpdate()
+      queryClient.invalidateQueries({
+        queryKey: workspaceKeys.membership(orgId),
+      });
+      onUpdate();
     },
-  })
+  });
 
   const removeMemberMutation = useMutation({
-    mutationFn: (memberId: string) => organizationsApi.removeMember(orgId, memberId),
+    mutationFn: (memberId: string) =>
+      organizationsApi.removeMember(orgId, memberId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.membership(orgId) })
-      onUpdate()
+      queryClient.invalidateQueries({
+        queryKey: workspaceKeys.membership(orgId),
+      });
+      onUpdate();
     },
-  })
+  });
 
   const getRoleBadge = (role: OrgRole) => {
     switch (role) {
       case "owner":
         return (
-          <Badge variant="secondary" className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-0 text-xs h-5">
+          <Badge
+            variant="secondary"
+            className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-0 text-xs h-5"
+          >
             <Crown className="mr-1 size-2.5" />
             Owner
           </Badge>
-        )
+        );
       case "admin":
         return (
-          <Badge variant="secondary" className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-0 text-xs h-5">
+          <Badge
+            variant="secondary"
+            className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-0 text-xs h-5"
+          >
             <Shield className="mr-1 size-2.5" />
             Admin
           </Badge>
-        )
+        );
       default:
         return (
-          <Badge variant="outline" className="text-muted-foreground text-xs h-5">
+          <Badge
+            variant="outline"
+            className="text-muted-foreground text-xs h-5"
+          >
             <User className="mr-1 size-2.5" />
             Member
           </Badge>
-        )
+        );
     }
-  }
+  };
 
   const columns: ColumnDef<OrgMember>[] = useMemo(
     () => [
@@ -525,8 +616,8 @@ function MembersTable({ orgId, members, isLoading, isAdmin, isOwner, onUpdate }:
         accessorKey: "user_full_name",
         header: "Member",
         cell: ({ row }) => {
-          const member = row.original
-          const isCurrentUser = member.user_id === user?.id
+          const member = row.original;
+          const isCurrentUser = member.user_id === user?.id;
           return (
             <div className="flex items-center gap-2.5">
               {isValidImageUrl(member.user_profile_image_url) ? (
@@ -545,14 +636,18 @@ function MembersTable({ orgId, members, isLoading, isAdmin, isOwner, onUpdate }:
               <div className="min-w-0">
                 <div className="text-sm font-medium truncate flex items-center gap-1">
                   {member.user_full_name || member.user_email}
-                  {isCurrentUser && <span className="text-xs text-muted-foreground">(you)</span>}
+                  {isCurrentUser && (
+                    <span className="text-xs text-muted-foreground">(you)</span>
+                  )}
                 </div>
                 {member.user_full_name && (
-                  <div className="text-xs text-muted-foreground truncate">{member.user_email}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {member.user_email}
+                  </div>
                 )}
               </div>
             </div>
-          )
+          );
         },
       },
       {
@@ -564,11 +659,12 @@ function MembersTable({ orgId, members, isLoading, isAdmin, isOwner, onUpdate }:
         id: "actions",
         header: () => <div className="text-right">Actions</div>,
         cell: ({ row }) => {
-          const member = row.original
-          const isCurrentUser = member.user_id === user?.id
-          const canManage = isAdmin && !isCurrentUser && member.role !== "owner"
+          const member = row.original;
+          const isCurrentUser = member.user_id === user?.id;
+          const canManage =
+            isAdmin && !isCurrentUser && member.role !== "owner";
 
-          if (!canManage) return null
+          if (!canManage) return null;
 
           return (
             <div className="flex justify-end">
@@ -580,14 +676,24 @@ function MembersTable({ orgId, members, isLoading, isAdmin, isOwner, onUpdate }:
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
                   <DropdownMenuItem
-                    onClick={() => updateRoleMutation.mutate({ memberId: member.id, role: "member" })}
+                    onClick={() =>
+                      updateRoleMutation.mutate({
+                        memberId: member.id,
+                        role: "member",
+                      })
+                    }
                     disabled={member.role === "member"}
                   >
                     <User className="mr-2 size-3.5" />
                     Member
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => updateRoleMutation.mutate({ memberId: member.id, role: "admin" })}
+                    onClick={() =>
+                      updateRoleMutation.mutate({
+                        memberId: member.id,
+                        role: "admin",
+                      })
+                    }
                     disabled={member.role === "admin"}
                   >
                     <Shield className="mr-2 size-3.5" />
@@ -595,7 +701,12 @@ function MembersTable({ orgId, members, isLoading, isAdmin, isOwner, onUpdate }:
                   </DropdownMenuItem>
                   {isOwner && (
                     <DropdownMenuItem
-                      onClick={() => updateRoleMutation.mutate({ memberId: member.id, role: "owner" })}
+                      onClick={() =>
+                        updateRoleMutation.mutate({
+                          memberId: member.id,
+                          role: "owner",
+                        })
+                      }
                       disabled={member.role === "owner"}
                     >
                       <Crown className="mr-2 size-3.5" />
@@ -617,7 +728,8 @@ function MembersTable({ orgId, members, isLoading, isAdmin, isOwner, onUpdate }:
                       <AlertDialogHeader>
                         <AlertDialogTitle>Remove Member</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Remove {member.user_full_name || member.user_email} from this organization?
+                          Remove {member.user_full_name || member.user_email}{" "}
+                          from this organization?
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -634,19 +746,19 @@ function MembersTable({ orgId, members, isLoading, isAdmin, isOwner, onUpdate }:
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          )
+          );
         },
       },
     ],
-    [user?.id, isAdmin, isOwner, updateRoleMutation, removeMemberMutation]
-  )
+    [user?.id, isAdmin, isOwner, updateRoleMutation, removeMemberMutation],
+  );
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="size-5 animate-spin text-muted-foreground" />
       </div>
-    )
+    );
   }
 
   if (members.length === 0) {
@@ -654,45 +766,61 @@ function MembersTable({ orgId, members, isLoading, isAdmin, isOwner, onUpdate }:
       <p className="text-sm text-muted-foreground py-4 text-center">
         No members yet
       </p>
-    )
+    );
   }
 
-  return <DataTable columns={columns} data={members} searchKey="user_full_name" searchPlaceholder="Search members..." />
+  return (
+    <DataTable
+      columns={columns}
+      data={members}
+      searchKey="user_full_name"
+      searchPlaceholder="Search members..."
+    />
+  );
 }
 
-function CreateTeamDialog({ orgId, onUpdate }: { orgId: string; onUpdate: () => void }) {
-  const [open, setOpen] = useState(false)
-  const [name, setName] = useState("")
-  const [description, setDescription] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const queryClient = useQueryClient()
+function CreateTeamDialog({
+  orgId,
+  onUpdate,
+}: {
+  orgId: string;
+  onUpdate: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const createMutation = useMutation({
     mutationFn: (data: TeamCreate) => teamsApi.createTeam(orgId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.teams(orgId) })
-      onUpdate()
-      resetDialog()
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.teams(orgId) });
+      onUpdate();
+      resetDialog();
     },
     onError: (err: ApiError) => {
-      const detail = (err.body as { detail?: string })?.detail
-      setError(detail || "Failed to create team")
+      const detail = (err.body as { detail?: string })?.detail;
+      setError(detail || "Failed to create team");
     },
-  })
+  });
 
   const resetDialog = () => {
-    setName("")
-    setDescription("")
-    setError(null)
-    setOpen(false)
-  }
+    setName("");
+    setDescription("");
+    setError(null);
+    setOpen(false);
+  };
 
   const handleCreate = () => {
-    createMutation.mutate({ name, description: description || null })
-  }
+    createMutation.mutate({ name, description: description || null });
+  };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => o ? setOpen(true) : resetDialog()}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => (o ? setOpen(true) : resetDialog())}
+    >
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="h-7 text-xs">
           <Plus className="size-3 mr-1" />
@@ -708,7 +836,9 @@ function CreateTeamDialog({ orgId, onUpdate }: { orgId: string; onUpdate: () => 
         </DialogHeader>
         <div className="space-y-3 py-3">
           <div className="space-y-1.5">
-            <Label htmlFor="team-name" className="text-xs">Name</Label>
+            <Label htmlFor="team-name" className="text-xs">
+              Name
+            </Label>
             <Input
               id="team-name"
               value={name}
@@ -718,7 +848,9 @@ function CreateTeamDialog({ orgId, onUpdate }: { orgId: string; onUpdate: () => 
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="team-description" className="text-xs">Description</Label>
+            <Label htmlFor="team-description" className="text-xs">
+              Description
+            </Label>
             <Textarea
               id="team-description"
               value={description}
@@ -734,32 +866,44 @@ function CreateTeamDialog({ orgId, onUpdate }: { orgId: string; onUpdate: () => 
           <Button variant="ghost" size="sm" onClick={resetDialog}>
             Cancel
           </Button>
-          <Button size="sm" onClick={handleCreate} disabled={!name || createMutation.isPending}>
-            {createMutation.isPending && <Loader2 className="mr-1.5 size-3 animate-spin" />}
+          <Button
+            size="sm"
+            onClick={handleCreate}
+            disabled={!name || createMutation.isPending}
+          >
+            {createMutation.isPending && (
+              <Loader2 className="mr-1.5 size-3 animate-spin" />
+            )}
             Create
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
-function TeamsTable({ orgId, teams, isLoading, isAdmin, onUpdate }: {
-  orgId: string
-  teams: Team[]
-  isLoading: boolean
-  isAdmin: boolean
-  onUpdate: () => void
+function TeamsTable({
+  orgId,
+  teams,
+  isLoading,
+  isAdmin,
+  onUpdate,
+}: {
+  orgId: string;
+  teams: Team[];
+  isLoading: boolean;
+  isAdmin: boolean;
+  onUpdate: () => void;
 }) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
     mutationFn: (teamId: string) => teamsApi.deleteTeam(orgId, teamId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.teams(orgId) })
-      onUpdate()
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.teams(orgId) });
+      onUpdate();
     },
-  })
+  });
 
   const columns: ColumnDef<Team>[] = useMemo(
     () => [
@@ -767,11 +911,15 @@ function TeamsTable({ orgId, teams, isLoading, isAdmin, onUpdate }: {
         accessorKey: "name",
         header: "Team",
         cell: ({ row }) => {
-          const team = row.original
+          const team = row.original;
           return (
             <div className="flex items-center gap-2.5">
               {isValidImageUrl(team.logo_url) ? (
-                <img src={team.logo_url} alt={team.name} className="size-7 rounded-md object-cover" />
+                <img
+                  src={team.logo_url}
+                  alt={team.name}
+                  className="size-7 rounded-md object-cover"
+                />
               ) : (
                 <div className="flex size-7 items-center justify-center rounded-md bg-muted">
                   <Users className="size-3.5 text-muted-foreground" />
@@ -779,31 +927,38 @@ function TeamsTable({ orgId, teams, isLoading, isAdmin, onUpdate }: {
               )}
               <span className="text-sm font-medium">{team.name}</span>
             </div>
-          )
+          );
         },
       },
       {
         accessorKey: "description",
         header: "Description",
         cell: ({ row }) => {
-          const description = row.getValue("description") as string | null
+          const description = row.getValue("description") as string | null;
           return description ? (
-            <span className="text-xs text-muted-foreground line-clamp-1">{description}</span>
+            <span className="text-xs text-muted-foreground line-clamp-1">
+              {description}
+            </span>
           ) : (
-            <span className="text-xs text-muted-foreground/50 italic">No description</span>
-          )
+            <span className="text-xs text-muted-foreground/50 italic">
+              No description
+            </span>
+          );
         },
       },
       {
         id: "actions",
         header: () => <div className="text-right">Actions</div>,
         cell: ({ row }) => {
-          const team = row.original
+          const team = row.original;
           return (
             <div className="flex justify-end gap-1">
               {isAdmin && (
                 <Button variant="ghost" size="icon" className="size-7" asChild>
-                  <Link to="/org/team/$teamId/settings" params={{ teamId: team.id }}>
+                  <Link
+                    to="/org/team/$teamId/settings"
+                    params={{ teamId: team.id }}
+                  >
                     <Settings2 className="size-3.5" />
                   </Link>
                 </Button>
@@ -811,7 +966,11 @@ function TeamsTable({ orgId, teams, isLoading, isAdmin, onUpdate }: {
               {isAdmin && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-destructive">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 text-muted-foreground hover:text-destructive"
+                    >
                       <Trash2 className="size-3.5" />
                     </Button>
                   </AlertDialogTrigger>
@@ -835,19 +994,19 @@ function TeamsTable({ orgId, teams, isLoading, isAdmin, onUpdate }: {
                 </AlertDialog>
               )}
             </div>
-          )
+          );
         },
       },
     ],
-    [isAdmin, deleteMutation]
-  )
+    [isAdmin, deleteMutation],
+  );
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="size-5 animate-spin text-muted-foreground" />
       </div>
-    )
+    );
   }
 
   if (teams.length === 0) {
@@ -855,21 +1014,32 @@ function TeamsTable({ orgId, teams, isLoading, isAdmin, onUpdate }: {
       <p className="text-sm text-muted-foreground py-4 text-center">
         No teams yet
       </p>
-    )
+    );
   }
 
-  return <DataTable columns={columns} data={teams} searchKey="name" searchPlaceholder="Search teams..." />
+  return (
+    <DataTable
+      columns={columns}
+      data={teams}
+      searchKey="name"
+      searchPlaceholder="Search teams..."
+    />
+  );
 }
 
 function AIConfigurationSection({ orgId }: { orgId: string }) {
-  const [promptsOpen, setPromptsOpen] = useState(true)
-  const [apiKeysOpen, setApiKeysOpen] = useState(true)
+  const [promptsOpen, setPromptsOpen] = useState(true);
+  const [apiKeysOpen, setApiKeysOpen] = useState(true);
 
   return (
     <div className="space-y-4">
       <Collapsible open={promptsOpen} onOpenChange={setPromptsOpen}>
         <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:text-foreground/80 py-2">
-          {promptsOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+          {promptsOpen ? (
+            <ChevronDown className="size-4" />
+          ) : (
+            <ChevronRight className="size-4" />
+          )}
           <Sparkles className="size-4" />
           Prompts & Templates
         </CollapsibleTrigger>
@@ -882,7 +1052,11 @@ function AIConfigurationSection({ orgId }: { orgId: string }) {
 
       <Collapsible open={apiKeysOpen} onOpenChange={setApiKeysOpen}>
         <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:text-foreground/80 py-2">
-          {apiKeysOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+          {apiKeysOpen ? (
+            <ChevronDown className="size-4" />
+          ) : (
+            <ChevronRight className="size-4" />
+          )}
           <Key className="size-4" />
           API Keys
         </CollapsibleTrigger>
@@ -891,30 +1065,34 @@ function AIConfigurationSection({ orgId }: { orgId: string }) {
         </CollapsibleContent>
       </Collapsible>
     </div>
-  )
+  );
 }
 
 function PromptsSection({ orgId }: { orgId: string }) {
   const { data: promptsData, isLoading } = useQuery({
     queryKey: ["org-prompts", orgId],
     queryFn: () => promptsApi.listOrgPrompts(orgId),
-  })
+  });
 
-  const prompts = promptsData?.data ?? []
-  const systemPrompts = prompts.filter((p) => p.prompt_type === "system")
-  const templatePrompts = prompts.filter((p) => p.prompt_type === "template")
+  const prompts = promptsData?.data ?? [];
+  const systemPrompts = prompts.filter((p) => p.prompt_type === "system");
+  const templatePrompts = prompts.filter((p) => p.prompt_type === "template");
 
-  const [systemOpen, setSystemOpen] = useState(true)
-  const [templatesOpen, setTemplatesOpen] = useState(true)
+  const [systemOpen, setSystemOpen] = useState(true);
+  const [templatesOpen, setTemplatesOpen] = useState(true);
 
-  const scope = { type: "org" as const, orgId }
+  const scope = { type: "org" as const, orgId };
 
   return (
     <div className="pl-6 space-y-3">
       <Collapsible open={systemOpen} onOpenChange={setSystemOpen}>
         <div className="flex items-center justify-between py-1">
           <CollapsibleTrigger className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground">
-            {systemOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+            {systemOpen ? (
+              <ChevronDown className="size-3" />
+            ) : (
+              <ChevronRight className="size-3" />
+            )}
             System Prompts
             <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
               {systemPrompts.length}
@@ -928,10 +1106,17 @@ function PromptsSection({ orgId }: { orgId: string }) {
               <Loader2 className="size-4 animate-spin text-muted-foreground" />
             </div>
           ) : systemPrompts.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-2 text-center">No system prompts</p>
+            <p className="text-xs text-muted-foreground py-2 text-center">
+              No system prompts
+            </p>
           ) : (
             systemPrompts.map((prompt) => (
-              <PromptRow key={prompt.id} prompt={prompt} scope={scope} compact />
+              <PromptRow
+                key={prompt.id}
+                prompt={prompt}
+                scope={scope}
+                compact
+              />
             ))
           )}
         </CollapsibleContent>
@@ -940,7 +1125,11 @@ function PromptsSection({ orgId }: { orgId: string }) {
       <Collapsible open={templatesOpen} onOpenChange={setTemplatesOpen}>
         <div className="flex items-center justify-between py-1">
           <CollapsibleTrigger className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground">
-            {templatesOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+            {templatesOpen ? (
+              <ChevronDown className="size-3" />
+            ) : (
+              <ChevronRight className="size-3" />
+            )}
             Templates
             <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
               {templatePrompts.length}
@@ -954,35 +1143,46 @@ function PromptsSection({ orgId }: { orgId: string }) {
               <Loader2 className="size-4 animate-spin text-muted-foreground" />
             </div>
           ) : templatePrompts.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-2 text-center">No templates</p>
+            <p className="text-xs text-muted-foreground py-2 text-center">
+              No templates
+            </p>
           ) : (
             templatePrompts.map((prompt) => (
-              <PromptRow key={prompt.id} prompt={prompt} scope={scope} compact />
+              <PromptRow
+                key={prompt.id}
+                prompt={prompt}
+                scope={scope}
+                compact
+              />
             ))
           )}
         </CollapsibleContent>
       </Collapsible>
     </div>
-  )
+  );
 }
 
 function ApiKeysSection({ orgId }: { orgId: string }) {
   const { data: apiKeyStatuses, isLoading } = useQuery({
     queryKey: ["org-api-keys", orgId],
     queryFn: () => apiKeysApi.listOrgKeys(orgId),
-  })
+  });
   const { data: defaultProvider, isLoading: isLoadingDefault } = useQuery({
     queryKey: ["org-default-provider", orgId],
     queryFn: () => apiKeysApi.getOrgDefaultProvider(orgId),
-  })
+  });
 
-  const scope = { type: "org" as const, orgId }
+  const scope = { type: "org" as const, orgId };
 
   return (
     <div className="pl-6 space-y-4">
       <div className="flex items-center gap-3">
         <Label className="text-xs text-muted-foreground">Default:</Label>
-        <DefaultProviderSelector scope={scope} currentProvider={defaultProvider?.provider} isLoading={isLoadingDefault} />
+        <DefaultProviderSelector
+          scope={scope}
+          currentProvider={defaultProvider?.provider}
+          isLoading={isLoadingDefault}
+        />
       </div>
 
       {isLoading ? (
@@ -991,19 +1191,30 @@ function ApiKeysSection({ orgId }: { orgId: string }) {
         </div>
       ) : (
         <div className="space-y-2">
-          {(["openai", "anthropic", "google"] as LLMProvider[]).map((provider) => {
-            const status = apiKeyStatuses?.find((s) => s.provider === provider)
-            return <ProviderRow key={provider} provider={provider} status={status} scope={scope} />
-          })}
+          {(["openai", "anthropic", "google"] as LLMProvider[]).map(
+            (provider) => {
+              const status = apiKeyStatuses?.find(
+                (s) => s.provider === provider,
+              );
+              return (
+                <ProviderRow
+                  key={provider}
+                  provider={provider}
+                  status={status}
+                  scope={scope}
+                />
+              );
+            },
+          )}
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function ChatFeaturesSection({ orgId }: { orgId: string }) {
-  const { data: settings, isLoading } = useOrgChatSettings(orgId)
-  const updateMutation = useUpdateOrgChatSettings(orgId)
+  const { data: settings, isLoading } = useOrgChatSettings(orgId);
+  const updateMutation = useUpdateOrgChatSettings(orgId);
 
   return (
     <div className="space-y-6">
@@ -1013,9 +1224,22 @@ function ChatFeaturesSection({ orgId }: { orgId: string }) {
           <span className="text-sm font-medium">Chat Features</span>
         </div>
         <ChatSettings
-          settings={settings ?? { chat_enabled: true, chat_panel_enabled: true, memory_enabled: true, mcp_enabled: true }}
-          onChatEnabledChange={(enabled) => updateMutation.mutate({ chat_enabled: enabled })}
-          onChatPanelEnabledChange={(enabled) => updateMutation.mutate({ chat_panel_enabled: enabled })}
+          settings={
+            settings ?? {
+              chat_enabled: true,
+              chat_panel_enabled: true,
+              memory_enabled: true,
+              mcp_enabled: true,
+              disabled_mcp_servers: [],
+              disabled_tools: [],
+            }
+          }
+          onChatEnabledChange={(enabled) =>
+            updateMutation.mutate({ chat_enabled: enabled })
+          }
+          onChatPanelEnabledChange={(enabled) =>
+            updateMutation.mutate({ chat_panel_enabled: enabled })
+          }
           isLoading={isLoading || updateMutation.isPending}
           level="org"
         />
@@ -1027,21 +1251,29 @@ function ChatFeaturesSection({ orgId }: { orgId: string }) {
           <span className="text-sm font-medium">Memory</span>
         </div>
         <p className="text-xs text-muted-foreground mb-2">
-          When disabled, memory will be turned off for all teams and users in this organization.
+          When disabled, memory will be turned off for all teams and users in
+          this organization.
         </p>
         <MemorySettings
           memoryEnabled={settings?.memory_enabled ?? true}
-          onMemoryEnabledChange={(enabled) => updateMutation.mutate({ memory_enabled: enabled })}
+          onMemoryEnabledChange={(enabled) =>
+            updateMutation.mutate({ memory_enabled: enabled })
+          }
           isLoading={isLoading || updateMutation.isPending}
           level="org"
         />
       </div>
 
       <div className="border-t pt-4">
-        <MCPSection orgId={orgId} settings={settings} updateMutation={updateMutation} isLoading={isLoading} />
+        <MCPSection
+          orgId={orgId}
+          settings={settings}
+          updateMutation={updateMutation}
+          isLoading={isLoading}
+        />
       </div>
     </div>
-  )
+  );
 }
 
 function MCPSection({
@@ -1050,10 +1282,10 @@ function MCPSection({
   updateMutation,
   isLoading,
 }: {
-  orgId: string
-  settings: OrganizationChatSettings | undefined
-  updateMutation: ReturnType<typeof useUpdateOrgChatSettings>
-  isLoading: boolean
+  orgId: string;
+  settings: OrganizationChatSettings | undefined;
+  updateMutation: ReturnType<typeof useUpdateOrgChatSettings>;
+  isLoading: boolean;
 }) {
   return (
     <div className="space-y-4">
@@ -1062,14 +1294,19 @@ function MCPSection({
         <span className="text-sm font-medium">MCP Integration</span>
       </div>
       <p className="text-xs text-muted-foreground">
-        Configure Model Context Protocol (MCP) servers to extend AI capabilities with external tools.
+        Configure Model Context Protocol (MCP) servers to extend AI capabilities
+        with external tools.
       </p>
 
       <MCPSettings
         mcpEnabled={settings?.mcp_enabled ?? true}
         mcpAllowCustomServers={settings?.mcp_allow_custom_servers ?? true}
-        onMCPEnabledChange={(enabled) => updateMutation.mutate({ mcp_enabled: enabled })}
-        onMCPAllowCustomServersChange={(allowed) => updateMutation.mutate({ mcp_allow_custom_servers: allowed })}
+        onMCPEnabledChange={(enabled) =>
+          updateMutation.mutate({ mcp_enabled: enabled })
+        }
+        onMCPAllowCustomServersChange={(allowed) =>
+          updateMutation.mutate({ mcp_allow_custom_servers: allowed })
+        }
         isLoading={isLoading || updateMutation.isPending}
         level="org"
       />
@@ -1078,5 +1315,5 @@ function MCPSection({
         <MCPServersList scope={{ type: "org", orgId }} />
       </div>
     </div>
-  )
+  );
 }

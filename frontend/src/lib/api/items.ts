@@ -4,29 +4,29 @@
  * CRUD operations for items (demo/test resource).
  */
 
-import { apiClient, getAuthHeader } from "./client"
-import type { Message } from "./types"
+import { apiClient, getAuthHeader } from "./client";
+import type { Message } from "./types";
 
 export interface Item {
-  id: string
-  title: string
-  description: string | null
-  owner_id: string
+  id: string;
+  title: string;
+  description: string | null;
+  owner_id: string;
 }
 
 export interface ItemsPublic {
-  data: Item[]
-  count: number
+  data: Item[];
+  count: number;
 }
 
 export interface ItemCreate {
-  title: string
-  description?: string | null
+  title: string;
+  description?: string | null;
 }
 
 export interface ItemUpdate {
-  title?: string | null
-  description?: string | null
+  title?: string | null;
+  description?: string | null;
 }
 
 export const itemsApi = {
@@ -59,4 +59,4 @@ export const itemsApi = {
     apiClient.delete<Message>(`/v1/items/${itemId}`, {
       headers: getAuthHeader(),
     }),
-}
+};

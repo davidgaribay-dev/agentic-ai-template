@@ -31,10 +31,10 @@ export {
   apiClient,
   getAuthHeader,
   type ApiErrorBody,
-} from "./client"
+} from "./client";
 
 // Shared types
-export * from "./types"
+export * from "./types";
 
 // Auth module
 export {
@@ -45,7 +45,7 @@ export {
   type UpdatePassword,
   type NewPassword,
   type UserUpdateMe,
-} from "./auth"
+} from "./auth";
 
 // Items module
 export {
@@ -54,7 +54,7 @@ export {
   type ItemsPublic,
   type ItemCreate,
   type ItemUpdate,
-} from "./items"
+} from "./items";
 
 // Conversations module
 export {
@@ -63,7 +63,7 @@ export {
   type ConversationsPublic,
   type ConversationCreate,
   type ConversationUpdate,
-} from "./conversations"
+} from "./conversations";
 
 // Agent module
 export {
@@ -82,7 +82,7 @@ export {
   type ToolApprovalRequest,
   type ToolApprovalInfo,
   type MessageSource,
-} from "./agent"
+} from "./agent";
 
 // Organizations module
 export {
@@ -93,7 +93,7 @@ export {
   type OrganizationUpdate,
   type OrganizationMember,
   type OrganizationMembersPublic,
-} from "./organizations"
+} from "./organizations";
 
 // Teams module
 export {
@@ -104,7 +104,7 @@ export {
   type TeamUpdate,
   type TeamMember,
   type TeamMembersPublic,
-} from "./teams"
+} from "./teams";
 
 // Invitations module
 export {
@@ -114,7 +114,7 @@ export {
   type InvitationCreate,
   type InvitationInfo,
   type InvitationCreatedResponse,
-} from "./invitations"
+} from "./invitations";
 
 // API Keys module
 export {
@@ -125,7 +125,7 @@ export {
   type APIKeyDeleteResponse,
   type DefaultProviderResponse,
   type DefaultProviderUpdate,
-} from "./api-keys"
+} from "./api-keys";
 
 // Prompts module
 export {
@@ -137,7 +137,7 @@ export {
   type PromptUpdate,
   type PromptsAvailable,
   type ActiveSystemPrompt,
-} from "./prompts"
+} from "./prompts";
 
 // Chat Settings module
 export {
@@ -151,7 +151,7 @@ export {
   type TeamSettingsUpdate,
   type DisabledByLevel,
   type EffectiveChatSettings,
-} from "./chat-settings"
+} from "./chat-settings";
 
 // Memory module
 export {
@@ -161,7 +161,7 @@ export {
   type MemoriesListResponse,
   type DeleteMemoryResponse,
   type ClearMemoriesResponse,
-} from "./memory"
+} from "./memory";
 
 // MCP Servers module
 export {
@@ -177,7 +177,7 @@ export {
   type MCPServerWithTools,
   type MCPToolsList,
   type ToolConfigUpdate,
-} from "./mcp-servers"
+} from "./mcp-servers";
 
 // Theme Settings module
 export {
@@ -192,7 +192,7 @@ export {
   type TeamThemeSettingsUpdate,
   type UserThemeSettingsUpdate,
   type EffectiveThemeSettings,
-} from "./theme-settings"
+} from "./theme-settings";
 
 // RAG Settings module
 export {
@@ -205,7 +205,7 @@ export {
   type TeamRAGSettingsUpdate,
   type UserRAGSettingsUpdate,
   type EffectiveRAGSettings,
-} from "./rag-settings"
+} from "./rag-settings";
 
 // Documents module
 export {
@@ -219,4 +219,4 @@ export {
   type SearchResult,
   type DocumentScope,
   type ProcessingStatus,
-} from "./documents"
+} from "./documents";

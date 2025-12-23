@@ -1,106 +1,128 @@
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, AlertCircle, FileSearch, Info, Upload, ChevronDown, ChevronRight } from "lucide-react"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Loader2,
+  AlertCircle,
+  FileSearch,
+  Info,
+  Upload,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@/components/ui/tooltip";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { useTeamRAGSettings, useUpdateTeamRAGSettings, useDocuments } from "@/lib/queries"
-import { DocumentUpload } from "@/components/documents/document-upload"
-import { DocumentList } from "@/components/documents/document-list"
-import type { TeamRAGSettingsUpdate } from "@/lib/api"
+} from "@/components/ui/collapsible";
+import {
+  useTeamRAGSettings,
+  useUpdateTeamRAGSettings,
+  useDocuments,
+} from "@/lib/queries";
+import { DocumentUpload } from "@/components/documents/document-upload";
+import { DocumentList } from "@/components/documents/document-list";
+import type { TeamRAGSettingsUpdate } from "@/lib/api";
 
 interface TeamRAGSettingsProps {
-  orgId: string
-  teamId: string
+  orgId: string;
+  teamId: string;
 }
 
 export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
-  const { data: teamSettings, isLoading: isLoadingSettings } = useTeamRAGSettings(orgId, teamId)
-  const updateMutation = useUpdateTeamRAGSettings(orgId, teamId)
-  const { refetch: refetchDocuments } = useDocuments({ organization_id: orgId, team_id: teamId })
+  const { data: teamSettings, isLoading: isLoadingSettings } =
+    useTeamRAGSettings(orgId, teamId);
+  const updateMutation = useUpdateTeamRAGSettings(orgId, teamId);
+  const { refetch: refetchDocuments } = useDocuments({
+    organization_id: orgId,
+    team_id: teamId,
+  });
 
-  const [ragEnabled, setRagEnabled] = useState(true)
-  const [ragCustomizationEnabled, setRagCustomizationEnabled] = useState(true)
-  const [allowUserCustomization, setAllowUserCustomization] = useState(true)
-  const [chunkSize, setChunkSize] = useState(1000)
-  const [chunkOverlap, setChunkOverlap] = useState(200)
-  const [chunksPerQuery, setChunksPerQuery] = useState(4)
-  const [similarityThreshold, setSimilarityThreshold] = useState(0.7)
-  const [hasChanges, setHasChanges] = useState(false)
-  const [documentsOpen, setDocumentsOpen] = useState(true)
+  const [ragEnabled, setRagEnabled] = useState(true);
+  const [ragCustomizationEnabled, setRagCustomizationEnabled] = useState(true);
+  const [allowUserCustomization, setAllowUserCustomization] = useState(true);
+  const [chunkSize, setChunkSize] = useState(1000);
+  const [chunkOverlap, setChunkOverlap] = useState(200);
+  const [chunksPerQuery, setChunksPerQuery] = useState(4);
+  const [similarityThreshold, setSimilarityThreshold] = useState(0.7);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(true);
 
   useEffect(() => {
     if (teamSettings) {
-      setRagEnabled(teamSettings.rag_enabled)
-      setRagCustomizationEnabled(teamSettings.rag_customization_enabled)
-      setAllowUserCustomization(teamSettings.allow_user_customization)
-      setChunkSize(teamSettings.chunk_size)
-      setChunkOverlap(teamSettings.chunk_overlap)
-      setChunksPerQuery(teamSettings.chunks_per_query)
-      setSimilarityThreshold(teamSettings.similarity_threshold)
-      setHasChanges(false)
+      setRagEnabled(teamSettings.rag_enabled);
+      setRagCustomizationEnabled(teamSettings.rag_customization_enabled);
+      setAllowUserCustomization(teamSettings.allow_user_customization);
+      setChunkSize(teamSettings.chunk_size);
+      setChunkOverlap(teamSettings.chunk_overlap);
+      setChunksPerQuery(teamSettings.chunks_per_query);
+      setSimilarityThreshold(teamSettings.similarity_threshold);
+      setHasChanges(false);
     }
-  }, [teamSettings])
+  }, [teamSettings]);
 
   const handleSave = () => {
-    const updates: TeamRAGSettingsUpdate = {}
+    const updates: TeamRAGSettingsUpdate = {};
 
     if (ragEnabled !== teamSettings?.rag_enabled) {
-      updates.rag_enabled = ragEnabled
+      updates.rag_enabled = ragEnabled;
     }
     if (ragCustomizationEnabled !== teamSettings?.rag_customization_enabled) {
-      updates.rag_customization_enabled = ragCustomizationEnabled
+      updates.rag_customization_enabled = ragCustomizationEnabled;
     }
     if (allowUserCustomization !== teamSettings?.allow_user_customization) {
-      updates.allow_user_customization = allowUserCustomization
+      updates.allow_user_customization = allowUserCustomization;
     }
     if (chunkSize !== teamSettings?.chunk_size) {
-      updates.chunk_size = chunkSize
+      updates.chunk_size = chunkSize;
     }
     if (chunkOverlap !== teamSettings?.chunk_overlap) {
-      updates.chunk_overlap = chunkOverlap
+      updates.chunk_overlap = chunkOverlap;
     }
     if (chunksPerQuery !== teamSettings?.chunks_per_query) {
-      updates.chunks_per_query = chunksPerQuery
+      updates.chunks_per_query = chunksPerQuery;
     }
     if (similarityThreshold !== teamSettings?.similarity_threshold) {
-      updates.similarity_threshold = similarityThreshold
+      updates.similarity_threshold = similarityThreshold;
     }
 
     if (Object.keys(updates).length > 0) {
       updateMutation.mutate(updates, {
         onSuccess: () => {
-          setHasChanges(false)
+          setHasChanges(false);
         },
-      })
+      });
     }
-  }
+  };
 
   const handleReset = () => {
     if (teamSettings) {
-      setRagEnabled(teamSettings.rag_enabled)
-      setRagCustomizationEnabled(teamSettings.rag_customization_enabled)
-      setAllowUserCustomization(teamSettings.allow_user_customization)
-      setChunkSize(teamSettings.chunk_size)
-      setChunkOverlap(teamSettings.chunk_overlap)
-      setChunksPerQuery(teamSettings.chunks_per_query)
-      setSimilarityThreshold(teamSettings.similarity_threshold)
-      setHasChanges(false)
+      setRagEnabled(teamSettings.rag_enabled);
+      setRagCustomizationEnabled(teamSettings.rag_customization_enabled);
+      setAllowUserCustomization(teamSettings.allow_user_customization);
+      setChunkSize(teamSettings.chunk_size);
+      setChunkOverlap(teamSettings.chunk_overlap);
+      setChunksPerQuery(teamSettings.chunks_per_query);
+      setSimilarityThreshold(teamSettings.similarity_threshold);
+      setHasChanges(false);
     }
-  }
+  };
 
   useEffect(() => {
     if (teamSettings) {
@@ -111,8 +133,8 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
         chunkSize !== teamSettings.chunk_size ||
         chunkOverlap !== teamSettings.chunk_overlap ||
         chunksPerQuery !== teamSettings.chunks_per_query ||
-        similarityThreshold !== teamSettings.similarity_threshold
-      setHasChanges(changed)
+        similarityThreshold !== teamSettings.similarity_threshold;
+      setHasChanges(changed);
     }
   }, [
     ragEnabled,
@@ -123,14 +145,14 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
     chunksPerQuery,
     similarityThreshold,
     teamSettings,
-  ])
+  ]);
 
   if (isLoadingSettings) {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
-    )
+    );
   }
 
   if (!teamSettings) {
@@ -139,7 +161,7 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>Failed to load team RAG settings</AlertDescription>
       </Alert>
-    )
+    );
   }
 
   return (
@@ -159,7 +181,7 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
             <Switch
               checked={ragEnabled}
               onCheckedChange={(checked) => {
-                setRagEnabled(checked)
+                setRagEnabled(checked);
               }}
               aria-label="Enable RAG for team"
             />
@@ -173,7 +195,9 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="rag-customization-enabled">Allow RAG Customization</Label>
+                  <Label htmlFor="rag-customization-enabled">
+                    Allow RAG Customization
+                  </Label>
                   <p className="text-sm text-muted-foreground">
                     Allow team members to customize their RAG settings
                   </p>
@@ -188,7 +212,9 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="allow-user-customization">User Customization</Label>
+                  <Label htmlFor="allow-user-customization">
+                    User Customization
+                  </Label>
                   <p className="text-sm text-muted-foreground">
                     Allow users to customize their personal RAG preferences
                   </p>
@@ -211,13 +237,18 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Label htmlFor="chunk-size" className="flex items-center gap-1">
+                      <Label
+                        htmlFor="chunk-size"
+                        className="flex items-center gap-1"
+                      >
                         Chunk Size
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">Number of characters per chunk (100-4000)</p>
+                      <p className="max-w-xs">
+                        Number of characters per chunk (100-4000)
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -236,13 +267,18 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Label htmlFor="chunk-overlap" className="flex items-center gap-1">
+                      <Label
+                        htmlFor="chunk-overlap"
+                        className="flex items-center gap-1"
+                      >
                         Chunk Overlap
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">Characters overlapping between chunks (0-1000)</p>
+                      <p className="max-w-xs">
+                        Characters overlapping between chunks (0-1000)
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -267,13 +303,18 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Label htmlFor="chunks-per-query" className="flex items-center gap-1">
+                      <Label
+                        htmlFor="chunks-per-query"
+                        className="flex items-center gap-1"
+                      >
                         Results Per Query
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">Number of chunks to return per search (1-20)</p>
+                      <p className="max-w-xs">
+                        Number of chunks to return per search (1-20)
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -292,13 +333,18 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Label htmlFor="similarity-threshold" className="flex items-center gap-1">
+                      <Label
+                        htmlFor="similarity-threshold"
+                        className="flex items-center gap-1"
+                      >
                         Similarity Threshold
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">Minimum relevance score 0-1 (higher = more strict)</p>
+                      <p className="max-w-xs">
+                        Minimum relevance score 0-1 (higher = more strict)
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -309,7 +355,9 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                   max={1}
                   step={0.1}
                   value={similarityThreshold}
-                  onChange={(e) => setSimilarityThreshold(Number(e.target.value))}
+                  onChange={(e) =>
+                    setSimilarityThreshold(Number(e.target.value))
+                  }
                   disabled={!ragEnabled}
                 />
               </div>
@@ -325,8 +373,13 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
             >
               Reset
             </Button>
-            <Button onClick={handleSave} disabled={!hasChanges || updateMutation.isPending}>
-              {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button
+              onClick={handleSave}
+              disabled={!hasChanges || updateMutation.isPending}
+            >
+              {updateMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Save Changes
             </Button>
           </div>
@@ -344,7 +397,9 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
 
           {updateMutation.isSuccess && !hasChanges && (
             <Alert>
-              <AlertDescription>Team RAG settings updated successfully</AlertDescription>
+              <AlertDescription>
+                Team RAG settings updated successfully
+              </AlertDescription>
             </Alert>
           )}
         </CardContent>
@@ -381,8 +436,14 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                       onUploadComplete={() => refetchDocuments()}
                     />
                     <div className="border-t pt-6">
-                      <h4 className="text-sm font-medium mb-4">Uploaded Documents</h4>
-                      <DocumentList orgId={orgId} teamId={teamId} scope="team" />
+                      <h4 className="text-sm font-medium mb-4">
+                        Uploaded Documents
+                      </h4>
+                      <DocumentList
+                        orgId={orgId}
+                        teamId={teamId}
+                        scope="team"
+                      />
                     </div>
                   </>
                 ) : (
@@ -399,5 +460,5 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
         </CardHeader>
       </Card>
     </div>
-  )
+  );
 }

@@ -1,29 +1,28 @@
-import * as React from "react"
-import { useState, useEffect, useMemo } from "react"
-import { useQuery } from "@tanstack/react-query"
-import Editor from "@monaco-editor/react"
-import { FileText, Loader2, Copy, Check } from "lucide-react"
+import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import Editor from "@monaco-editor/react";
+import { FileText, Loader2, Copy, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { documentsApi } from "@/lib/api"
-import { useTheme } from "@/components/theme-provider"
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { documentsApi } from "@/lib/api";
+import { useTheme } from "@/components/theme-provider";
 
 interface DocumentViewerProps {
   /** Document ID to view */
-  documentId: string | null
+  documentId: string | null;
   /** Filename for display (fallback if not fetched) */
-  filename?: string
+  filename?: string;
   /** File type for syntax highlighting (fallback if not fetched) */
-  fileType?: string
+  fileType?: string;
   /** Whether the dialog is open */
-  open: boolean
+  open: boolean;
   /** Callback when dialog should close */
-  onOpenChange: (open: boolean) => void
+  onOpenChange: (open: boolean) => void;
 }
 
 /** Map file extensions to Monaco language identifiers */
@@ -74,19 +73,51 @@ function getMonacoLanguage(fileType: string): string {
     txt: "plaintext",
     log: "plaintext",
     csv: "plaintext",
-  }
-  return languageMap[fileType.toLowerCase()] || "plaintext"
+  };
+  return languageMap[fileType.toLowerCase()] || "plaintext";
 }
 
 /** Check if file type should use Monaco code view */
 function isCodeFile(fileType: string): boolean {
   const codeExtensions = new Set([
-    "js", "jsx", "ts", "tsx", "py", "rb", "go", "rs", "java", "kt",
-    "cpp", "c", "cs", "php", "swift", "scala", "r", "sql", "sh", "bash",
-    "zsh", "ps1", "json", "yaml", "yml", "xml", "html", "htm", "css",
-    "scss", "less", "toml", "ini", "conf", "md", "mdx",
-  ])
-  return codeExtensions.has(fileType.toLowerCase())
+    "js",
+    "jsx",
+    "ts",
+    "tsx",
+    "py",
+    "rb",
+    "go",
+    "rs",
+    "java",
+    "kt",
+    "cpp",
+    "c",
+    "cs",
+    "php",
+    "swift",
+    "scala",
+    "r",
+    "sql",
+    "sh",
+    "bash",
+    "zsh",
+    "ps1",
+    "json",
+    "yaml",
+    "yml",
+    "xml",
+    "html",
+    "htm",
+    "css",
+    "scss",
+    "less",
+    "toml",
+    "ini",
+    "conf",
+    "md",
+    "mdx",
+  ]);
+  return codeExtensions.has(fileType.toLowerCase());
 }
 
 export function DocumentViewer({
@@ -96,8 +127,8 @@ export function DocumentViewer({
   open,
   onOpenChange,
 }: DocumentViewerProps) {
-  const [copied, setCopied] = useState(false)
-  const { theme } = useTheme()
+  const [copied, setCopied] = useState(false);
+  const { theme } = useTheme();
 
   // Determine Monaco theme based on app theme
   const monacoTheme = useMemo(() => {
@@ -105,40 +136,44 @@ export function DocumentViewer({
       // Check system preference
       return window.matchMedia("(prefers-color-scheme: dark)").matches
         ? "vs-dark"
-        : "light"
+        : "light";
     }
-    return theme === "dark" ? "vs-dark" : "light"
-  }, [theme])
+    return theme === "dark" ? "vs-dark" : "light";
+  }, [theme]);
 
   // Fetch document content (reads original file or reconstructs from chunks)
-  const { data: docContent, isLoading, error } = useQuery({
+  const {
+    data: docContent,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["document-content", documentId],
     queryFn: async () => {
-      if (!documentId) return null
-      return documentsApi.getContent(documentId)
+      if (!documentId) return null;
+      return documentsApi.getContent(documentId);
     },
     enabled: open && !!documentId,
-  })
+  });
 
-  const content = docContent?.content || ""
-  const filename = providedFilename || docContent?.filename || "Document"
-  const fileType = providedFileType || docContent?.file_type || "txt"
+  const content = docContent?.content || "";
+  const filename = providedFilename || docContent?.filename || "Document";
+  const fileType = providedFileType || docContent?.file_type || "txt";
 
-  const useCodeView = isCodeFile(fileType)
-  const monacoLanguage = getMonacoLanguage(fileType)
+  const useCodeView = isCodeFile(fileType);
+  const monacoLanguage = getMonacoLanguage(fileType);
 
   const handleCopy = async () => {
     if (content) {
-      await navigator.clipboard.writeText(content)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
-  }
+  };
 
   // Reset copied state when dialog closes
   useEffect(() => {
-    if (!open) setCopied(false)
-  }, [open])
+    if (!open) setCopied(false);
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -184,7 +219,9 @@ export function DocumentViewer({
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <FileText className="h-12 w-12 mb-2 opacity-50" />
               <p>Failed to load document content</p>
-              <p className="text-sm">{error instanceof Error ? error.message : "Unknown error"}</p>
+              <p className="text-sm">
+                {error instanceof Error ? error.message : "Unknown error"}
+              </p>
             </div>
           ) : useCodeView ? (
             <Editor
@@ -218,5 +255,5 @@ export function DocumentViewer({
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

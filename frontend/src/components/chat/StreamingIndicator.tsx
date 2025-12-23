@@ -1,8 +1,7 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 interface StreamingIndicatorProps {
-  className?: string
+  className?: string;
 }
 
 export function StreamingIndicator({ className }: StreamingIndicatorProps) {
@@ -18,5 +17,5 @@ export function StreamingIndicator({ className }: StreamingIndicatorProps) {
         style={{ animationDelay: "300ms" }}
       />
     </span>
-  )
+  );
 }

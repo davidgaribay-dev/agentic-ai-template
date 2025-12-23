@@ -1,101 +1,120 @@
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, AlertCircle, User, Info, Upload, ChevronDown, ChevronRight } from "lucide-react"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Loader2,
+  AlertCircle,
+  User,
+  Info,
+  Upload,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@/components/ui/tooltip";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { useUserRAGSettings, useUpdateUserRAGSettings, useDocuments } from "@/lib/queries"
-import { useWorkspace } from "@/lib/workspace"
-import { useAuth } from "@/lib/auth"
-import { DocumentUpload } from "@/components/documents/document-upload"
-import { DocumentList } from "@/components/documents/document-list"
-import type { UserRAGSettingsUpdate } from "@/lib/api"
+} from "@/components/ui/collapsible";
+import {
+  useUserRAGSettings,
+  useUpdateUserRAGSettings,
+  useDocuments,
+} from "@/lib/queries";
+import { useWorkspace } from "@/lib/workspace";
+import { useAuth } from "@/lib/auth";
+import { DocumentUpload } from "@/components/documents/document-upload";
+import { DocumentList } from "@/components/documents/document-list";
+import type { UserRAGSettingsUpdate } from "@/lib/api";
 
 export function UserRAGSettings() {
-  const { data: userSettings, isLoading: isLoadingSettings } = useUserRAGSettings()
-  const updateMutation = useUpdateUserRAGSettings()
-  const { currentOrg, currentTeam } = useWorkspace()
-  const { user } = useAuth()
+  const { data: userSettings, isLoading: isLoadingSettings } =
+    useUserRAGSettings();
+  const updateMutation = useUpdateUserRAGSettings();
+  const { currentOrg, currentTeam } = useWorkspace();
+  const { user } = useAuth();
   const { refetch: refetchDocuments } = useDocuments({
     organization_id: currentOrg?.id ?? "",
     team_id: currentTeam?.id,
-  })
+  });
 
-  const [ragEnabled, setRagEnabled] = useState(true)
-  const [chunksPerQuery, setChunksPerQuery] = useState(4)
-  const [similarityThreshold, setSimilarityThreshold] = useState(0.7)
-  const [hasChanges, setHasChanges] = useState(false)
-  const [documentsOpen, setDocumentsOpen] = useState(true)
+  const [ragEnabled, setRagEnabled] = useState(true);
+  const [chunksPerQuery, setChunksPerQuery] = useState(4);
+  const [similarityThreshold, setSimilarityThreshold] = useState(0.7);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(true);
 
   useEffect(() => {
     if (userSettings) {
-      setRagEnabled(userSettings.rag_enabled)
-      setChunksPerQuery(userSettings.chunks_per_query)
-      setSimilarityThreshold(userSettings.similarity_threshold)
-      setHasChanges(false)
+      setRagEnabled(userSettings.rag_enabled);
+      setChunksPerQuery(userSettings.chunks_per_query);
+      setSimilarityThreshold(userSettings.similarity_threshold);
+      setHasChanges(false);
     }
-  }, [userSettings])
+  }, [userSettings]);
 
   const handleSave = () => {
-    const updates: UserRAGSettingsUpdate = {}
+    const updates: UserRAGSettingsUpdate = {};
 
     if (ragEnabled !== userSettings?.rag_enabled) {
-      updates.rag_enabled = ragEnabled
+      updates.rag_enabled = ragEnabled;
     }
     if (chunksPerQuery !== userSettings?.chunks_per_query) {
-      updates.chunks_per_query = chunksPerQuery
+      updates.chunks_per_query = chunksPerQuery;
     }
     if (similarityThreshold !== userSettings?.similarity_threshold) {
-      updates.similarity_threshold = similarityThreshold
+      updates.similarity_threshold = similarityThreshold;
     }
 
     if (Object.keys(updates).length > 0) {
       updateMutation.mutate(updates, {
         onSuccess: () => {
-          setHasChanges(false)
+          setHasChanges(false);
         },
-      })
+      });
     }
-  }
+  };
 
   const handleReset = () => {
     if (userSettings) {
-      setRagEnabled(userSettings.rag_enabled)
-      setChunksPerQuery(userSettings.chunks_per_query)
-      setSimilarityThreshold(userSettings.similarity_threshold)
-      setHasChanges(false)
+      setRagEnabled(userSettings.rag_enabled);
+      setChunksPerQuery(userSettings.chunks_per_query);
+      setSimilarityThreshold(userSettings.similarity_threshold);
+      setHasChanges(false);
     }
-  }
+  };
 
   useEffect(() => {
     if (userSettings) {
       const changed =
         ragEnabled !== userSettings.rag_enabled ||
         chunksPerQuery !== userSettings.chunks_per_query ||
-        similarityThreshold !== userSettings.similarity_threshold
-      setHasChanges(changed)
+        similarityThreshold !== userSettings.similarity_threshold;
+      setHasChanges(changed);
     }
-  }, [ragEnabled, chunksPerQuery, similarityThreshold, userSettings])
+  }, [ragEnabled, chunksPerQuery, similarityThreshold, userSettings]);
 
   if (isLoadingSettings) {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
-    )
+    );
   }
 
   if (!userSettings) {
@@ -104,7 +123,7 @@ export function UserRAGSettings() {
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>Failed to load user RAG settings</AlertDescription>
       </Alert>
-    )
+    );
   }
 
   return (
@@ -124,7 +143,7 @@ export function UserRAGSettings() {
             <Switch
               checked={ragEnabled}
               onCheckedChange={(checked) => {
-                setRagEnabled(checked)
+                setRagEnabled(checked);
               }}
               aria-label="Enable RAG for yourself"
             />
@@ -140,13 +159,18 @@ export function UserRAGSettings() {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Label htmlFor="chunks-per-query" className="flex items-center gap-1">
+                      <Label
+                        htmlFor="chunks-per-query"
+                        className="flex items-center gap-1"
+                      >
                         Results Per Query
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">Number of document chunks to return per search (1-20)</p>
+                      <p className="max-w-xs">
+                        Number of document chunks to return per search (1-20)
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -165,13 +189,18 @@ export function UserRAGSettings() {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Label htmlFor="similarity-threshold" className="flex items-center gap-1">
+                      <Label
+                        htmlFor="similarity-threshold"
+                        className="flex items-center gap-1"
+                      >
                         Similarity Threshold
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">Minimum relevance score 0-1 (higher = more strict)</p>
+                      <p className="max-w-xs">
+                        Minimum relevance score 0-1 (higher = more strict)
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -182,7 +211,9 @@ export function UserRAGSettings() {
                   max={1}
                   step={0.1}
                   value={similarityThreshold}
-                  onChange={(e) => setSimilarityThreshold(Number(e.target.value))}
+                  onChange={(e) =>
+                    setSimilarityThreshold(Number(e.target.value))
+                  }
                   disabled={!ragEnabled}
                 />
               </div>
@@ -198,8 +229,13 @@ export function UserRAGSettings() {
             >
               Reset
             </Button>
-            <Button onClick={handleSave} disabled={!hasChanges || updateMutation.isPending}>
-              {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button
+              onClick={handleSave}
+              disabled={!hasChanges || updateMutation.isPending}
+            >
+              {updateMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Save Changes
             </Button>
           </div>
@@ -217,7 +253,9 @@ export function UserRAGSettings() {
 
           {updateMutation.isSuccess && !hasChanges && (
             <Alert>
-              <AlertDescription>Personal RAG preferences updated successfully</AlertDescription>
+              <AlertDescription>
+                Personal RAG preferences updated successfully
+              </AlertDescription>
             </Alert>
           )}
         </CardContent>
@@ -249,7 +287,8 @@ export function UserRAGSettings() {
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      Please select an organization and team to upload personal documents.
+                      Please select an organization and team to upload personal
+                      documents.
                     </AlertDescription>
                   </Alert>
                 ) : !ragEnabled ? (
@@ -268,7 +307,9 @@ export function UserRAGSettings() {
                       onUploadComplete={() => refetchDocuments()}
                     />
                     <div className="border-t pt-6">
-                      <h4 className="text-sm font-medium mb-4">Your Documents</h4>
+                      <h4 className="text-sm font-medium mb-4">
+                        Your Documents
+                      </h4>
                       <DocumentList
                         orgId={currentOrg.id}
                         teamId={currentTeam.id}
@@ -284,5 +325,5 @@ export function UserRAGSettings() {
         </CardHeader>
       </Card>
     </div>
-  )
+  );
 }

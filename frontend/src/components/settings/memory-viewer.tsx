@@ -1,8 +1,15 @@
-import { useState, useMemo } from "react"
-import type { ColumnDef } from "@tanstack/react-table"
-import { Brain, Trash2, Loader2, AlertCircle, ArrowUpDown, MoreHorizontal } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { useState, useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import {
+  Brain,
+  Trash2,
+  Loader2,
+  AlertCircle,
+  ArrowUpDown,
+  MoreHorizontal,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,25 +20,31 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { DataTable } from "@/components/ui/data-table"
-import { useWorkspace } from "@/lib/workspace"
-import { useUserMemories, useDeleteMemory, useClearAllMemories } from "@/lib/queries"
-import type { Memory, MemoryType } from "@/lib/api"
+} from "@/components/ui/dropdown-menu";
+import { DataTable } from "@/components/ui/data-table";
+import { useWorkspace } from "@/lib/workspace";
+import {
+  useUserMemories,
+  useDeleteMemory,
+  useClearAllMemories,
+} from "@/lib/queries";
+import type { Memory, MemoryType } from "@/lib/api";
 
 const memoryTypeColors: Record<MemoryType, string> = {
   preference: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
   fact: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-  entity: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
-  relationship: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
+  entity:
+    "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
+  relationship:
+    "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300",
   summary: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
-}
+};
 
 const memoryTypeLabels: Record<MemoryType, string> = {
   preference: "Preference",
@@ -39,25 +52,25 @@ const memoryTypeLabels: Record<MemoryType, string> = {
   entity: "Entity",
   relationship: "Relationship",
   summary: "Summary",
-}
+};
 
 function formatDate(dateString: string): string {
   try {
-    const date = new Date(dateString)
+    const date = new Date(dateString);
     return date.toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",
       day: "numeric",
-    })
+    });
   } catch {
-    return dateString
+    return dateString;
   }
 }
 
 interface MemoryDataTableProps {
-  data: Memory[]
-  onDelete: (id: string) => void
-  deletingId: string | null
+  data: Memory[];
+  onDelete: (id: string) => void;
+  deletingId: string | null;
 }
 
 function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
@@ -76,7 +89,9 @@ function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
           </Button>
         ),
         cell: ({ row }) => (
-          <span className="line-clamp-2 max-w-[400px]">{row.getValue("content")}</span>
+          <span className="line-clamp-2 max-w-[400px]">
+            {row.getValue("content")}
+          </span>
         ),
       },
       {
@@ -92,7 +107,7 @@ function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
           </Button>
         ),
         cell: ({ row }) => {
-          const type = row.getValue("type") as MemoryType
+          const type = row.getValue("type") as MemoryType;
           return (
             <Badge
               variant="secondary"
@@ -100,7 +115,7 @@ function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
             >
               {memoryTypeLabels[type] || type}
             </Badge>
-          )
+          );
         },
       },
       {
@@ -125,13 +140,18 @@ function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
         id: "actions",
         header: () => <div className="text-right">Actions</div>,
         cell: ({ row }) => {
-          const memory = row.original
-          const isDeleting = deletingId === memory.id
+          const memory = row.original;
+          const isDeleting = deletingId === memory.id;
           return (
             <div className="flex justify-end">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="size-8" disabled={isDeleting}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    disabled={isDeleting}
+                  >
                     {isDeleting ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : (
@@ -151,12 +171,12 @@ function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          )
+          );
         },
       },
     ],
-    [deletingId, onDelete]
-  )
+    [deletingId, onDelete],
+  );
 
   return (
     <DataTable
@@ -165,41 +185,45 @@ function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
       searchKey="content"
       searchPlaceholder="Search memories..."
     />
-  )
+  );
 }
 
 export function MemoryViewer() {
-  const { currentOrg, currentTeam } = useWorkspace()
-  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const { currentOrg, currentTeam } = useWorkspace();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const orgId = currentOrg?.id
-  const teamId = currentTeam?.id
+  const orgId = currentOrg?.id;
+  const teamId = currentTeam?.id;
 
-  const { data: memoriesResponse, isLoading, error } = useUserMemories(orgId, teamId)
-  const deleteMutation = useDeleteMemory(orgId, teamId)
-  const clearMutation = useClearAllMemories(orgId, teamId)
+  const {
+    data: memoriesResponse,
+    isLoading,
+    error,
+  } = useUserMemories(orgId, teamId);
+  const deleteMutation = useDeleteMemory(orgId, teamId);
+  const clearMutation = useClearAllMemories(orgId, teamId);
 
-  const memories = memoriesResponse?.data ?? []
+  const memories = memoriesResponse?.data ?? [];
 
   const handleDeleteMemory = async (memoryId: string) => {
-    setDeletingId(memoryId)
+    setDeletingId(memoryId);
     try {
-      await deleteMutation.mutateAsync(memoryId)
+      await deleteMutation.mutateAsync(memoryId);
     } finally {
-      setDeletingId(null)
+      setDeletingId(null);
     }
-  }
+  };
 
   const handleClearAll = async () => {
-    await clearMutation.mutateAsync()
-  }
+    await clearMutation.mutateAsync();
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -208,7 +232,7 @@ export function MemoryViewer() {
         <AlertCircle className="h-4 w-4" />
         <span>Failed to load memories</span>
       </div>
-    )
+    );
   }
 
   if (memories.length === 0) {
@@ -220,14 +244,15 @@ export function MemoryViewer() {
           As you chat, important information will be remembered here.
         </p>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">
-          {memories.length} {memories.length === 1 ? "memory" : "memories"} stored
+          {memories.length} {memories.length === 1 ? "memory" : "memories"}{" "}
+          stored
         </p>
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -248,9 +273,9 @@ export function MemoryViewer() {
             <AlertDialogHeader>
               <AlertDialogTitle>Clear all memories?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently delete all {memories.length} memories. This action
-                cannot be undone. The AI will no longer remember information from
-                your previous conversations.
+                This will permanently delete all {memories.length} memories.
+                This action cannot be undone. The AI will no longer remember
+                information from your previous conversations.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -269,5 +294,5 @@ export function MemoryViewer() {
         deletingId={deletingId}
       />
     </div>
-  )
+  );
 }

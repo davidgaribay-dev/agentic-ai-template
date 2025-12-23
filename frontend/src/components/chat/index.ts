@@ -1,8 +1,11 @@
-export { Chat, type ChatMessage, type ChatHandle } from "./Chat"
-export { ChatInput } from "./ChatInput"
-export { ChatMessage as ChatMessageComponent, type CodeBlockConfig } from "./ChatMessage"
-export { ChatContainer, type Message } from "./ChatContainer"
-export { StreamingIndicator } from "./StreamingIndicator"
-export { ChatHistoryDropdown } from "./ChatHistoryDropdown"
-export { CodeBlock, MinimalCodeBlock, CopyOnlyCodeBlock } from "./CodeBlock"
-export { ToolApprovalCard, type ToolApprovalData } from "./ToolApprovalCard"
+export { Chat, type ChatMessage, type ChatHandle } from "./Chat";
+export { ChatInput } from "./ChatInput";
+export {
+  ChatMessage as ChatMessageComponent,
+  type CodeBlockConfig,
+} from "./ChatMessage";
+export { ChatContainer, type Message } from "./ChatContainer";
+export { StreamingIndicator } from "./StreamingIndicator";
+export { ChatHistoryDropdown } from "./ChatHistoryDropdown";
+export { CodeBlock, MinimalCodeBlock, CopyOnlyCodeBlock } from "./CodeBlock";
+export { ToolApprovalCard, type ToolApprovalData } from "./ToolApprovalCard";

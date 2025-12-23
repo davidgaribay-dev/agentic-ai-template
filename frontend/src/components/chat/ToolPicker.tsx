@@ -1,5 +1,5 @@
-import * as React from "react"
-import { useState, useMemo } from "react"
+import * as React from "react";
+import { useState, useMemo } from "react";
 import {
   Wrench,
   Building2,
@@ -11,115 +11,117 @@ import {
   ChevronRight,
   AlertTriangle,
   ServerOff,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
-import type { MCPServerWithTools, MCPTool } from "@/lib/api"
-import { Button } from "@/components/ui/button"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { MCPServerWithTools, MCPTool } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   useEffectiveMCPTools,
   useEffectiveChatSettings,
   useUpdateUserToolConfig,
-} from "@/lib/queries"
+} from "@/lib/queries";
 
 interface ToolPickerProps {
-  organizationId?: string
-  teamId?: string
-  disabled?: boolean
+  organizationId?: string;
+  teamId?: string;
+  disabled?: boolean;
 }
 
 const scopeConfig = {
   org: { label: "Organization", icon: Building2 },
   team: { label: "Team", icon: Users },
   user: { label: "Personal", icon: User },
-} as const
+} as const;
 
 export function ToolPicker({
   organizationId,
   teamId,
   disabled = false,
 }: ToolPickerProps) {
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState("")
-  const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set())
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [expandedServers, setExpandedServers] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Fetch effective tools
   const { data: toolsData, isLoading: isLoadingTools } = useEffectiveMCPTools(
     organizationId,
-    teamId
-  )
+    teamId,
+  );
 
   // Fetch effective settings to get disabled lists
   const { data: effectiveSettings, isLoading: isLoadingSettings } =
-    useEffectiveChatSettings(organizationId, teamId)
+    useEffectiveChatSettings(organizationId, teamId);
 
   // Mutation for updating tool config
-  const updateConfig = useUpdateUserToolConfig()
+  const updateConfig = useUpdateUserToolConfig();
 
-  const isLoading = isLoadingTools || isLoadingSettings
+  const isLoading = isLoadingTools || isLoadingSettings;
 
   // Get disabled sets from effective settings
   const disabledServers = useMemo(
     () => new Set(effectiveSettings?.disabled_mcp_servers ?? []),
-    [effectiveSettings]
-  )
+    [effectiveSettings],
+  );
   const disabledTools = useMemo(
     () => new Set(effectiveSettings?.disabled_tools ?? []),
-    [effectiveSettings]
-  )
+    [effectiveSettings],
+  );
 
   // Group servers by scope
   const serverGroups = useMemo(() => {
-    if (!toolsData?.servers) return []
+    if (!toolsData?.servers) return [];
 
     const groups: Array<{
-      scope: "org" | "team" | "user"
-      label: string
-      icon: React.ElementType
-      servers: MCPServerWithTools[]
-    }> = []
+      scope: "org" | "team" | "user";
+      label: string;
+      icon: React.ElementType;
+      servers: MCPServerWithTools[];
+    }> = [];
 
-    const orgServers = toolsData.servers.filter((s) => s.scope === "org")
-    const teamServers = toolsData.servers.filter((s) => s.scope === "team")
-    const userServers = toolsData.servers.filter((s) => s.scope === "user")
+    const orgServers = toolsData.servers.filter((s) => s.scope === "org");
+    const teamServers = toolsData.servers.filter((s) => s.scope === "team");
+    const userServers = toolsData.servers.filter((s) => s.scope === "user");
 
     if (orgServers.length > 0) {
       groups.push({
         scope: "org",
         ...scopeConfig.org,
         servers: orgServers,
-      })
+      });
     }
     if (teamServers.length > 0) {
       groups.push({
         scope: "team",
         ...scopeConfig.team,
         servers: teamServers,
-      })
+      });
     }
     if (userServers.length > 0) {
       groups.push({
         scope: "user",
         ...scopeConfig.user,
         servers: userServers,
-      })
+      });
     }
 
-    return groups
-  }, [toolsData])
+    return groups;
+  }, [toolsData]);
 
   // Filter by search - filters both servers and tools within servers
   // Matches on tool name and description for better discoverability
   const filteredGroups = useMemo(() => {
-    if (!search.trim()) return serverGroups
+    if (!search.trim()) return serverGroups;
 
-    const searchLower = search.toLowerCase()
+    const searchLower = search.toLowerCase();
     return serverGroups
       .map((group) => ({
         ...group,
@@ -129,81 +131,81 @@ export function ToolPicker({
             const matchingTools = server.tools.filter(
               (tool) =>
                 tool.name.toLowerCase().includes(searchLower) ||
-                tool.description?.toLowerCase().includes(searchLower)
-            )
+                tool.description?.toLowerCase().includes(searchLower),
+            );
 
             // Only include server if it has matching tools
             if (matchingTools.length > 0) {
-              return { ...server, tools: matchingTools }
+              return { ...server, tools: matchingTools };
             }
-            return null
+            return null;
           })
           .filter((server): server is MCPServerWithTools => server !== null),
       }))
-      .filter((group) => group.servers.length > 0)
-  }, [serverGroups, search])
+      .filter((group) => group.servers.length > 0);
+  }, [serverGroups, search]);
 
-  const totalServers = toolsData?.total_servers ?? 0
-  const totalTools = toolsData?.total_tools ?? 0
+  const totalServers = toolsData?.total_servers ?? 0;
+  const totalTools = toolsData?.total_tools ?? 0;
 
   const toggleServerExpanded = (serverId: string) => {
     setExpandedServers((prev) => {
-      const next = new Set(prev)
+      const next = new Set(prev);
       if (next.has(serverId)) {
-        next.delete(serverId)
+        next.delete(serverId);
       } else {
-        next.add(serverId)
+        next.add(serverId);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const handleServerToggle = (serverId: string, enabled: boolean) => {
-    const newDisabledServers = new Set(disabledServers)
+    const newDisabledServers = new Set(disabledServers);
     if (enabled) {
-      newDisabledServers.delete(serverId)
+      newDisabledServers.delete(serverId);
     } else {
-      newDisabledServers.add(serverId)
+      newDisabledServers.add(serverId);
     }
     updateConfig.mutate({
       disabled_mcp_servers: Array.from(newDisabledServers),
-    })
-  }
+    });
+  };
 
   const handleToolToggle = (toolName: string, enabled: boolean) => {
-    const newDisabledTools = new Set(disabledTools)
+    const newDisabledTools = new Set(disabledTools);
     if (enabled) {
-      newDisabledTools.delete(toolName)
+      newDisabledTools.delete(toolName);
     } else {
-      newDisabledTools.add(toolName)
+      newDisabledTools.add(toolName);
     }
     updateConfig.mutate({
       disabled_tools: Array.from(newDisabledTools),
-    })
-  }
+    });
+  };
 
-  const isServerEnabled = (serverId: string) => !disabledServers.has(serverId)
-  const isToolEnabled = (toolName: string) => !disabledTools.has(toolName)
+  const isServerEnabled = (serverId: string) => !disabledServers.has(serverId);
+  const isToolEnabled = (toolName: string) => !disabledTools.has(toolName);
 
   // Check if MCP is disabled at a higher level
-  const mcpDisabled = effectiveSettings?.mcp_enabled === false
+  const mcpDisabled = effectiveSettings?.mcp_enabled === false;
 
   // Count total enabled tools
   const enabledToolsCount = useMemo(() => {
-    if (!toolsData?.servers) return 0
-    let count = 0
+    if (!toolsData?.servers) return 0;
+    let count = 0;
     for (const server of toolsData.servers) {
       if (isServerEnabled(server.server_id)) {
         for (const tool of server.tools) {
           if (isToolEnabled(tool.name)) {
-            count++
+            count++;
           }
         }
       }
     }
-    return count
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toolsData, disabledServers, disabledTools])
+    return count;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toolsData, disabledServers, disabledTools]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -302,7 +304,10 @@ export function ToolPicker({
                       <ServerRow
                         key={server.server_id}
                         server={server}
-                        isExpanded={expandedServers.has(server.server_id) || !!search.trim()}
+                        isExpanded={
+                          expandedServers.has(server.server_id) ||
+                          !!search.trim()
+                        }
                         onToggleExpand={() =>
                           toggleServerExpanded(server.server_id)
                         }
@@ -323,18 +328,18 @@ export function ToolPicker({
         </div>
       </PopoverContent>
     </Popover>
-  )
+  );
 }
 
 interface ServerRowProps {
-  server: MCPServerWithTools
-  isExpanded: boolean
-  onToggleExpand: () => void
-  isServerEnabled: boolean
-  onServerToggle: (enabled: boolean) => void
-  isToolEnabled: (toolName: string) => boolean
-  onToolToggle: (toolName: string, enabled: boolean) => void
-  isUpdating: boolean
+  server: MCPServerWithTools;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  isServerEnabled: boolean;
+  onServerToggle: (enabled: boolean) => void;
+  isToolEnabled: (toolName: string) => boolean;
+  onToolToggle: (toolName: string, enabled: boolean) => void;
+  isUpdating: boolean;
 }
 
 function ServerRow({
@@ -347,25 +352,27 @@ function ServerRow({
   onToolToggle,
   isUpdating,
 }: ServerRowProps) {
-  const hasError = !!server.error
-  const hasTools = server.tools.length > 0
+  const hasError = !!server.error;
+  const hasTools = server.tools.length > 0;
 
   // Calculate indeterminate state: some but not all tools enabled
-  const enabledToolCount = server.tools.filter((t) => isToolEnabled(t.name)).length
-  const allToolsEnabled = enabledToolCount === server.tools.length
-  const someToolsEnabled = enabledToolCount > 0 && !allToolsEnabled
+  const enabledToolCount = server.tools.filter((t) =>
+    isToolEnabled(t.name),
+  ).length;
+  const allToolsEnabled = enabledToolCount === server.tools.length;
+  const someToolsEnabled = enabledToolCount > 0 && !allToolsEnabled;
 
   // Server is "checked" if enabled AND all tools are enabled
   // Server is "indeterminate" if enabled AND some (but not all) tools are enabled
-  const serverChecked = isServerEnabled && allToolsEnabled
-  const serverIndeterminate = isServerEnabled && someToolsEnabled
+  const serverChecked = isServerEnabled && allToolsEnabled;
+  const serverIndeterminate = isServerEnabled && someToolsEnabled;
 
   return (
     <div>
       {/* Server row */}
       <div
         className={cn(
-          "flex items-center gap-1.5 px-3 py-1 hover:bg-accent/50 transition-colors overflow-hidden"
+          "flex items-center gap-1.5 px-3 py-1 hover:bg-accent/50 transition-colors overflow-hidden",
         )}
       >
         {/* Expand/collapse */}
@@ -374,7 +381,7 @@ function ServerRow({
           disabled={!hasTools}
           className={cn(
             "flex items-center justify-center h-5 w-5 shrink-0",
-            hasTools ? "cursor-pointer" : "cursor-default opacity-0"
+            hasTools ? "cursor-pointer" : "cursor-default opacity-0",
           )}
         >
           {hasTools &&
@@ -389,8 +396,8 @@ function ServerRow({
         <Checkbox
           checked={serverIndeterminate ? "indeterminate" : serverChecked}
           onCheckedChange={(checked) => {
-            if (checked === "indeterminate") return
-            onServerToggle(checked)
+            if (checked === "indeterminate") return;
+            onServerToggle(checked);
           }}
           disabled={isUpdating}
           className="shrink-0"
@@ -404,7 +411,7 @@ function ServerRow({
         <span
           className={cn(
             "text-sm flex-1 min-w-0 truncate",
-            !isServerEnabled && "text-muted-foreground"
+            !isServerEnabled && "text-muted-foreground",
           )}
           title={server.server_name}
         >
@@ -420,10 +427,9 @@ function ServerRow({
 
         {/* Error indicator */}
         {hasError && (
-          <AlertTriangle
-            className="h-4 w-4 text-amber-500 shrink-0"
-            title={`Connection error: ${server.error}`}
-          />
+          <span title={`Connection error: ${server.error}`}>
+            <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+          </span>
         )}
       </div>
 
@@ -443,15 +449,15 @@ function ServerRow({
         </div>
       )}
     </div>
-  )
+  );
 }
 
 interface ToolRowProps {
-  tool: MCPTool
-  isEnabled: boolean
-  onToggle: (enabled: boolean) => void
-  isDisabledByServer: boolean
-  isUpdating: boolean
+  tool: MCPTool;
+  isEnabled: boolean;
+  onToggle: (enabled: boolean) => void;
+  isDisabledByServer: boolean;
+  isUpdating: boolean;
 }
 
 function ToolRow({
@@ -464,7 +470,7 @@ function ToolRow({
   return (
     <div
       className={cn(
-        "flex items-center gap-1.5 px-3 py-1 hover:bg-accent/30 transition-colors overflow-hidden"
+        "flex items-center gap-1.5 px-3 py-1 hover:bg-accent/30 transition-colors overflow-hidden",
       )}
     >
       {/* Tree connector space (aligned with parent chevron) */}
@@ -487,7 +493,7 @@ function ToolRow({
         <span
           className={cn(
             "text-sm shrink-0 max-w-[200px] truncate",
-            !isEnabled && "text-muted-foreground"
+            !isEnabled && "text-muted-foreground",
           )}
           title={tool.name}
         >
@@ -503,5 +509,5 @@ function ToolRow({
         )}
       </div>
     </div>
-  )
+  );
 }

@@ -3,9 +3,9 @@
  */
 
 export interface Message {
-  message: string
+  message: string;
 }
 
-export type OrgRole = "owner" | "admin" | "member"
-export type TeamRole = "admin" | "member" | "viewer"
-export type InvitationStatus = "pending" | "accepted" | "expired" | "revoked"
+export type OrgRole = "owner" | "admin" | "member";
+export type TeamRole = "admin" | "member" | "viewer";
+export type InvitationStatus = "pending" | "accepted" | "expired" | "revoked";

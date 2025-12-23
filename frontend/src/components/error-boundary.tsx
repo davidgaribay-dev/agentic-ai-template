@@ -1,58 +1,65 @@
-import { Component, type ErrorInfo, type ReactNode } from "react"
-import { Link } from "@tanstack/react-router"
+import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
 
 interface ErrorBoundaryProps {
-  children: ReactNode
-  fallback?: ReactNode
+  children: ReactNode;
+  fallback?: ReactNode;
 }
 
 interface ErrorBoundaryState {
-  hasError: boolean
-  error: Error | null
-  errorInfo: ErrorInfo | null
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
 }
 
 /**
  * Error Boundary component that catches JavaScript errors anywhere in the
  * child component tree and displays a fallback UI instead of crashing.
  */
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   constructor(props: ErrorBoundaryProps) {
-    super(props)
-    this.state = { hasError: false, error: null, errorInfo: null }
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
-    return { hasError: true, error }
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    this.setState({ errorInfo })
-    console.error("Error caught by ErrorBoundary:", error, errorInfo)
+    this.setState({ errorInfo });
+    console.error("Error caught by ErrorBoundary:", error, errorInfo);
   }
 
   handleReset = (): void => {
-    this.setState({ hasError: false, error: null, errorInfo: null })
-  }
+    this.setState({ hasError: false, error: null, errorInfo: null });
+  };
 
   render(): ReactNode {
     if (this.state.hasError) {
       if (this.props.fallback) {
-        return this.props.fallback
+        return this.props.fallback;
       }
 
       return (
         <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-4">
           <div className="text-center">
-            <h1 className="text-4xl font-bold text-destructive">Something went wrong</h1>
+            <h1 className="text-4xl font-bold text-destructive">
+              Something went wrong
+            </h1>
             <p className="mt-2 text-muted-foreground">
               An unexpected error occurred. Please try again.
             </p>
           </div>
 
-          {process.env.NODE_ENV === "development" && this.state.error && (
+          {import.meta.env.DEV && this.state.error && (
             <details className="max-w-2xl rounded-lg border bg-muted p-4 text-left">
-              <summary className="cursor-pointer font-medium">Error Details</summary>
+              <summary className="cursor-pointer font-medium">
+                Error Details
+              </summary>
               <pre className="mt-2 overflow-auto text-xs">
                 <code>{this.state.error.toString()}</code>
                 {this.state.errorInfo && (
@@ -80,10 +87,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </Link>
           </div>
         </div>
-      )
+      );
     }
 
-    return this.props.children
+    return this.props.children;
   }
 }
 
@@ -91,11 +98,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
  * Simple fallback component for inline error boundaries
  */
 export function ErrorFallback({
-  error,
+  error: _error,
   resetErrorBoundary,
 }: {
-  error: Error
-  resetErrorBoundary?: () => void
+  error: Error;
+  resetErrorBoundary?: () => void;
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 p-4 text-center">
@@ -109,5 +116,5 @@ export function ErrorFallback({
         </button>
       )}
     </div>
-  )
+  );
 }

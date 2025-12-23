@@ -10,27 +10,34 @@
  * - rejected: Brief visual feedback, then transforms to rejection message with undo
  */
 
-import * as React from "react"
-import { memo, useState, useEffect, useCallback } from "react"
-import { Play, X, ChevronDown, ChevronRight, Loader2, Check, RotateCcw } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { memo, useState, useEffect, useCallback } from "react";
+import {
+  Play,
+  X,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  Check,
+  RotateCcw,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export interface ToolApprovalData {
-  tool_name: string
-  tool_args: Record<string, unknown>
-  tool_call_id: string | null
-  tool_description: string
+  tool_name: string;
+  tool_args: Record<string, unknown>;
+  tool_call_id: string | null;
+  tool_description: string;
 }
 
-export type ApprovalState = "pending" | "approved" | "rejected"
+export type ApprovalState = "pending" | "approved" | "rejected";
 
 interface ToolApprovalCardProps {
-  data: ToolApprovalData
-  onApprove: () => void
-  onReject: () => void
-  isLoading?: boolean
-  className?: string
+  data: ToolApprovalData;
+  onApprove: () => void;
+  onReject: () => void;
+  isLoading?: boolean;
+  className?: string;
 }
 
 /**
@@ -38,18 +45,19 @@ interface ToolApprovalCardProps {
  * Handles nested objects and arrays nicely.
  */
 function formatArgValue(value: unknown): string {
-  if (value === null) return "null"
-  if (value === undefined) return "undefined"
-  if (typeof value === "string") return value
-  if (typeof value === "number" || typeof value === "boolean") return String(value)
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
   if (Array.isArray(value)) {
-    if (value.length === 0) return "[]"
-    return JSON.stringify(value, null, 2)
+    if (value.length === 0) return "[]";
+    return JSON.stringify(value, null, 2);
   }
   if (typeof value === "object") {
-    return JSON.stringify(value, null, 2)
+    return JSON.stringify(value, null, 2);
   }
-  return String(value)
+  return String(value);
 }
 
 /**
@@ -58,21 +66,19 @@ function formatArgValue(value: unknown): string {
 const ToolArgsViewer = memo(function ToolArgsViewer({
   args,
 }: {
-  args: Record<string, unknown>
+  args: Record<string, unknown>;
 }) {
-  const entries = Object.entries(args)
+  const entries = Object.entries(args);
 
   if (entries.length === 0) {
-    return (
-      <span className="text-muted-foreground italic">No arguments</span>
-    )
+    return <span className="text-muted-foreground italic">No arguments</span>;
   }
 
   return (
     <div className="space-y-1.5">
       {entries.map(([key, value]) => {
-        const formattedValue = formatArgValue(value)
-        const isMultiline = formattedValue.includes("\n")
+        const formattedValue = formatArgValue(value);
+        const isMultiline = formattedValue.includes("\n");
 
         return (
           <div key={key} className="text-xs">
@@ -89,11 +95,11 @@ const ToolArgsViewer = memo(function ToolArgsViewer({
               </span>
             )}
           </div>
-        )
+        );
       })}
     </div>
-  )
-})
+  );
+});
 
 export const ToolApprovalCard = memo(function ToolApprovalCard({
   data,
@@ -102,25 +108,25 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
   isLoading = false,
   className,
 }: ToolApprovalCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [approvalState, setApprovalState] = useState<ApprovalState>("pending")
-  const hasArgs = Object.keys(data.tool_args).length > 0
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [approvalState, setApprovalState] = useState<ApprovalState>("pending");
+  const hasArgs = Object.keys(data.tool_args).length > 0;
 
   const handleApprove = useCallback(() => {
-    setApprovalState("approved")
+    setApprovalState("approved");
     // Brief visual feedback before calling handler
     setTimeout(() => {
-      onApprove()
-    }, 300)
-  }, [onApprove])
+      onApprove();
+    }, 300);
+  }, [onApprove]);
 
   const handleReject = useCallback(() => {
-    setApprovalState("rejected")
+    setApprovalState("rejected");
     // Brief visual feedback before calling handler
     setTimeout(() => {
-      onReject()
-    }, 300)
-  }, [onReject])
+      onReject();
+    }, 300);
+  }, [onReject]);
 
   // Visual feedback for approved state (brief green checkmark)
   if (approvalState === "approved") {
@@ -128,7 +134,7 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
       <div
         className={cn(
           "w-full rounded-lg border border-green-500/50 bg-green-500/10 overflow-hidden transition-all duration-300",
-          className
+          className,
         )}
       >
         <div className="flex items-center gap-2 px-3 py-2.5">
@@ -140,7 +146,7 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   // Visual feedback for rejected state (brief red X)
@@ -149,7 +155,7 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
       <div
         className={cn(
           "w-full rounded-lg border border-destructive/50 bg-destructive/10 overflow-hidden transition-all duration-300",
-          className
+          className,
         )}
       >
         <div className="flex items-center gap-2 px-3 py-2.5">
@@ -161,14 +167,14 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div
       className={cn(
         "w-full rounded-lg border border-border bg-card overflow-hidden",
-        className
+        className,
       )}
     >
       {/* Header */}
@@ -231,7 +237,8 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
               <ChevronRight className="size-3" />
             )}
             <span>
-              {isExpanded ? "Hide" : "Show"} arguments ({Object.keys(data.tool_args).length})
+              {isExpanded ? "Hide" : "Show"} arguments (
+              {Object.keys(data.tool_args).length})
             </span>
           </button>
 
@@ -243,18 +250,18 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
         </div>
       )}
     </div>
-  )
-})
+  );
+});
 
 /**
  * Rejection message shown in chat history after a tool call is rejected.
  * Includes an "Undo" button that allows re-approval within a time window.
  */
 interface ToolRejectionMessageProps {
-  toolName: string
-  onUndo?: () => void
-  undoTimeoutMs?: number
-  className?: string
+  toolName: string;
+  onUndo?: () => void;
+  undoTimeoutMs?: number;
+  className?: string;
 }
 
 export const ToolRejectionMessage = memo(function ToolRejectionMessage({
@@ -263,28 +270,29 @@ export const ToolRejectionMessage = memo(function ToolRejectionMessage({
   undoTimeoutMs = 30000,
   className,
 }: ToolRejectionMessageProps) {
-  const [canUndo, setCanUndo] = useState(!!onUndo)
+  const [canUndo, setCanUndo] = useState(!!onUndo);
 
   useEffect(() => {
-    if (!onUndo) return
+    if (!onUndo) return;
 
     const timeout = setTimeout(() => {
-      setCanUndo(false)
-    }, undoTimeoutMs)
+      setCanUndo(false);
+    }, undoTimeoutMs);
 
-    return () => clearTimeout(timeout)
-  }, [onUndo, undoTimeoutMs])
+    return () => clearTimeout(timeout);
+  }, [onUndo, undoTimeoutMs]);
 
   return (
     <div
       className={cn(
         "flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 text-sm text-muted-foreground",
-        className
+        className,
       )}
     >
       <X className="size-4 text-destructive shrink-0" />
       <span>
-        Tool call rejected: <code className="text-xs bg-muted px-1 py-0.5 rounded">{toolName}</code>
+        Tool call rejected:{" "}
+        <code className="text-xs bg-muted px-1 py-0.5 rounded">{toolName}</code>
       </span>
       {canUndo && onUndo && (
         <Button
@@ -298,5 +306,5 @@ export const ToolRejectionMessage = memo(function ToolRejectionMessage({
         </Button>
       )}
     </div>
-  )
-})
+  );
+});

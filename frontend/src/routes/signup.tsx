@@ -1,71 +1,76 @@
-import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router"
-import { useState } from "react"
-import { useQueryClient } from "@tanstack/react-query"
-import { ArrowLeft, Sparkles } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { useRegister, authKeys } from "@/lib/auth"
+import {
+  createFileRoute,
+  Link,
+  useNavigate,
+  redirect,
+} from "@tanstack/react-router";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useRegister, authKeys } from "@/lib/auth";
 
 export const Route = createFileRoute("/signup")({
   component: SignupPage,
   beforeLoad: ({ context }) => {
     if (context.auth.isAuthenticated) {
-      throw redirect({ to: "/chat" })
+      throw redirect({ to: "/chat" });
     }
   },
-})
+});
 
-type Step = "account" | "organization"
+type Step = "account" | "organization";
 
 function SignupPage() {
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const register = useRegister()
-  const [step, setStep] = useState<Step>("account")
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const register = useRegister();
+  const [step, setStep] = useState<Step>("account");
 
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [fullName, setFullName] = useState("")
-  const [organizationName, setOrganizationName] = useState("")
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
 
-  const [localError, setLocalError] = useState<string | null>(null)
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const validateAccountStep = () => {
     if (!email) {
-      setLocalError("Email is required")
-      return false
+      setLocalError("Email is required");
+      return false;
     }
     if (password !== confirmPassword) {
-      setLocalError("Passwords do not match")
-      return false
+      setLocalError("Passwords do not match");
+      return false;
     }
     if (password.length < 8) {
-      setLocalError("Password must be at least 8 characters")
-      return false
+      setLocalError("Password must be at least 8 characters");
+      return false;
     }
-    return true
-  }
+    return true;
+  };
 
   const handleNextStep = () => {
-    setLocalError(null)
+    setLocalError(null);
     if (validateAccountStep()) {
-      setStep("organization")
+      setStep("organization");
     }
-  }
+  };
 
   const handlePrevStep = () => {
-    setLocalError(null)
-    setStep("account")
-  }
+    setLocalError(null);
+    setStep("account");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLocalError(null)
+    e.preventDefault();
+    setLocalError(null);
 
     if (!validateAccountStep()) {
-      setStep("account")
-      return
+      setStep("account");
+      return;
     }
 
     try {
@@ -74,15 +79,15 @@ function SignupPage() {
         password,
         full_name: fullName || undefined,
         organization_name: organizationName || undefined,
-      })
-      await queryClient.refetchQueries({ queryKey: authKeys.user })
-      navigate({ to: "/chat" })
+      });
+      await queryClient.refetchQueries({ queryKey: authKeys.user });
+      navigate({ to: "/chat" });
     } catch {
       // Mutation handles error display
     }
-  }
+  };
 
-  const error = localError || register.error?.message
+  const error = localError || register.error?.message;
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-background p-4">
@@ -93,7 +98,9 @@ function SignupPage() {
             <Sparkles className="h-6 w-6 text-primary-foreground" />
           </div>
           <h1 className="text-3xl font-semibold tracking-tight">
-            {step === "account" ? "Sign up below to unlock the full potential" : "Set up your workspace"}
+            {step === "account"
+              ? "Sign up below to unlock the full potential"
+              : "Set up your workspace"}
           </h1>
         </div>
 
@@ -196,12 +203,15 @@ function SignupPage() {
 
           <p className="pt-4 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link to="/login" className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-muted-foreground">
+            <Link
+              to="/login"
+              className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-muted-foreground"
+            >
               Sign in
             </Link>
           </p>
         </form>
       </div>
     </div>
-  )
+  );
 }

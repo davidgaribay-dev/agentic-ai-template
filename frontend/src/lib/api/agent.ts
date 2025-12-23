@@ -4,86 +4,86 @@
  * Handles chat streaming, agent health, and tool approval operations.
  */
 
-import { apiClient, getAuthHeader, API_BASE, ApiError } from "./client"
+import { apiClient, getAuthHeader, API_BASE, ApiError } from "./client";
 
 export interface ChatRequest {
-  message: string
-  conversation_id?: string
-  organization_id?: string
-  team_id?: string
-  stream?: boolean
+  message: string;
+  conversation_id?: string;
+  organization_id?: string;
+  team_id?: string;
+  stream?: boolean;
 }
 
 export interface ChatResponse {
-  message: string
-  conversation_id: string
+  message: string;
+  conversation_id: string;
 }
 
 export interface HealthResponse {
-  status: string
-  llm_configured: boolean
+  status: string;
+  llm_configured: boolean;
 }
 
 export interface ChatMessage {
-  role: "user" | "assistant"
-  content: string
-  sources?: MessageSource[] | null
+  role: "user" | "assistant";
+  content: string;
+  sources?: MessageSource[] | null;
 }
 
 /** SSE Stream Event Types - Discriminated Union for type-safe event handling */
 export type StreamTokenEvent = {
-  type: "token"
-  data: string
-}
+  type: "token";
+  data: string;
+};
 
 export type StreamTitleEvent = {
-  type: "title"
+  type: "title";
   data: {
-    title: string
-    conversation_id: string
-  }
-}
+    title: string;
+    conversation_id: string;
+  };
+};
 
 export type StreamDoneEvent = {
-  type: "done"
+  type: "done";
   data: {
-    conversation_id: string
-  }
-}
+    conversation_id: string;
+  };
+};
 
 export type StreamErrorEvent = {
-  type: "error"
-  data: string
-}
+  type: "error";
+  data: string;
+};
 
 export type StreamToolApprovalEvent = {
-  type: "tool_approval"
+  type: "tool_approval";
   data: {
-    conversation_id: string
-    tool_name: string
-    tool_args: Record<string, unknown>
-    tool_call_id: string | null
-    tool_description: string
-  }
-}
+    conversation_id: string;
+    tool_name: string;
+    tool_args: Record<string, unknown>;
+    tool_call_id: string | null;
+    tool_description: string;
+  };
+};
 
 export type MessageSource = {
-  content: string
-  source: string
-  file_type: string
-  metadata: Record<string, unknown> | null
-  relevance_score: number
-  chunk_index: number
-  document_id: string
-}
+  content: string;
+  source: string;
+  file_type: string;
+  metadata: Record<string, unknown> | null;
+  relevance_score: number;
+  chunk_index: number;
+  document_id: string;
+};
 
 export type StreamSourcesEvent = {
-  type: "sources"
+  type: "sources";
   data: {
-    conversation_id: string
-    sources: MessageSource[]
-  }
-}
+    conversation_id: string;
+    sources: MessageSource[];
+  };
+};
 
 /** Union of all possible stream events */
 export type StreamEvent =
@@ -92,22 +92,22 @@ export type StreamEvent =
   | StreamDoneEvent
   | StreamErrorEvent
   | StreamToolApprovalEvent
-  | StreamSourcesEvent
+  | StreamSourcesEvent;
 
 export interface ToolApprovalRequest {
-  conversation_id: string
-  organization_id: string
-  team_id?: string | null
-  approved: boolean
-  stream?: boolean
+  conversation_id: string;
+  organization_id: string;
+  team_id?: string | null;
+  approved: boolean;
+  stream?: boolean;
 }
 
 export interface ToolApprovalInfo {
-  conversation_id: string
-  tool_name: string
-  tool_args: Record<string, unknown>
-  tool_call_id: string | null
-  tool_description: string
+  conversation_id: string;
+  tool_name: string;
+  tool_args: Record<string, unknown>;
+  tool_call_id: string | null;
+  tool_description: string;
 }
 
 export const agentApi = {
@@ -116,22 +116,29 @@ export const agentApi = {
 
   /** Send a chat message (non-streaming) */
   chat: (request: ChatRequest) =>
-    apiClient.post<ChatResponse>("/v1/agent/chat", { ...request, stream: false }, {
-      headers: getAuthHeader(),
-    }),
+    apiClient.post<ChatResponse>(
+      "/v1/agent/chat",
+      { ...request, stream: false },
+      {
+        headers: getAuthHeader(),
+      },
+    ),
 
   /** Get conversation history */
   getHistory: (conversationId: string) =>
-    apiClient.get<ChatMessage[]>(`/v1/agent/conversations/${conversationId}/history`, {
-      headers: getAuthHeader(),
-    }),
+    apiClient.get<ChatMessage[]>(
+      `/v1/agent/conversations/${conversationId}/history`,
+      {
+        headers: getAuthHeader(),
+      },
+    ),
 
   /** Update conversation title */
   updateTitle: (conversationId: string, title: string) =>
     apiClient.patch<{ success: boolean; title: string }>(
       `/v1/agent/conversations/${conversationId}/title?title=${encodeURIComponent(title)}`,
       {},
-      { headers: getAuthHeader() }
+      { headers: getAuthHeader() },
     ),
 
   /**
@@ -140,12 +147,14 @@ export const agentApi = {
    */
   chatStream: async function* (
     request: Omit<ChatRequest, "stream">,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): AsyncGenerator<StreamEvent> {
-    const token = localStorage.getItem("auth_token")
-    const headers: Record<string, string> = { "Content-Type": "application/json" }
+    const token = localStorage.getItem("auth_token");
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
     if (token) {
-      headers["Authorization"] = `Bearer ${token}`
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
     const response = await fetch(`${API_BASE}/v1/agent/chat`, {
@@ -153,56 +162,61 @@ export const agentApi = {
       headers,
       body: JSON.stringify({ ...request, stream: true }),
       signal,
-    })
+    });
 
     if (!response.ok) {
-      throw new ApiError(response.status, response.statusText)
+      throw new ApiError(response.status, response.statusText);
     }
 
-    const reader = response.body?.getReader()
+    const reader = response.body?.getReader();
     if (!reader) {
-      throw new Error("No response body")
+      throw new Error("No response body");
     }
 
-    const decoder = new TextDecoder()
-    let buffer = ""
-    let currentEvent = "message"
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let currentEvent = "message";
 
     while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
+      const { done, value } = await reader.read();
+      if (done) break;
 
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split("\n")
-      buffer = lines.pop() || ""
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
 
       for (const line of lines) {
         if (line.startsWith("event:")) {
-          currentEvent = line.slice(6).trim()
-          continue
+          currentEvent = line.slice(6).trim();
+          continue;
         }
 
         if (line.startsWith("data:")) {
-          const data = line.slice(5).trim()
+          const data = line.slice(5).trim();
           if (data) {
             try {
-              const parsed = JSON.parse(data)
+              const parsed = JSON.parse(data);
 
               if (currentEvent === "title" && parsed.title) {
                 yield {
                   type: "title",
-                  data: { title: parsed.title, conversation_id: parsed.conversation_id }
-                } satisfies StreamTitleEvent
+                  data: {
+                    title: parsed.title,
+                    conversation_id: parsed.conversation_id,
+                  },
+                } satisfies StreamTitleEvent;
               } else if (currentEvent === "error" || parsed.error) {
                 yield {
                   type: "error",
-                  data: String(parsed.error || parsed.message || "Unknown error")
-                } satisfies StreamErrorEvent
+                  data: String(
+                    parsed.error || parsed.message || "Unknown error",
+                  ),
+                } satisfies StreamErrorEvent;
               } else if (currentEvent === "done") {
                 yield {
                   type: "done",
-                  data: { conversation_id: parsed.conversation_id }
-                } satisfies StreamDoneEvent
+                  data: { conversation_id: parsed.conversation_id },
+                } satisfies StreamDoneEvent;
               } else if (currentEvent === "tool_approval") {
                 yield {
                   type: "tool_approval",
@@ -212,52 +226,64 @@ export const agentApi = {
                     tool_args: parsed.tool_args || {},
                     tool_call_id: parsed.tool_call_id || null,
                     tool_description: parsed.tool_description || "",
-                  }
-                } satisfies StreamToolApprovalEvent
+                  },
+                } satisfies StreamToolApprovalEvent;
               } else if (currentEvent === "sources" && parsed.sources) {
                 yield {
                   type: "sources",
                   data: {
                     conversation_id: parsed.conversation_id,
                     sources: parsed.sources || [],
-                  }
-                } satisfies StreamSourcesEvent
+                  },
+                } satisfies StreamSourcesEvent;
               } else if (parsed.token) {
                 yield {
                   type: "token",
-                  data: String(parsed.token)
-                } satisfies StreamTokenEvent
-              } else if (parsed.conversation_id && !parsed.token && !parsed.title) {
+                  data: String(parsed.token),
+                } satisfies StreamTokenEvent;
+              } else if (
+                parsed.conversation_id &&
+                !parsed.token &&
+                !parsed.title
+              ) {
                 yield {
                   type: "done",
-                  data: { conversation_id: parsed.conversation_id }
-                } satisfies StreamDoneEvent
+                  data: { conversation_id: parsed.conversation_id },
+                } satisfies StreamDoneEvent;
               }
             } catch {
               // Non-JSON lines are ignored (SSE keepalive, etc.)
             }
           }
-          currentEvent = "message"
+          currentEvent = "message";
         }
       }
     }
   },
 
   /** Get pending tool approval for a conversation */
-  getPendingApproval: (conversationId: string, organizationId: string, teamId?: string) => {
-    const params = new URLSearchParams({ organization_id: organizationId })
-    if (teamId) params.append("team_id", teamId)
+  getPendingApproval: (
+    conversationId: string,
+    organizationId: string,
+    teamId?: string,
+  ) => {
+    const params = new URLSearchParams({ organization_id: organizationId });
+    if (teamId) params.append("team_id", teamId);
     return apiClient.get<ToolApprovalInfo | null>(
       `/v1/agent/conversations/${conversationId}/pending-approval?${params}`,
-      { headers: getAuthHeader() }
-    )
+      { headers: getAuthHeader() },
+    );
   },
 
   /** Resume a conversation after tool approval decision (non-streaming) */
   resume: (request: ToolApprovalRequest) =>
-    apiClient.post<ChatResponse>("/v1/agent/resume", { ...request, stream: false }, {
-      headers: getAuthHeader(),
-    }),
+    apiClient.post<ChatResponse>(
+      "/v1/agent/resume",
+      { ...request, stream: false },
+      {
+        headers: getAuthHeader(),
+      },
+    ),
 
   /**
    * Resume a conversation with streaming response.
@@ -265,12 +291,14 @@ export const agentApi = {
    */
   resumeStream: async function* (
     request: Omit<ToolApprovalRequest, "stream">,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): AsyncGenerator<StreamEvent> {
-    const token = localStorage.getItem("auth_token")
-    const headers: Record<string, string> = { "Content-Type": "application/json" }
+    const token = localStorage.getItem("auth_token");
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
     if (token) {
-      headers["Authorization"] = `Bearer ${token}`
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
     const response = await fetch(`${API_BASE}/v1/agent/resume`, {
@@ -278,51 +306,53 @@ export const agentApi = {
       headers,
       body: JSON.stringify({ ...request, stream: true }),
       signal,
-    })
+    });
 
     if (!response.ok) {
-      throw new ApiError(response.status, response.statusText)
+      throw new ApiError(response.status, response.statusText);
     }
 
-    const reader = response.body?.getReader()
+    const reader = response.body?.getReader();
     if (!reader) {
-      throw new Error("No response body")
+      throw new Error("No response body");
     }
 
-    const decoder = new TextDecoder()
-    let buffer = ""
-    let currentEvent = "message"
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let currentEvent = "message";
 
     while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
+      const { done, value } = await reader.read();
+      if (done) break;
 
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split("\n")
-      buffer = lines.pop() || ""
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
 
       for (const line of lines) {
         if (line.startsWith("event:")) {
-          currentEvent = line.slice(6).trim()
-          continue
+          currentEvent = line.slice(6).trim();
+          continue;
         }
 
         if (line.startsWith("data:")) {
-          const data = line.slice(5).trim()
+          const data = line.slice(5).trim();
           if (data) {
             try {
-              const parsed = JSON.parse(data)
+              const parsed = JSON.parse(data);
 
               if (currentEvent === "error" || parsed.error) {
                 yield {
                   type: "error",
-                  data: String(parsed.error || parsed.message || "Unknown error")
-                } satisfies StreamErrorEvent
+                  data: String(
+                    parsed.error || parsed.message || "Unknown error",
+                  ),
+                } satisfies StreamErrorEvent;
               } else if (currentEvent === "done") {
                 yield {
                   type: "done",
-                  data: { conversation_id: parsed.conversation_id }
-                } satisfies StreamDoneEvent
+                  data: { conversation_id: parsed.conversation_id },
+                } satisfies StreamDoneEvent;
               } else if (currentEvent === "tool_approval") {
                 yield {
                   type: "tool_approval",
@@ -332,34 +362,34 @@ export const agentApi = {
                     tool_args: parsed.tool_args || {},
                     tool_call_id: parsed.tool_call_id || null,
                     tool_description: parsed.tool_description || "",
-                  }
-                } satisfies StreamToolApprovalEvent
+                  },
+                } satisfies StreamToolApprovalEvent;
               } else if (currentEvent === "sources" && parsed.sources) {
                 yield {
                   type: "sources",
                   data: {
                     conversation_id: parsed.conversation_id,
                     sources: parsed.sources || [],
-                  }
-                } satisfies StreamSourcesEvent
+                  },
+                } satisfies StreamSourcesEvent;
               } else if (parsed.token) {
                 yield {
                   type: "token",
-                  data: String(parsed.token)
-                } satisfies StreamTokenEvent
+                  data: String(parsed.token),
+                } satisfies StreamTokenEvent;
               } else if (parsed.conversation_id && !parsed.token) {
                 yield {
                   type: "done",
-                  data: { conversation_id: parsed.conversation_id }
-                } satisfies StreamDoneEvent
+                  data: { conversation_id: parsed.conversation_id },
+                } satisfies StreamDoneEvent;
               }
             } catch {
               // Non-JSON lines are ignored (SSE keepalive, etc.)
             }
           }
-          currentEvent = "message"
+          currentEvent = "message";
         }
       }
     }
   },
-}
+};

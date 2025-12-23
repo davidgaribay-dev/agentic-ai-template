@@ -5,15 +5,15 @@
  * Can be triggered from various places in the UI.
  */
 
-import { useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Plus, Loader2 } from "lucide-react"
-import { useWorkspace, workspaceKeys } from "@/lib/workspace"
-import { teamsApi, type TeamCreate, ApiError } from "@/lib/api"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus, Loader2 } from "lucide-react";
+import { useWorkspace, workspaceKeys } from "@/lib/workspace";
+import { teamsApi, type TeamCreate, ApiError } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -22,17 +22,17 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 
 interface CreateTeamDialogProps {
   /** Custom trigger element. If not provided, uses default button */
-  trigger?: React.ReactNode
+  trigger?: React.ReactNode;
   /** Called after team is successfully created */
-  onSuccess?: (teamId: string) => void
+  onSuccess?: (teamId: string) => void;
   /** Whether the dialog is controlled externally */
-  open?: boolean
+  open?: boolean;
   /** Callback when open state changes */
-  onOpenChange?: (open: boolean) => void
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function CreateTeamDialog({
@@ -41,49 +41,50 @@ export function CreateTeamDialog({
   open: controlledOpen,
   onOpenChange,
 }: CreateTeamDialogProps) {
-  const queryClient = useQueryClient()
-  const { currentOrg, currentOrgRole, switchTeam, refresh } = useWorkspace()
-  const [internalOpen, setInternalOpen] = useState(false)
-  const [name, setName] = useState("")
-  const [description, setDescription] = useState("")
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient();
+  const { currentOrg, currentOrgRole, switchTeam, refresh } = useWorkspace();
+  const [internalOpen, setInternalOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const isOpen = controlledOpen ?? internalOpen
-  const setIsOpen = onOpenChange ?? setInternalOpen
-  const canCreateTeam = currentOrgRole === "owner" || currentOrgRole === "admin"
+  const isOpen = controlledOpen ?? internalOpen;
+  const setIsOpen = onOpenChange ?? setInternalOpen;
+  const canCreateTeam =
+    currentOrgRole === "owner" || currentOrgRole === "admin";
 
   const createMutation = useMutation({
     mutationFn: (data: TeamCreate) => teamsApi.createTeam(currentOrg!.id, data),
     onSuccess: (newTeam) => {
       queryClient.invalidateQueries({
         queryKey: workspaceKeys.teams(currentOrg!.id),
-      })
-      refresh()
-      switchTeam(newTeam.id)
-      onSuccess?.(newTeam.id)
-      resetDialog()
+      });
+      refresh();
+      switchTeam(newTeam.id);
+      onSuccess?.(newTeam.id);
+      resetDialog();
     },
     onError: (err: ApiError) => {
-      const detail = (err.body as { detail?: string })?.detail
-      setError(detail || "Failed to create team")
+      const detail = (err.body as { detail?: string })?.detail;
+      setError(detail || "Failed to create team");
     },
-  })
+  });
 
   const handleCreate = () => {
-    if (!currentOrg) return
-    setError(null)
-    createMutation.mutate({ name, description: description || null })
-  }
+    if (!currentOrg) return;
+    setError(null);
+    createMutation.mutate({ name, description: description || null });
+  };
 
   const resetDialog = () => {
-    setName("")
-    setDescription("")
-    setError(null)
-    setIsOpen(false)
-  }
+    setName("");
+    setDescription("");
+    setError(null);
+    setIsOpen(false);
+  };
 
   if (!currentOrg || !canCreateTeam) {
-    return null
+    return null;
   }
 
   const defaultTrigger = (
@@ -91,13 +92,18 @@ export function CreateTeamDialog({
       <Plus className="mr-2 h-4 w-4" />
       Create Team
     </Button>
-  )
+  );
 
-  const isControlled = controlledOpen !== undefined
+  const isControlled = controlledOpen !== undefined;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(o) => (o ? setIsOpen(true) : resetDialog())}>
-      {!isControlled && <DialogTrigger asChild>{trigger ?? defaultTrigger}</DialogTrigger>}
+    <Dialog
+      open={isOpen}
+      onOpenChange={(o) => (o ? setIsOpen(true) : resetDialog())}
+    >
+      {!isControlled && (
+        <DialogTrigger asChild>{trigger ?? defaultTrigger}</DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create Team</DialogTitle>
@@ -144,5 +150,5 @@ export function CreateTeamDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

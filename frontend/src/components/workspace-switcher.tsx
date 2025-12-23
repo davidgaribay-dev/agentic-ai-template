@@ -6,9 +6,9 @@
  * Organization switching is done via the Organizations page.
  */
 
-import { useState } from "react"
-import { Check, ChevronDown, Users, Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import { Check, ChevronDown, Users, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,11 +16,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useWorkspace } from "@/lib/workspace"
-import { CreateTeamDialog } from "@/components/create-team-dialog"
-import { cn, isValidImageUrl, getInitials } from "@/lib/utils"
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useWorkspace } from "@/lib/workspace";
+import { CreateTeamDialog } from "@/components/create-team-dialog";
+import { cn, isValidImageUrl, getInitials } from "@/lib/utils";
 
 export function WorkspaceSwitcher() {
   const {
@@ -31,12 +31,13 @@ export function WorkspaceSwitcher() {
     isLoadingOrgs,
     isLoadingTeams,
     switchTeam,
-  } = useWorkspace()
+  } = useWorkspace();
 
-  const [open, setOpen] = useState(false)
-  const [createTeamOpen, setCreateTeamOpen] = useState(false)
+  const [open, setOpen] = useState(false);
+  const [createTeamOpen, setCreateTeamOpen] = useState(false);
 
-  const canCreateTeam = currentOrgRole === "owner" || currentOrgRole === "admin"
+  const canCreateTeam =
+    currentOrgRole === "owner" || currentOrgRole === "admin";
 
   if (isLoadingOrgs || !currentOrg) {
     return (
@@ -44,7 +45,7 @@ export function WorkspaceSwitcher() {
         <Users className="h-4 w-4" />
         <span className="text-muted-foreground">Loading...</span>
       </Button>
-    )
+    );
   }
 
   return (
@@ -54,15 +55,18 @@ export function WorkspaceSwitcher() {
           <Button variant="ghost" size="sm" className="gap-2 max-w-[200px]">
             {currentTeam && isValidImageUrl(currentTeam.logo_url) ? (
               <Avatar className="h-4 w-4 shrink-0">
-                <AvatarImage src={currentTeam.logo_url!} alt={currentTeam.name} />
-                <AvatarFallback className="text-[8px]">{getInitials(currentTeam.name)}</AvatarFallback>
+                <AvatarImage
+                  src={currentTeam.logo_url!}
+                  alt={currentTeam.name}
+                />
+                <AvatarFallback className="text-[8px]">
+                  {getInitials(currentTeam.name)}
+                </AvatarFallback>
               </Avatar>
             ) : (
               <Users className="h-4 w-4 shrink-0" />
             )}
-            <span className="truncate">
-              {currentTeam?.name ?? "All Teams"}
-            </span>
+            <span className="truncate">{currentTeam?.name ?? "All Teams"}</span>
             <span className="text-muted-foreground text-xs truncate">
               ({currentOrg.name})
             </span>
@@ -79,8 +83,8 @@ export function WorkspaceSwitcher() {
             <>
               <DropdownMenuItem
                 onClick={() => {
-                  switchTeam(null)
-                  setOpen(false)
+                  switchTeam(null);
+                  setOpen(false);
                 }}
                 className={cn("gap-2", !currentTeam && "bg-accent")}
               >
@@ -93,15 +97,20 @@ export function WorkspaceSwitcher() {
                 <DropdownMenuItem
                   key={team.id}
                   onClick={() => {
-                    switchTeam(team.id)
-                    setOpen(false)
+                    switchTeam(team.id);
+                    setOpen(false);
                   }}
-                  className={cn("gap-2", currentTeam?.id === team.id && "bg-accent")}
+                  className={cn(
+                    "gap-2",
+                    currentTeam?.id === team.id && "bg-accent",
+                  )}
                 >
                   {isValidImageUrl(team.logo_url) ? (
                     <Avatar className="h-4 w-4">
                       <AvatarImage src={team.logo_url!} alt={team.name} />
-                      <AvatarFallback className="text-[8px]">{getInitials(team.name)}</AvatarFallback>
+                      <AvatarFallback className="text-[8px]">
+                        {getInitials(team.name)}
+                      </AvatarFallback>
                     </Avatar>
                   ) : (
                     <Users className="h-4 w-4" />
@@ -124,8 +133,8 @@ export function WorkspaceSwitcher() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => {
-                  setOpen(false)
-                  setCreateTeamOpen(true)
+                  setOpen(false);
+                  setCreateTeamOpen(true);
                 }}
                 className="gap-2"
               >
@@ -141,20 +150,28 @@ export function WorkspaceSwitcher() {
         onOpenChange={setCreateTeamOpen}
       />
     </>
-  )
+  );
 }
 
 /**
  * Compact version of team switcher for mobile or small screens.
  */
 export function WorkspaceSwitcherCompact() {
-  const { currentOrg, currentOrgRole, currentTeam, teams, isLoadingTeams, switchTeam } = useWorkspace()
-  const [createTeamOpen, setCreateTeamOpen] = useState(false)
+  const {
+    currentOrg,
+    currentOrgRole,
+    currentTeam,
+    teams,
+    isLoadingTeams,
+    switchTeam,
+  } = useWorkspace();
+  const [createTeamOpen, setCreateTeamOpen] = useState(false);
 
-  const canCreateTeam = currentOrgRole === "owner" || currentOrgRole === "admin"
+  const canCreateTeam =
+    currentOrgRole === "owner" || currentOrgRole === "admin";
 
   if (!currentOrg) {
-    return null
+    return null;
   }
 
   return (
@@ -164,8 +181,13 @@ export function WorkspaceSwitcherCompact() {
           <Button variant="ghost" size="icon">
             {currentTeam && isValidImageUrl(currentTeam.logo_url) ? (
               <Avatar className="h-5 w-5">
-                <AvatarImage src={currentTeam.logo_url!} alt={currentTeam.name} />
-                <AvatarFallback className="text-[10px]">{getInitials(currentTeam.name)}</AvatarFallback>
+                <AvatarImage
+                  src={currentTeam.logo_url!}
+                  alt={currentTeam.name}
+                />
+                <AvatarFallback className="text-[10px]">
+                  {getInitials(currentTeam.name)}
+                </AvatarFallback>
               </Avatar>
             ) : (
               <Users className="h-5 w-5" />
@@ -176,8 +198,13 @@ export function WorkspaceSwitcherCompact() {
           <DropdownMenuLabel className="flex items-center gap-2">
             {currentTeam && isValidImageUrl(currentTeam.logo_url) && (
               <Avatar className="h-4 w-4">
-                <AvatarImage src={currentTeam.logo_url!} alt={currentTeam.name} />
-                <AvatarFallback className="text-[8px]">{getInitials(currentTeam.name)}</AvatarFallback>
+                <AvatarImage
+                  src={currentTeam.logo_url!}
+                  alt={currentTeam.name}
+                />
+                <AvatarFallback className="text-[8px]">
+                  {getInitials(currentTeam.name)}
+                </AvatarFallback>
               </Avatar>
             )}
             {currentTeam?.name ?? "All Teams"}
@@ -204,12 +231,17 @@ export function WorkspaceSwitcherCompact() {
                 <DropdownMenuItem
                   key={team.id}
                   onClick={() => switchTeam(team.id)}
-                  className={cn("gap-2", currentTeam?.id === team.id && "bg-accent")}
+                  className={cn(
+                    "gap-2",
+                    currentTeam?.id === team.id && "bg-accent",
+                  )}
                 >
                   {isValidImageUrl(team.logo_url) ? (
                     <Avatar className="h-4 w-4">
                       <AvatarImage src={team.logo_url!} alt={team.name} />
-                      <AvatarFallback className="text-[8px]">{getInitials(team.name)}</AvatarFallback>
+                      <AvatarFallback className="text-[8px]">
+                        {getInitials(team.name)}
+                      </AvatarFallback>
                     </Avatar>
                   ) : (
                     <Users className="h-4 w-4" />
@@ -241,5 +273,5 @@ export function WorkspaceSwitcherCompact() {
         onOpenChange={setCreateTeamOpen}
       />
     </>
-  )
+  );
 }

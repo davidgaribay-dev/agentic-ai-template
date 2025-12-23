@@ -1,24 +1,27 @@
-import { Info } from "lucide-react"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
+import { Info } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
-import type { ChatSettings as ChatSettingsType, DisabledByLevel } from "@/lib/api"
+} from "@/components/ui/tooltip";
+import type {
+  ChatSettings as ChatSettingsType,
+  DisabledByLevel,
+} from "@/lib/api";
 
 export interface ChatSettingsProps {
-  settings: ChatSettingsType
-  onChatEnabledChange: (enabled: boolean) => void
-  onChatPanelEnabledChange: (enabled: boolean) => void
-  chatDisabledByOrg?: boolean
-  chatDisabledByTeam?: boolean
-  chatPanelDisabledByOrg?: boolean
-  chatPanelDisabledByTeam?: boolean
-  isLoading?: boolean
-  level: "org" | "team" | "user"
+  settings: ChatSettingsType;
+  onChatEnabledChange: (enabled: boolean) => void;
+  onChatPanelEnabledChange: (enabled: boolean) => void;
+  chatDisabledByOrg?: boolean;
+  chatDisabledByTeam?: boolean;
+  chatPanelDisabledByOrg?: boolean;
+  chatPanelDisabledByTeam?: boolean;
+  isLoading?: boolean;
+  level: "org" | "team" | "user";
 }
 
 function SettingRow({
@@ -30,19 +33,22 @@ function SettingRow({
   disabled,
   tooltipMessage,
 }: {
-  id: string
-  label: string
-  description: string
-  checked: boolean
-  onCheckedChange: (checked: boolean) => void
-  disabled: boolean
-  tooltipMessage: string | null
+  id: string;
+  label: string;
+  description: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  disabled: boolean;
+  tooltipMessage: string | null;
 }) {
   return (
     <div className="flex items-center justify-between py-2">
       <div className="space-y-0.5 pr-4">
         <div className="flex items-center gap-2">
-          <Label htmlFor={id} className={disabled ? "text-muted-foreground" : ""}>
+          <Label
+            htmlFor={id}
+            className={disabled ? "text-muted-foreground" : ""}
+          >
             {label}
           </Label>
           {disabled && tooltipMessage && (
@@ -67,7 +73,7 @@ function SettingRow({
         disabled={disabled}
       />
     </div>
-  )
+  );
 }
 
 export function ChatSettings({
@@ -82,28 +88,30 @@ export function ChatSettings({
   level,
 }: ChatSettingsProps) {
   const getChatDisabledBy = (): DisabledByLevel => {
-    if (chatDisabledByOrg) return "org"
-    if (chatDisabledByTeam && level !== "team") return "team"
-    return null
-  }
+    if (chatDisabledByOrg) return "org";
+    if (chatDisabledByTeam && level !== "team") return "team";
+    return null;
+  };
 
   const getChatPanelDisabledBy = (): DisabledByLevel => {
-    if (chatPanelDisabledByOrg) return "org"
-    if (chatPanelDisabledByTeam && level !== "team") return "team"
-    return null
-  }
+    if (chatPanelDisabledByOrg) return "org";
+    if (chatPanelDisabledByTeam && level !== "team") return "team";
+    return null;
+  };
 
-  const chatDisabledBy = getChatDisabledBy()
-  const chatPanelDisabledBy = getChatPanelDisabledBy()
+  const chatDisabledBy = getChatDisabledBy();
+  const chatPanelDisabledBy = getChatPanelDisabledBy();
 
-  const isChatDisabledByHigherLevel = chatDisabledBy === "org" || chatDisabledBy === "team"
-  const isChatPanelDisabledByHigherLevel = chatPanelDisabledBy === "org" || chatPanelDisabledBy === "team"
+  const isChatDisabledByHigherLevel =
+    chatDisabledBy === "org" || chatDisabledBy === "team";
+  const isChatPanelDisabledByHigherLevel =
+    chatPanelDisabledBy === "org" || chatPanelDisabledBy === "team";
 
   const getTooltipMessage = (disabledBy: DisabledByLevel): string | null => {
-    if (disabledBy === "org") return "Disabled by organization settings"
-    if (disabledBy === "team") return "Disabled by team settings"
-    return null
-  }
+    if (disabledBy === "org") return "Disabled by organization settings";
+    if (disabledBy === "team") return "Disabled by team settings";
+    return null;
+  };
 
   return (
     <div className="space-y-4">
@@ -126,5 +134,5 @@ export function ChatSettings({
         tooltipMessage={getTooltipMessage(chatPanelDisabledBy)}
       />
     </div>
-  )
+  );
 }

@@ -1,21 +1,21 @@
-import * as React from "react"
-import { useRef, useCallback, useState, useEffect } from "react"
-import { ArrowUp, Square } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { PromptPicker } from "./PromptPicker"
-import { ToolPicker } from "./ToolPicker"
+import * as React from "react";
+import { useRef, useCallback, useState, useEffect } from "react";
+import { ArrowUp, Square } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { PromptPicker } from "./PromptPicker";
+import { ToolPicker } from "./ToolPicker";
 
 interface ChatInputProps {
-  onSubmit: (message: string) => void
-  onStop?: () => void
-  placeholder?: string
-  disabled?: boolean
-  isStreaming?: boolean
-  className?: string
-  organizationId?: string
-  teamId?: string
+  onSubmit: (message: string) => void;
+  onStop?: () => void;
+  placeholder?: string;
+  disabled?: boolean;
+  isStreaming?: boolean;
+  className?: string;
+  organizationId?: string;
+  teamId?: string;
 }
 
 export function ChatInput({
@@ -28,66 +28,66 @@ export function ChatInput({
   organizationId,
   teamId,
 }: ChatInputProps) {
-  const [value, setValue] = useState("")
-  const [isPending, setIsPending] = useState(false)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [value, setValue] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Reset pending state when streaming starts (parent acknowledged the submit)
   useEffect(() => {
     if (isStreaming) {
-      setIsPending(false)
+      setIsPending(false);
     }
-  }, [isStreaming])
+  }, [isStreaming]);
 
   const handlePromptSelect = useCallback((content: string) => {
     setValue((prev) => {
       // If there's existing text, add a space before the template
       if (prev.trim()) {
-        return prev + (prev.endsWith(" ") ? "" : " ") + content
+        return prev + (prev.endsWith(" ") ? "" : " ") + content;
       }
-      return content
-    })
+      return content;
+    });
     // Focus the textarea after inserting
-    setTimeout(() => textareaRef.current?.focus(), 0)
-  }, [])
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  }, []);
 
   const handleSubmit = useCallback(() => {
-    const trimmed = value.trim()
-    if (!trimmed || disabled || isPending || isStreaming) return
+    const trimmed = value.trim();
+    if (!trimmed || disabled || isPending || isStreaming) return;
 
-    setIsPending(true)
-    onSubmit(trimmed)
-    setValue("")
-    textareaRef.current?.focus()
+    setIsPending(true);
+    onSubmit(trimmed);
+    setValue("");
+    textareaRef.current?.focus();
 
     // Reset pending state after a short timeout as fallback
     // (in case streaming never starts due to an error)
-    setTimeout(() => setIsPending(false), 2000)
-  }, [value, disabled, isPending, isStreaming, onSubmit])
+    setTimeout(() => setIsPending(false), 2000);
+  }, [value, disabled, isPending, isStreaming, onSubmit]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault()
-        handleSubmit()
+        e.preventDefault();
+        handleSubmit();
       }
     },
-    [handleSubmit]
-  )
+    [handleSubmit],
+  );
 
-  const isEmpty = value.trim().length === 0
+  const isEmpty = value.trim().length === 0;
 
   useEffect(() => {
     if (!disabled && !isStreaming) {
-      textareaRef.current?.focus()
+      textareaRef.current?.focus();
     }
-  }, [disabled, isStreaming])
+  }, [disabled, isStreaming]);
 
   return (
     <div
       className={cn(
         "flex flex-col rounded-xl bg-chat-input-bg border border-border/50",
-        className
+        className,
       )}
     >
       <Textarea
@@ -139,5 +139,5 @@ export function ChatInput({
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,9 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { SearchConversations } from "@/components/search-conversations"
+import { createFileRoute } from "@tanstack/react-router";
+import { SearchConversations } from "@/components/search-conversations";
 
 export const Route = createFileRoute("/search")({
   component: SearchPage,
-})
+});
 
 function SearchPage() {
   return (
@@ -13,5 +13,5 @@ function SearchPage() {
       </div>
       <SearchConversations />
     </div>
-  )
+  );
 }

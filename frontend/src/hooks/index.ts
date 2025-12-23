@@ -1,1 +1,1 @@
-export { useChat, type ChatMessage } from "./useChat"
+export { useChat, type ChatMessage } from "./useChat";

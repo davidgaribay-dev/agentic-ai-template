@@ -1,17 +1,23 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export const Route = createFileRoute("/")({
   beforeLoad: ({ context }) => {
     // Redirect if authenticated OR if we're loading auth state (have token, fetching user)
     // This prevents showing the landing page while the authenticated layout is displayed
     if (context.auth.isAuthenticated || context.auth.isLoading) {
-      throw redirect({ to: "/chat" })
+      throw redirect({ to: "/chat" });
     }
   },
   component: HomePage,
-})
+});
 
 function HomePage() {
   return (
@@ -40,5 +46,5 @@ function HomePage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

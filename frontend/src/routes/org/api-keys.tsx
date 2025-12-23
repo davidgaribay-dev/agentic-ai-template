@@ -1,6 +1,6 @@
-import { useState } from "react"
-import { createFileRoute, redirect, Link } from "@tanstack/react-router"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useState } from "react";
+import { createFileRoute, redirect, Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Key,
   Loader2,
@@ -13,32 +13,32 @@ import {
   Shield,
   Building2,
   Sparkles,
-} from "lucide-react"
-import { useWorkspace } from "@/lib/workspace"
+} from "lucide-react";
+import { useWorkspace } from "@/lib/workspace";
 import {
   apiKeysApi,
   type APIKeyStatus,
   type LLMProvider,
   type ApiError,
-} from "@/lib/api"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+} from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -47,7 +47,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,19 +58,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { Skeleton } from "@/components/ui/skeleton"
+} from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/org/api-keys")({
   beforeLoad: ({ context }) => {
     if (!context.auth.isAuthenticated && !context.auth.isLoading) {
-      throw redirect({ to: "/login" })
+      throw redirect({ to: "/login" });
     }
   },
   component: OrgApiKeysPage,
-})
+});
 
-const PROVIDER_INFO: Record<LLMProvider, { name: string; description: string; icon: string }> = {
+const PROVIDER_INFO: Record<
+  LLMProvider,
+  { name: string; description: string; icon: string }
+> = {
   openai: {
     name: "OpenAI",
     description: "GPT-4o and other OpenAI models",
@@ -86,24 +89,23 @@ const PROVIDER_INFO: Record<LLMProvider, { name: string; description: string; ic
     description: "Gemini models from Google AI",
     icon: "G",
   },
-}
+};
 
 function OrgApiKeysPage() {
-  const { currentOrg, currentOrgRole } = useWorkspace()
-  const queryClient = useQueryClient()
-  const isAdmin = currentOrgRole === "owner" || currentOrgRole === "admin"
+  const { currentOrg, currentOrgRole } = useWorkspace();
+  const isAdmin = currentOrgRole === "owner" || currentOrgRole === "admin";
 
   const { data: apiKeyStatuses, isLoading } = useQuery({
     queryKey: ["org-api-keys", currentOrg?.id],
     queryFn: () => apiKeysApi.listOrgKeys(currentOrg!.id),
     enabled: !!currentOrg?.id && isAdmin,
-  })
+  });
 
   const { data: defaultProvider, isLoading: isLoadingDefault } = useQuery({
     queryKey: ["org-default-provider", currentOrg?.id],
     queryFn: () => apiKeysApi.getOrgDefaultProvider(currentOrg!.id),
     enabled: !!currentOrg?.id && isAdmin,
-  })
+  });
 
   if (!currentOrg || currentOrgRole === null) {
     return (
@@ -117,7 +119,7 @@ function OrgApiKeysPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (!isAdmin) {
@@ -136,7 +138,7 @@ function OrgApiKeysPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -170,8 +172,9 @@ function OrgApiKeysPage() {
             <div className="text-sm">
               <p className="font-medium">Secure Storage</p>
               <p className="text-muted-foreground">
-                API keys are stored securely in Infisical and never saved to the database.
-                Teams can override these defaults with their own keys for cost tracking.
+                API keys are stored securely in Infisical and never saved to the
+                database. Teams can override these defaults with their own keys
+                for cost tracking.
               </p>
             </div>
           </div>
@@ -198,23 +201,27 @@ function OrgApiKeysPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {(["openai", "anthropic", "google"] as LLMProvider[]).map((provider) => {
-                const status = apiKeyStatuses?.find((s) => s.provider === provider)
-                return (
-                  <ProviderCard
-                    key={provider}
-                    provider={provider}
-                    status={status}
-                    orgId={currentOrg.id}
-                  />
-                )
-              })}
+              {(["openai", "anthropic", "google"] as LLMProvider[]).map(
+                (provider) => {
+                  const status = apiKeyStatuses?.find(
+                    (s) => s.provider === provider,
+                  );
+                  return (
+                    <ProviderCard
+                      key={provider}
+                      provider={provider}
+                      status={status}
+                      orgId={currentOrg.id}
+                    />
+                  );
+                },
+              )}
             </div>
           )}
         </section>
       </div>
     </div>
-  )
+  );
 }
 
 function DefaultProviderSelector({
@@ -222,27 +229,32 @@ function DefaultProviderSelector({
   currentProvider,
   isLoading,
 }: {
-  orgId: string
-  currentProvider?: string
-  isLoading: boolean
+  orgId: string;
+  currentProvider?: string;
+  isLoading: boolean;
 }) {
-  const queryClient = useQueryClient()
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
 
   const updateMutation = useMutation({
     mutationFn: (provider: LLMProvider) =>
       apiKeysApi.setOrgDefaultProvider(orgId, { provider }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["org-default-provider", orgId] })
-      setError(null)
+      queryClient.invalidateQueries({
+        queryKey: ["org-default-provider", orgId],
+      });
+      setError(null);
     },
     onError: (err: ApiError) => {
-      setError((err.body as { detail?: string })?.detail || "Failed to update default provider")
+      setError(
+        (err.body as { detail?: string })?.detail ||
+          "Failed to update default provider",
+      );
     },
-  })
+  });
 
   if (isLoading) {
-    return <Skeleton className="h-10 w-48" />
+    return <Skeleton className="h-10 w-48" />;
   }
 
   return (
@@ -264,7 +276,7 @@ function DefaultProviderSelector({
       {updateMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
       {error && <span className="text-sm text-destructive">{error}</span>}
     </div>
-  )
+  );
 }
 
 function ProviderCard({
@@ -272,13 +284,13 @@ function ProviderCard({
   status,
   orgId,
 }: {
-  provider: LLMProvider
-  status?: APIKeyStatus
-  orgId: string
+  provider: LLMProvider;
+  status?: APIKeyStatus;
+  orgId: string;
 }) {
-  const info = PROVIDER_INFO[provider]
-  const isConfigured = status?.is_configured || false
-  const level = status?.level
+  const info = PROVIDER_INFO[provider];
+  const isConfigured = status?.is_configured || false;
+  const level = status?.level;
 
   return (
     <Card>
@@ -290,7 +302,9 @@ function ProviderCard({
             </div>
             <div>
               <CardTitle className="text-base">{info.name}</CardTitle>
-              <CardDescription className="text-sm">{info.description}</CardDescription>
+              <CardDescription className="text-sm">
+                {info.description}
+              </CardDescription>
             </div>
           </div>
           <StatusBadge isConfigured={isConfigured} level={level} />
@@ -318,23 +332,35 @@ function ProviderCard({
             )}
           </div>
           <div className="flex gap-2">
-            <SetApiKeyDialog provider={provider} orgId={orgId} hasKey={level === "org"} />
-            {level === "org" && <DeleteApiKeyButton provider={provider} orgId={orgId} />}
+            <SetApiKeyDialog
+              provider={provider}
+              orgId={orgId}
+              hasKey={level === "org"}
+            />
+            {level === "org" && (
+              <DeleteApiKeyButton provider={provider} orgId={orgId} />
+            )}
           </div>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
 
-function StatusBadge({ isConfigured, level }: { isConfigured: boolean; level?: string | null }) {
+function StatusBadge({
+  isConfigured,
+  level,
+}: {
+  isConfigured: boolean;
+  level?: string | null;
+}) {
   if (!isConfigured) {
     return (
       <Badge variant="outline" className="text-muted-foreground">
         <X className="mr-1 h-3 w-3" />
         Not Set
       </Badge>
-    )
+    );
   }
 
   if (level === "environment") {
@@ -343,15 +369,18 @@ function StatusBadge({ isConfigured, level }: { isConfigured: boolean; level?: s
         <Sparkles className="mr-1 h-3 w-3" />
         Env Fallback
       </Badge>
-    )
+    );
   }
 
   return (
-    <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0">
+    <Badge
+      variant="secondary"
+      className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0"
+    >
       <Check className="mr-1 h-3 w-3" />
       Configured
     </Badge>
-  )
+  );
 }
 
 function SetApiKeyDialog({
@@ -359,37 +388,40 @@ function SetApiKeyDialog({
   orgId,
   hasKey,
 }: {
-  provider: LLMProvider
-  orgId: string
-  hasKey: boolean
+  provider: LLMProvider;
+  orgId: string;
+  hasKey: boolean;
 }) {
-  const [open, setOpen] = useState(false)
-  const [apiKey, setApiKey] = useState("")
-  const [showKey, setShowKey] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: () => apiKeysApi.setOrgKey(orgId, { provider, api_key: apiKey }),
+    mutationFn: () =>
+      apiKeysApi.setOrgKey(orgId, { provider, api_key: apiKey }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["org-api-keys", orgId] })
-      setOpen(false)
-      setApiKey("")
-      setError(null)
+      queryClient.invalidateQueries({ queryKey: ["org-api-keys", orgId] });
+      setOpen(false);
+      setApiKey("");
+      setError(null);
     },
     onError: (err: ApiError) => {
-      setError((err.body as { detail?: string })?.detail || "Failed to save API key")
+      setError(
+        (err.body as { detail?: string })?.detail || "Failed to save API key",
+      );
     },
-  })
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!apiKey.trim()) {
-      setError("API key is required")
-      return
+      setError("API key is required");
+      return;
     }
-    mutation.mutate()
-  }
+    mutation.mutate();
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -404,8 +436,8 @@ function SetApiKeyDialog({
             {hasKey ? "Update" : "Set"} {PROVIDER_INFO[provider].name} API Key
           </DialogTitle>
           <DialogDescription>
-            Enter your {PROVIDER_INFO[provider].name} API key. It will be stored securely
-            in Infisical and never saved to the database.
+            Enter your {PROVIDER_INFO[provider].name} API key. It will be stored
+            securely in Infisical and never saved to the database.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -418,8 +450,8 @@ function SetApiKeyDialog({
                   type={showKey ? "text" : "password"}
                   value={apiKey}
                   onChange={(e) => {
-                    setApiKey(e.target.value)
-                    setError(null)
+                    setApiKey(e.target.value);
+                    setError(null);
                   }}
                   placeholder={`Enter your ${PROVIDER_INFO[provider].name} API key`}
                   className="pr-10"
@@ -431,14 +463,22 @@ function SetApiKeyDialog({
                   className="absolute right-0 top-0 h-full px-3"
                   onClick={() => setShowKey(!showKey)}
                 >
-                  {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showKey ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
@@ -455,23 +495,33 @@ function SetApiKeyDialog({
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
-function DeleteApiKeyButton({ provider, orgId }: { provider: LLMProvider; orgId: string }) {
-  const queryClient = useQueryClient()
+function DeleteApiKeyButton({
+  provider,
+  orgId,
+}: {
+  provider: LLMProvider;
+  orgId: string;
+}) {
+  const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: () => apiKeysApi.deleteOrgKey(orgId, provider),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["org-api-keys", orgId] })
+      queryClient.invalidateQueries({ queryKey: ["org-api-keys", orgId] });
     },
-  })
+  });
 
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive hover:text-destructive"
+        >
           Delete
         </Button>
       </AlertDialogTrigger>
@@ -479,8 +529,9 @@ function DeleteApiKeyButton({ provider, orgId }: { provider: LLMProvider; orgId:
         <AlertDialogHeader>
           <AlertDialogTitle>Delete API Key</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete the {PROVIDER_INFO[provider].name} API key?
-            Teams using this organization's key will fall back to environment variables.
+            Are you sure you want to delete the {PROVIDER_INFO[provider].name}{" "}
+            API key? Teams using this organization's key will fall back to
+            environment variables.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -501,5 +552,5 @@ function DeleteApiKeyButton({ provider, orgId }: { provider: LLMProvider; orgId:
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

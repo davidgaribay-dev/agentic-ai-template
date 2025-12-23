@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState } from "react";
 import {
   FileText,
   FileCode,
@@ -8,103 +8,136 @@ import {
   Trash2,
   RefreshCw,
   AlertCircle,
-} from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2 } from "lucide-react"
-import { DocumentStatus } from "./document-status"
-import { useDocuments, useDeleteDocument, useReprocessDocument } from "@/lib/queries"
-import type { Document } from "@/lib/api"
+} from "@/components/ui/dropdown-menu";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
+import { DocumentStatus } from "./document-status";
+import {
+  useDocuments,
+  useDeleteDocument,
+  useReprocessDocument,
+} from "@/lib/queries";
+import type { Document, ProcessingStatus } from "@/lib/api";
 
 interface DocumentListProps {
-  orgId: string
-  teamId?: string
-  status?: string
+  orgId: string;
+  teamId?: string;
+  status?: ProcessingStatus;
   /** Filter documents by scope - filters client-side based on team_id/user_id fields */
-  scope?: "org" | "team" | "user"
+  scope?: "org" | "team" | "user";
   /** Current user ID - required when scope is "user" to filter personal documents */
-  userId?: string
+  userId?: string;
 }
 
 function getFileIcon(fileType: string) {
-  const codeExtensions = ["py", "js", "ts", "jsx", "tsx", "java", "cpp", "c", "h", "go", "rs", "rb", "php", "sh", "sql", "html", "css"]
-  const spreadsheetExtensions = ["csv", "xlsx"]
+  const codeExtensions = [
+    "py",
+    "js",
+    "ts",
+    "jsx",
+    "tsx",
+    "java",
+    "cpp",
+    "c",
+    "h",
+    "go",
+    "rs",
+    "rb",
+    "php",
+    "sh",
+    "sql",
+    "html",
+    "css",
+  ];
+  const spreadsheetExtensions = ["csv", "xlsx"];
 
   if (codeExtensions.includes(fileType)) {
-    return FileCode
+    return FileCode;
   }
   if (spreadsheetExtensions.includes(fileType)) {
-    return FileSpreadsheet
+    return FileSpreadsheet;
   }
   if (["pdf", "txt", "md", "docx"].includes(fileType)) {
-    return FileText
+    return FileText;
   }
-  return File
+  return File;
 }
 
 function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function DocumentList({ orgId, teamId, status, scope, userId }: DocumentListProps) {
-  const { data: documents, isLoading, error } = useDocuments({
+export function DocumentList({
+  orgId,
+  teamId,
+  status,
+  scope,
+  userId,
+}: DocumentListProps) {
+  const {
+    data: documents,
+    isLoading,
+    error,
+  } = useDocuments({
     organization_id: orgId,
     team_id: teamId,
-    status: status as any,
-  })
-  const deleteMutation = useDeleteDocument()
-  const reprocessMutation = useReprocessDocument()
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [reprocessingId, setReprocessingId] = useState<string | null>(null)
+    status: status,
+  });
+  const deleteMutation = useDeleteDocument();
+  const reprocessMutation = useReprocessDocument();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [reprocessingId, setReprocessingId] = useState<string | null>(null);
 
   // Filter documents by scope (client-side filtering)
-  const filteredDocuments = documents?.data?.filter((doc: Document) => {
-    if (!scope) return true // No filter, show all
+  const filteredDocuments =
+    documents?.data?.filter((doc: Document) => {
+      if (!scope) return true; // No filter, show all
 
-    switch (scope) {
-      case "org":
-        // Org-level: no team_id, no user_id
-        return !doc.team_id && !doc.user_id
-      case "team":
-        // Team-level: has team_id, no user_id
-        return doc.team_id && !doc.user_id
-      case "user":
-        // User-level: has user_id (and optionally team_id)
-        return doc.user_id === userId
-      default:
-        return true
-    }
-  }) ?? []
+      switch (scope) {
+        case "org":
+          // Org-level: no team_id, no user_id
+          return !doc.team_id && !doc.user_id;
+        case "team":
+          // Team-level: has team_id, no user_id
+          return doc.team_id && !doc.user_id;
+        case "user":
+          // User-level: has user_id (and optionally team_id)
+          return doc.user_id === userId;
+        default:
+          return true;
+      }
+    }) ?? [];
 
   const handleDelete = (documentId: string) => {
-    setDeletingId(documentId)
+    setDeletingId(documentId);
     deleteMutation.mutate(documentId, {
       onSettled: () => setDeletingId(null),
-    })
-  }
+    });
+  };
 
   const handleReprocess = (documentId: string) => {
-    setReprocessingId(documentId)
+    setReprocessingId(documentId);
     reprocessMutation.mutate(documentId, {
       onSettled: () => setReprocessingId(null),
-    })
-  }
+    });
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -115,7 +148,7 @@ export function DocumentList({ orgId, teamId, status, scope, userId }: DocumentL
           {error instanceof Error ? error.message : "Failed to load documents"}
         </AlertDescription>
       </Alert>
-    )
+    );
   }
 
   if (filteredDocuments.length === 0) {
@@ -123,21 +156,23 @@ export function DocumentList({ orgId, teamId, status, scope, userId }: DocumentL
       <Card>
         <CardContent className="flex flex-col items-center justify-center p-8 text-center">
           <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-          <p className="text-sm font-medium text-muted-foreground">No documents uploaded yet</p>
+          <p className="text-sm font-medium text-muted-foreground">
+            No documents uploaded yet
+          </p>
           <p className="text-xs text-muted-foreground mt-1">
             Upload documents above to enable AI-powered search
           </p>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
     <div className="space-y-2">
       {filteredDocuments.map((doc: Document) => {
-        const IconComponent = getFileIcon(doc.file_type)
-        const isDeleting = deletingId === doc.id
-        const isReprocessing = reprocessingId === doc.id
+        const IconComponent = getFileIcon(doc.file_type);
+        const isDeleting = deletingId === doc.id;
+        const isReprocessing = reprocessingId === doc.id;
 
         return (
           <Card key={doc.id}>
@@ -198,7 +233,7 @@ export function DocumentList({ orgId, teamId, status, scope, userId }: DocumentL
               </div>
             </CardContent>
           </Card>
-        )
+        );
       })}
 
       {documents && documents.total > filteredDocuments.length && (
@@ -209,5 +244,5 @@ export function DocumentList({ orgId, teamId, status, scope, userId }: DocumentL
         </div>
       )}
     </div>
-  )
+  );
 }

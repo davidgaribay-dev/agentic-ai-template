@@ -1,19 +1,18 @@
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Check } from "lucide-react"
-import type { ThemeColors } from "@/lib/api"
+import { Card, CardContent } from "@/components/ui/card";
+import { Check } from "lucide-react";
+import type { ThemeColors } from "@/lib/api";
 
 interface ThemePreviewProps {
-  themeId: string
-  themeName: string
-  colors: ThemeColors
-  isSelected: boolean
-  onSelect: () => void
-  disabled?: boolean
+  themeId: string;
+  themeName: string;
+  colors: ThemeColors;
+  isSelected: boolean;
+  onSelect: () => void;
+  disabled?: boolean;
 }
 
 export function ThemePreview({
-  themeId,
+  themeId: _themeId,
   themeName,
   colors,
   isSelected,
@@ -110,13 +109,13 @@ export function ThemePreview({
         </CardContent>
       </Card>
     </button>
-  )
+  );
 }
 
 interface ThemeModeOption {
-  value: "light" | "dark" | "system"
-  label: string
-  description: string
+  value: "light" | "dark" | "system";
+  label: string;
+  description: string;
 }
 
 const themeModeOptions: ThemeModeOption[] = [
@@ -135,12 +134,12 @@ const themeModeOptions: ThemeModeOption[] = [
     label: "System",
     description: "Match system preference",
   },
-]
+];
 
 interface ThemeModeSelectorProps {
-  value: "light" | "dark" | "system"
-  onChange: (mode: "light" | "dark" | "system") => void
-  disabled?: boolean
+  value: "light" | "dark" | "system";
+  onChange: (mode: "light" | "dark" | "system") => void;
+  disabled?: boolean;
 }
 
 export function ThemeModeSelector({
@@ -169,15 +168,15 @@ export function ThemeModeSelector({
         </button>
       ))}
     </div>
-  )
+  );
 }
 
 interface ThemeGridProps {
-  themes: Record<string, ThemeColors>
-  selectedTheme: string
-  onSelectTheme: (themeId: string) => void
-  disabled?: boolean
-  title?: string
+  themes: Record<string, ThemeColors>;
+  selectedTheme: string;
+  onSelectTheme: (themeId: string) => void;
+  disabled?: boolean;
+  title?: string;
 }
 
 export function ThemeGrid({
@@ -191,8 +190,8 @@ export function ThemeGrid({
     return id
       .split("-")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ")
-  }
+      .join(" ");
+  };
 
   return (
     <div>
@@ -211,5 +210,5 @@ export function ThemeGrid({
         ))}
       </div>
     </div>
-  )
+  );
 }

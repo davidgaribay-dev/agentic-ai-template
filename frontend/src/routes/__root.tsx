@@ -1,36 +1,37 @@
-import { createRootRouteWithContext, Link, Outlet } from "@tanstack/react-router"
-import { SidePanelProvider, SidePanel, useSidePanel } from "@/components/side-panel"
-import { WorkspaceProvider } from "@/lib/workspace"
-import { SettingsProvider, useEffectiveSettings } from "@/lib/settings-context"
-import { ThemeProvider } from "@/components/theme-provider"
-import { useAuth } from "@/lib/auth"
-import { SidebarProvider, useSidebar } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { AppSkeleton } from "@/components/app-skeleton"
-import { ErrorBoundary } from "@/components/error-boundary"
-import { PanelRight } from "lucide-react"
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import type { RouterContext } from "@/lib/router-context"
+  createRootRouteWithContext,
+  Link,
+  Outlet,
+} from "@tanstack/react-router";
+import {
+  SidePanelProvider,
+  SidePanel,
+  useSidePanel,
+} from "@/components/side-panel";
+import { WorkspaceProvider } from "@/lib/workspace";
+import { SettingsProvider, useEffectiveSettings } from "@/lib/settings-context";
+import { ThemeProvider } from "@/components/theme-provider";
+import { useAuth } from "@/lib/auth";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { PanelRight } from "lucide-react";
+import type { RouterContext } from "@/lib/router-context";
 
 export const Route = createRootRouteWithContext<RouterContext>()({
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
-})
+});
 
 function ChatToggleButton() {
-  const { toggle, isOpen } = useSidePanel()
-  const effectiveSettings = useEffectiveSettings()
+  const { toggle, isOpen } = useSidePanel();
+  const effectiveSettings = useEffectiveSettings();
 
-  if (isOpen) return null
+  if (isOpen) return null;
 
   // Hide the toggle button entirely if chat panel is disabled
   if (!effectiveSettings.chat_panel_enabled) {
-    return null
+    return null;
   }
 
   return (
@@ -41,17 +42,18 @@ function ChatToggleButton() {
     >
       <PanelRight className="size-4" />
     </button>
-  )
+  );
 }
 
 function MainLayout() {
-  const { open: sidebarOpen } = useSidebar()
-  const { isOpen: panelOpen, width: panelWidth } = useSidePanel()
-  const effectiveSettings = useEffectiveSettings()
+  const { open: sidebarOpen } = useSidebar();
+  const { isOpen: panelOpen, width: panelWidth } = useSidePanel();
+  const effectiveSettings = useEffectiveSettings();
 
-  const sidebarWidth = sidebarOpen ? "16rem" : "3rem"
-  const chatPanelEnabled = effectiveSettings.chat_panel_enabled
-  const rightPanelWidth = panelOpen && chatPanelEnabled ? `${panelWidth}px` : "0px"
+  const sidebarWidth = sidebarOpen ? "16rem" : "3rem";
+  const chatPanelEnabled = effectiveSettings.chat_panel_enabled;
+  const rightPanelWidth =
+    panelOpen && chatPanelEnabled ? `${panelWidth}px` : "0px";
 
   return (
     <div
@@ -73,7 +75,7 @@ function MainLayout() {
 
       <ChatToggleButton />
     </div>
-  )
+  );
 }
 
 function AuthenticatedLayout() {
@@ -81,7 +83,7 @@ function AuthenticatedLayout() {
     <SidebarProvider>
       <MainLayout />
     </SidebarProvider>
-  )
+  );
 }
 
 function UnauthenticatedLayout() {
@@ -89,13 +91,13 @@ function UnauthenticatedLayout() {
     <main className="h-screen w-screen overflow-y-auto">
       <Outlet />
     </main>
-  )
+  );
 }
 
 function RootComponent() {
   // Use useAuth directly instead of router context to ensure reactivity
   // Router context doesn't re-render components when it changes
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth();
 
   return (
     <ErrorBoundary>
@@ -113,7 +115,7 @@ function RootComponent() {
         </ThemeProvider>
       </WorkspaceProvider>
     </ErrorBoundary>
-  )
+  );
 }
 
 function NotFoundComponent() {
@@ -125,5 +127,5 @@ function NotFoundComponent() {
         Go back home
       </Link>
     </div>
-  )
+  );
 }

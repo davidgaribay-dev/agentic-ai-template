@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, memo, useCallback } from "react"
-import { Link, useRouterState, useNavigate } from "@tanstack/react-router"
+import { useState, useRef, useEffect, memo, useCallback } from "react";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   Home,
   MessageSquare,
@@ -18,12 +18,12 @@ import {
   Pencil,
   Trash2,
   Info,
-} from "lucide-react"
-import { useAuth } from "@/lib/auth"
-import { useWorkspace } from "@/lib/workspace"
-import { useEffectiveSettings } from "@/lib/settings-context"
-import { CreateTeamDialog } from "@/components/create-team-dialog"
-import { type Conversation } from "@/lib/api"
+} from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { useWorkspace } from "@/lib/workspace";
+import { useEffectiveSettings } from "@/lib/settings-context";
+import { CreateTeamDialog } from "@/components/create-team-dialog";
+import { type Conversation } from "@/lib/api";
 import {
   Sidebar,
   SidebarContent,
@@ -35,7 +35,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,29 +43,29 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { cn, getInitials, isValidImageUrl } from "@/lib/utils"
+} from "@/components/ui/collapsible";
+import { cn, getInitials, isValidImageUrl } from "@/lib/utils";
 import {
   useConversations,
   useDeleteConversation,
   useStarConversation,
   useUpdateConversation,
-} from "@/lib/queries"
-import { useChatSelection } from "@/lib/chat-store"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+} from "@/lib/queries";
+import { useChatSelection } from "@/lib/chat-store";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -75,13 +75,13 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@/components/ui/tooltip";
 
 const navItems = [
   {
@@ -94,10 +94,10 @@ const navItems = [
     url: "/search",
     icon: MessageSquare,
   },
-]
+];
 
 function TeamSwitcher() {
-  const { state, toggleSidebar } = useSidebar()
+  const { state, toggleSidebar } = useSidebar();
   const {
     currentOrg,
     currentOrgRole,
@@ -106,22 +106,25 @@ function TeamSwitcher() {
     isLoadingOrgs,
     isLoadingTeams,
     switchTeam,
-  } = useWorkspace()
+  } = useWorkspace();
 
-  const [createTeamOpen, setCreateTeamOpen] = useState(false)
+  const [createTeamOpen, setCreateTeamOpen] = useState(false);
 
-  const canCreateTeam = currentOrgRole === "owner" || currentOrgRole === "admin"
+  const canCreateTeam =
+    currentOrgRole === "owner" || currentOrgRole === "admin";
 
   if (isLoadingOrgs || !currentOrg) {
-    return null
+    return null;
   }
 
   return (
     <>
-      <div className={cn(
-        "flex items-center gap-1",
-        state === "collapsed" && "flex-col"
-      )}>
+      <div
+        className={cn(
+          "flex items-center gap-1",
+          state === "collapsed" && "flex-col",
+        )}
+      >
         <SidebarMenu className="flex-1">
           <SidebarMenuItem>
             <DropdownMenu>
@@ -130,7 +133,8 @@ function TeamSwitcher() {
                   tooltip={currentTeam?.name ?? "Select Team"}
                   className={cn(
                     "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground h-8",
-                    state === "collapsed" && "!size-8 !p-0 flex items-center justify-center"
+                    state === "collapsed" &&
+                      "!size-8 !p-0 flex items-center justify-center",
                   )}
                 >
                   {currentTeam && isValidImageUrl(currentTeam.logo_url) ? (
@@ -139,14 +143,16 @@ function TeamSwitcher() {
                       alt={currentTeam.name}
                       className={cn(
                         "aspect-square size-6 rounded-md object-cover",
-                        state === "collapsed" && "size-6"
+                        state === "collapsed" && "size-6",
                       )}
                     />
                   ) : (
-                    <div className={cn(
-                      "flex aspect-square size-6 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground",
-                      state === "collapsed" && "size-6"
-                    )}>
+                    <div
+                      className={cn(
+                        "flex aspect-square size-6 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground",
+                        state === "collapsed" && "size-6",
+                      )}
+                    >
                       <Users className="size-3.5" />
                     </div>
                   )}
@@ -171,7 +177,9 @@ function TeamSwitcher() {
                 </DropdownMenuLabel>
                 {isLoadingTeams ? (
                   <DropdownMenuItem disabled className="gap-2 p-2">
-                    <span className="text-muted-foreground">Loading teams...</span>
+                    <span className="text-muted-foreground">
+                      Loading teams...
+                    </span>
                   </DropdownMenuItem>
                 ) : (
                   teams.map((team) => (
@@ -180,7 +188,7 @@ function TeamSwitcher() {
                       onClick={() => switchTeam(team.id)}
                       className={cn(
                         "gap-2 p-2 group/team-item",
-                        currentTeam?.id === team.id && "bg-accent"
+                        currentTeam?.id === team.id && "bg-accent",
                       )}
                     >
                       {isValidImageUrl(team.logo_url) ? (
@@ -213,7 +221,9 @@ function TeamSwitcher() {
                 )}
                 {teams.length === 0 && !isLoadingTeams && (
                   <DropdownMenuItem disabled className="gap-2 p-2">
-                    <span className="text-muted-foreground text-sm">No teams yet</span>
+                    <span className="text-muted-foreground text-sm">
+                      No teams yet
+                    </span>
                   </DropdownMenuItem>
                 )}
                 {canCreateTeam && (
@@ -238,10 +248,12 @@ function TeamSwitcher() {
           onClick={toggleSidebar}
           className={cn(
             "flex size-8 items-center justify-center rounded-md hover:bg-sidebar-accent text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors",
-            state === "collapsed" && "mt-1"
+            state === "collapsed" && "mt-1",
           )}
           title={state === "expanded" ? "Collapse sidebar" : "Expand sidebar"}
-          aria-label={state === "expanded" ? "Collapse sidebar" : "Expand sidebar"}
+          aria-label={
+            state === "expanded" ? "Collapse sidebar" : "Expand sidebar"
+          }
           aria-expanded={state === "expanded"}
         >
           <PanelLeft className="size-4" />
@@ -252,18 +264,18 @@ function TeamSwitcher() {
         onOpenChange={setCreateTeamOpen}
       />
     </>
-  )
+  );
 }
 
 function NavUser() {
-  const { state } = useSidebar()
-  const { user, logout } = useAuth()
-  const { currentOrgRole } = useWorkspace()
+  const { state } = useSidebar();
+  const { user, logout } = useAuth();
+  const { currentOrgRole } = useWorkspace();
 
-  if (!user) return null
+  if (!user) return null;
 
-  const initials = getInitials(user.full_name, user.email)
-  const isAdmin = currentOrgRole === "owner" || currentOrgRole === "admin"
+  const initials = getInitials(user.full_name, user.email);
+  const isAdmin = currentOrgRole === "owner" || currentOrgRole === "admin";
 
   return (
     <SidebarMenu>
@@ -275,7 +287,8 @@ function NavUser() {
               tooltip={user.full_name || user.email}
               className={cn(
                 "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
-                state === "collapsed" && "!size-8 !p-0 flex items-center justify-center"
+                state === "collapsed" &&
+                  "!size-8 !p-0 flex items-center justify-center",
               )}
             >
               <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs font-medium overflow-hidden">
@@ -345,31 +358,30 @@ function NavUser() {
               </DropdownMenuItem>
             )}
             <DropdownMenuItem asChild>
-                <Link to="/settings" className="cursor-pointer">
-                  <Settings className="mr-2 size-4" />
-                  Settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout} className="cursor-pointer">
-                <LogOut className="mr-2 size-4" />
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </SidebarMenuItem>
-      </SidebarMenu>
-  )
+              <Link to="/settings" className="cursor-pointer">
+                <Settings className="mr-2 size-4" />
+                Settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={logout} className="cursor-pointer">
+              <LogOut className="mr-2 size-4" />
+              Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
 }
 
-
 interface SidebarConversationItemProps {
-  conversation: Conversation
-  isSelected: boolean
-  teamId?: string
-  onSelect: (id: string, title: string) => void
-  onRename: (conversation: Conversation) => void
-  onRequestDelete: (conversation: Conversation) => void
+  conversation: Conversation;
+  isSelected: boolean;
+  teamId?: string;
+  onSelect: (id: string, title: string) => void;
+  onRename: (conversation: Conversation) => void;
+  onRequestDelete: (conversation: Conversation) => void;
 }
 
 const SidebarConversationItem = memo(function SidebarConversationItem({
@@ -380,37 +392,52 @@ const SidebarConversationItem = memo(function SidebarConversationItem({
   onRename,
   onRequestDelete,
 }: SidebarConversationItemProps) {
-  const [isHovered, setIsHovered] = useState(false)
-  const [actionsOpen, setActionsOpen] = useState(false)
-  const starMutation = useStarConversation(teamId)
+  const [isHovered, setIsHovered] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const starMutation = useStarConversation(teamId);
 
-  const handleStar = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    starMutation.mutate({ id: conversation.id, isStarred: !conversation.is_starred })
-    setActionsOpen(false)
-  }, [starMutation, conversation.id, conversation.is_starred])
+  const handleStar = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      starMutation.mutate({
+        id: conversation.id,
+        isStarred: !conversation.is_starred,
+      });
+      setActionsOpen(false);
+    },
+    [starMutation, conversation.id, conversation.is_starred],
+  );
 
-  const handleRename = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    onRename(conversation)
-    setActionsOpen(false)
-  }, [onRename, conversation])
+  const handleRename = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onRename(conversation);
+      setActionsOpen(false);
+    },
+    [onRename, conversation],
+  );
 
-  const handleDelete = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    onRequestDelete(conversation)
-    setActionsOpen(false)
-  }, [onRequestDelete, conversation])
+  const handleDelete = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onRequestDelete(conversation);
+      setActionsOpen(false);
+    },
+    [onRequestDelete, conversation],
+  );
 
   const handleClick = useCallback(() => {
-    onSelect(conversation.id, conversation.title)
-  }, [onSelect, conversation.id, conversation.title])
+    onSelect(conversation.id, conversation.title);
+  }, [onSelect, conversation.id, conversation.title]);
 
-  const handleMouseEnter = useCallback(() => setIsHovered(true), [])
-  const handleMouseLeave = useCallback(() => setIsHovered(false), [])
-  const handleTriggerClick = useCallback((e: React.MouseEvent) => e.stopPropagation(), [])
+  const handleMouseEnter = useCallback(() => setIsHovered(true), []);
+  const handleMouseLeave = useCallback(() => setIsHovered(false), []);
+  const handleTriggerClick = useCallback(
+    (e: React.MouseEvent) => e.stopPropagation(),
+    [],
+  );
 
-  const showActions = isHovered || actionsOpen
+  const showActions = isHovered || actionsOpen;
 
   return (
     <SidebarMenuItem
@@ -435,14 +462,14 @@ const SidebarConversationItem = memo(function SidebarConversationItem({
               tabIndex={0}
               className={cn(
                 "shrink-0 rounded p-0.5 transition-opacity hover:bg-muted cursor-pointer",
-                showActions ? "opacity-100" : "opacity-0"
+                showActions ? "opacity-100" : "opacity-0",
               )}
               onClick={handleTriggerClick}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setActionsOpen(true)
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setActionsOpen(true);
                 }
               }}
               aria-label="Conversation actions"
@@ -455,7 +482,7 @@ const SidebarConversationItem = memo(function SidebarConversationItem({
               <Star
                 className={cn(
                   "mr-2 size-4",
-                  conversation.is_starred && "fill-yellow-400 text-yellow-400"
+                  conversation.is_starred && "fill-yellow-400 text-yellow-400",
                 )}
               />
               {conversation.is_starred ? "Unstar" : "Star"}
@@ -476,90 +503,93 @@ const SidebarConversationItem = memo(function SidebarConversationItem({
         </DropdownMenu>
       </SidebarMenuButton>
     </SidebarMenuItem>
-  )
-})
+  );
+});
 
 function RecentChats() {
-  const { state } = useSidebar()
-  const navigate = useNavigate()
-  const { currentTeam } = useWorkspace()
-  const { selectedConversationId, setSelectedConversation } = useChatSelection()
-  const [isOpen, setIsOpen] = useState(true)
-  const [renameDialogOpen, setRenameDialogOpen] = useState(false)
-  const [conversationToRename, setConversationToRename] = useState<Conversation | null>(null)
-  const [newTitle, setNewTitle] = useState("")
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null)
-  const renameInputRef = useRef<HTMLInputElement>(null)
+  const { state } = useSidebar();
+  const navigate = useNavigate();
+  const { currentTeam } = useWorkspace();
+  const { selectedConversationId, setSelectedConversation } =
+    useChatSelection();
+  const [isOpen, setIsOpen] = useState(true);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [conversationToRename, setConversationToRename] =
+    useState<Conversation | null>(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [conversationToDelete, setConversationToDelete] =
+    useState<Conversation | null>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
-  const teamId = currentTeam?.id
-  const { data: conversationsData, isLoading } = useConversations(teamId)
-  const conversations = conversationsData?.data ?? []
-  const updateMutation = useUpdateConversation(teamId)
-  const deleteMutation = useDeleteConversation(teamId)
+  const teamId = currentTeam?.id;
+  const { data: conversationsData, isLoading } = useConversations(teamId);
+  const conversations = conversationsData?.data ?? [];
+  const updateMutation = useUpdateConversation(teamId);
+  const deleteMutation = useDeleteConversation(teamId);
 
-  const starredConversations = conversations.filter((c) => c.is_starred)
-  const recentConversations = conversations.filter((c) => !c.is_starred)
+  const starredConversations = conversations.filter((c) => c.is_starred);
+  const recentConversations = conversations.filter((c) => !c.is_starred);
 
   const handleSelectConversation = (conversationId: string, title: string) => {
-    setSelectedConversation(conversationId, title)
-    navigate({ to: "/chat", search: { id: conversationId } })
-  }
+    setSelectedConversation(conversationId, title);
+    navigate({ to: "/chat", search: { id: conversationId } });
+  };
 
   const handleNewChat = () => {
-    setSelectedConversation(null, null)
-    navigate({ to: "/chat", search: {} })
-  }
+    setSelectedConversation(null, null);
+    navigate({ to: "/chat", search: {} });
+  };
 
   const handleOpenRename = (conversation: Conversation) => {
-    setConversationToRename(conversation)
-    setNewTitle(conversation.title)
-    setRenameDialogOpen(true)
-  }
+    setConversationToRename(conversation);
+    setNewTitle(conversation.title);
+    setRenameDialogOpen(true);
+  };
 
   const handleRename = () => {
-    if (!conversationToRename || !newTitle.trim()) return
+    if (!conversationToRename || !newTitle.trim()) return;
     updateMutation.mutate(
       { id: conversationToRename.id, data: { title: newTitle.trim() } },
       {
         onSuccess: () => {
           if (selectedConversationId === conversationToRename.id) {
-            setSelectedConversation(conversationToRename.id, newTitle.trim())
+            setSelectedConversation(conversationToRename.id, newTitle.trim());
           }
-          setRenameDialogOpen(false)
-          setConversationToRename(null)
-          setNewTitle("")
+          setRenameDialogOpen(false);
+          setConversationToRename(null);
+          setNewTitle("");
         },
-      }
-    )
-  }
+      },
+    );
+  };
 
   const handleRequestDelete = (conversation: Conversation) => {
-    setConversationToDelete(conversation)
-    setDeleteDialogOpen(true)
-  }
+    setConversationToDelete(conversation);
+    setDeleteDialogOpen(true);
+  };
 
   const handleConfirmDelete = () => {
-    if (!conversationToDelete) return
-    const conversationId = conversationToDelete.id
+    if (!conversationToDelete) return;
+    const conversationId = conversationToDelete.id;
     deleteMutation.mutate(conversationId, {
       onSuccess: () => {
         if (conversationId === selectedConversationId) {
-          setSelectedConversation(null, null)
-          navigate({ to: "/chat" })
+          setSelectedConversation(null, null);
+          navigate({ to: "/chat" });
         }
-        setDeleteDialogOpen(false)
-        setConversationToDelete(null)
+        setDeleteDialogOpen(false);
+        setConversationToDelete(null);
       },
-    })
-  }
+    });
+  };
 
   useEffect(() => {
     if (renameDialogOpen && renameInputRef.current) {
-      renameInputRef.current.focus()
-      renameInputRef.current.select()
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
     }
-  }, [renameDialogOpen])
+  }, [renameDialogOpen]);
 
   if (state === "collapsed") {
     return (
@@ -589,7 +619,7 @@ function RecentChats() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
-    )
+    );
   }
 
   return (
@@ -610,7 +640,9 @@ function RecentChats() {
         {starredConversations.length > 0 && (
           <div className="mt-2">
             <div className="flex items-center px-2 py-1">
-              <span className="text-xs font-medium text-muted-foreground">Starred</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                Starred
+              </span>
             </div>
             <SidebarMenu>
               {starredConversations.slice(0, 10).map((conversation) => (
@@ -631,7 +663,9 @@ function RecentChats() {
         {/* Recents section */}
         <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
           <div className="flex items-center justify-between px-2 py-1">
-            <span className="text-xs font-medium text-muted-foreground">Recents</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              Recents
+            </span>
             <CollapsibleTrigger asChild>
               <button className="text-xs text-muted-foreground hover:text-foreground transition-colors">
                 {isOpen ? "Hide" : "Show"}
@@ -642,26 +676,32 @@ function RecentChats() {
             <SidebarMenu>
               {isLoading ? (
                 <SidebarMenuItem>
-                  <span className="px-2 py-1 text-xs text-muted-foreground">Loading...</span>
+                  <span className="px-2 py-1 text-xs text-muted-foreground">
+                    Loading...
+                  </span>
                 </SidebarMenuItem>
               ) : recentConversations.length === 0 ? (
                 <SidebarMenuItem>
                   <span className="px-2 py-1 text-xs text-muted-foreground">
-                    {conversations.length === 0 ? "No conversations yet" : "No recent conversations"}
+                    {conversations.length === 0
+                      ? "No conversations yet"
+                      : "No recent conversations"}
                   </span>
                 </SidebarMenuItem>
               ) : (
-                recentConversations.slice(0, 15).map((conversation) => (
-                  <SidebarConversationItem
-                    key={conversation.id}
-                    conversation={conversation}
-                    isSelected={selectedConversationId === conversation.id}
-                    teamId={teamId}
-                    onSelect={handleSelectConversation}
-                    onRename={handleOpenRename}
-                    onRequestDelete={handleRequestDelete}
-                  />
-                ))
+                recentConversations
+                  .slice(0, 15)
+                  .map((conversation) => (
+                    <SidebarConversationItem
+                      key={conversation.id}
+                      conversation={conversation}
+                      isSelected={selectedConversationId === conversation.id}
+                      teamId={teamId}
+                      onSelect={handleSelectConversation}
+                      onRename={handleOpenRename}
+                      onRequestDelete={handleRequestDelete}
+                    />
+                  ))
               )}
             </SidebarMenu>
           </CollapsibleContent>
@@ -679,14 +719,17 @@ function RecentChats() {
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                e.preventDefault()
-                handleRename()
+                e.preventDefault();
+                handleRename();
               }
             }}
             placeholder="Enter new title"
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setRenameDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -704,7 +747,8 @@ function RecentChats() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete "{conversationToDelete?.title}". This action cannot be undone.
+              This will delete "{conversationToDelete?.title}". This action
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -720,20 +764,20 @@ function RecentChats() {
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
+  );
 }
 
 function DisabledChatSection() {
-  const { state } = useSidebar()
-  const effectiveSettings = useEffectiveSettings()
-  const disabledBy = effectiveSettings.chat_disabled_by
+  const { state } = useSidebar();
+  const effectiveSettings = useEffectiveSettings();
+  const disabledBy = effectiveSettings.chat_disabled_by;
 
   const tooltipMessage =
     disabledBy === "org"
       ? "Chat disabled by organization"
       : disabledBy === "team"
         ? "Chat disabled by team"
-        : "Chat disabled"
+        : "Chat disabled";
 
   if (state === "collapsed") {
     return (
@@ -755,7 +799,7 @@ function DisabledChatSection() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
-    )
+    );
   }
 
   return (
@@ -765,29 +809,30 @@ function DisabledChatSection() {
         <span>{tooltipMessage}</span>
       </div>
     </SidebarGroup>
-  )
+  );
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const router = useRouterState()
-  const currentPath = router.location.pathname
-  const { state } = useSidebar()
-  const effectiveSettings = useEffectiveSettings()
+  const router = useRouterState();
+  const currentPath = router.location.pathname;
+  const { state } = useSidebar();
+  const effectiveSettings = useEffectiveSettings();
 
-  const chatEnabled = effectiveSettings.chat_enabled
+  const chatEnabled = effectiveSettings.chat_enabled;
 
   return (
-    <Sidebar
-      collapsible="icon"
-      {...props}
-    >
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className={cn(state === "collapsed" && "items-center")}>
         <TeamSwitcher />
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup className={cn(state === "collapsed" && "items-center px-0")}>
+        <SidebarGroup
+          className={cn(state === "collapsed" && "items-center px-0")}
+        >
           <SidebarGroupContent>
-            <SidebarMenu className={cn(state === "collapsed" && "items-center")}>
+            <SidebarMenu
+              className={cn(state === "collapsed" && "items-center")}
+            >
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
@@ -795,7 +840,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     isActive={currentPath === item.url}
                     tooltip={item.title}
                     className={cn(
-                      state === "collapsed" && "flex items-center justify-center"
+                      state === "collapsed" &&
+                        "flex items-center justify-center",
                     )}
                   >
                     <Link to={item.url}>
@@ -815,5 +861,5 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavUser />
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }

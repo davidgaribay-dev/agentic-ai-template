@@ -1,26 +1,26 @@
-import { useState } from "react"
-import { createFileRoute, redirect } from "@tanstack/react-router"
-import { FileSearch } from "lucide-react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { DocumentUpload } from "@/components/documents/document-upload"
-import { DocumentList } from "@/components/documents/document-list"
-import { useWorkspace } from "@/lib/workspace"
+import { useState } from "react";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { FileSearch } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DocumentUpload } from "@/components/documents/document-upload";
+import { DocumentList } from "@/components/documents/document-list";
+import { useWorkspace } from "@/lib/workspace";
 
 export const Route = createFileRoute("/org/team/$teamId/documents")({
   beforeLoad: ({ context }) => {
     if (!context.auth.isAuthenticated && !context.auth.isLoading) {
-      throw redirect({ to: "/login" })
+      throw redirect({ to: "/login" });
     }
   },
   component: DocumentsPage,
-})
+});
 
 function DocumentsPage() {
-  const { currentOrg, teams } = useWorkspace()
-  const { teamId } = Route.useParams()
-  const [activeTab, setActiveTab] = useState("all")
+  const { currentOrg, teams } = useWorkspace();
+  const { teamId } = Route.useParams();
+  const [activeTab, setActiveTab] = useState("all");
 
-  const team = teams.find((t) => t.id === teamId)
+  const team = teams.find((t) => t.id === teamId);
 
   if (!currentOrg || !team) {
     return (
@@ -31,7 +31,7 @@ function DocumentsPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -43,11 +43,10 @@ function DocumentsPage() {
             <h1 className="text-3xl font-bold">Documents</h1>
           </div>
           <p className="text-muted-foreground">
-            Upload and manage documents for AI-powered search in your conversations
+            Upload and manage documents for AI-powered search in your
+            conversations
           </p>
-          <p className="text-xs text-muted-foreground">
-            Team: {team.name}
-          </p>
+          <p className="text-xs text-muted-foreground">Team: {team.name}</p>
         </div>
 
         <DocumentUpload
@@ -79,19 +78,31 @@ function DocumentsPage() {
             </TabsContent>
 
             <TabsContent value="completed" className="mt-6">
-              <DocumentList orgId={currentOrg.id} teamId={team.id} status="completed" />
+              <DocumentList
+                orgId={currentOrg.id}
+                teamId={team.id}
+                status="completed"
+              />
             </TabsContent>
 
             <TabsContent value="processing" className="mt-6">
-              <DocumentList orgId={currentOrg.id} teamId={team.id} status="processing" />
+              <DocumentList
+                orgId={currentOrg.id}
+                teamId={team.id}
+                status="processing"
+              />
             </TabsContent>
 
             <TabsContent value="failed" className="mt-6">
-              <DocumentList orgId={currentOrg.id} teamId={team.id} status="failed" />
+              <DocumentList
+                orgId={currentOrg.id}
+                teamId={team.id}
+                status="failed"
+              />
             </TabsContent>
           </Tabs>
         </div>
       </div>
     </div>
-  )
+  );
 }

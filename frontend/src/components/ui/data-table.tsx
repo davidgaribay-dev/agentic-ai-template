@@ -2,7 +2,7 @@ import type {
   ColumnDef,
   SortingState,
   ColumnFiltersState,
-} from "@tanstack/react-table"
+} from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
@@ -10,8 +10,8 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   getFilteredRowModel,
-} from "@tanstack/react-table"
-import { useState } from "react"
+} from "@tanstack/react-table";
+import { useState } from "react";
 
 import {
   Table,
@@ -20,17 +20,22 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
-  searchKey?: string
-  searchPlaceholder?: string
-  pageSize?: number
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  searchKey?: string;
+  searchPlaceholder?: string;
+  pageSize?: number;
 }
 
 export function DataTable<TData, TValue>({
@@ -40,8 +45,8 @@ export function DataTable<TData, TValue>({
   searchPlaceholder = "Search...",
   pageSize = 10,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
   const table = useReactTable({
     data,
@@ -61,7 +66,7 @@ export function DataTable<TData, TValue>({
         pageSize,
       },
     },
-  })
+  });
 
   return (
     <div className="space-y-4">
@@ -69,7 +74,9 @@ export function DataTable<TData, TValue>({
         <div className="flex items-center">
           <Input
             placeholder={searchPlaceholder}
-            value={(table.getColumn(searchKey)?.getFilterValue() as string) ?? ""}
+            value={
+              (table.getColumn(searchKey)?.getFilterValue() as string) ?? ""
+            }
             onChange={(event) =>
               table.getColumn(searchKey)?.setFilterValue(event.target.value)
             }
@@ -89,10 +96,10 @@ export function DataTable<TData, TValue>({
                         ? null
                         : flexRender(
                             header.column.columnDef.header,
-                            header.getContext()
+                            header.getContext(),
                           )}
                     </TableHead>
-                  )
+                  );
                 })}
               </TableRow>
             ))}
@@ -106,14 +113,20 @@ export function DataTable<TData, TValue>({
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
                   No results.
                 </TableCell>
               </TableRow>
@@ -168,5 +181,5 @@ export function DataTable<TData, TValue>({
         </div>
       )}
     </div>
-  )
+  );
 }

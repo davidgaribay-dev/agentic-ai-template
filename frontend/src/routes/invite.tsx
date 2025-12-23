@@ -7,34 +7,55 @@
  * - Allows existing users to accept invitation after login
  */
 
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import { useState, useEffect } from "react"
-import { useQuery, useMutation } from "@tanstack/react-query"
-import { Building2, Users, User, Mail, Clock, AlertCircle, CheckCircle, Lock, UserPlus } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { invitationsApi } from "@/lib/api"
-import { useRegisterWithInvitation, isLoggedIn, useCurrentUser } from "@/lib/auth"
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import {
+  Building2,
+  Users,
+  User,
+  Mail,
+  Clock,
+  AlertCircle,
+  CheckCircle,
+  Lock,
+  UserPlus,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { invitationsApi } from "@/lib/api";
+import {
+  useRegisterWithInvitation,
+  isLoggedIn,
+  useCurrentUser,
+} from "@/lib/auth";
 
 export const Route = createFileRoute("/invite")({
   component: InvitePage,
   validateSearch: (search: Record<string, unknown>): { token?: string } => {
-    return { token: search.token as string | undefined }
+    return { token: search.token as string | undefined };
   },
-})
+});
 
 function InvitePage() {
-  const navigate = useNavigate()
-  const { token } = Route.useSearch()
-  const { data: currentUser, isLoading: isLoadingUser } = useCurrentUser()
-  const registerWithInvitation = useRegisterWithInvitation()
+  const navigate = useNavigate();
+  const { token } = Route.useSearch();
+  const { data: currentUser, isLoading: isLoadingUser } = useCurrentUser();
+  const registerWithInvitation = useRegisterWithInvitation();
 
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [fullName, setFullName] = useState("")
-  const [localError, setLocalError] = useState<string | null>(null)
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const {
     data: invitationInfo,
@@ -45,38 +66,38 @@ function InvitePage() {
     queryFn: () => invitationsApi.getInvitationInfo(token!),
     enabled: !!token,
     retry: false,
-  })
+  });
 
   const acceptInvitation = useMutation({
     mutationFn: () => invitationsApi.acceptInvitation(token!),
     onSuccess: () => {
-      navigate({ to: "/" })
+      navigate({ to: "/" });
     },
-  })
+  });
 
   useEffect(() => {
     if (!token) {
-      navigate({ to: "/" })
+      navigate({ to: "/" });
     }
-  }, [token, navigate])
+  }, [token, navigate]);
 
   const handleNewUserSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLocalError(null)
+    e.preventDefault();
+    setLocalError(null);
 
     if (password !== confirmPassword) {
-      setLocalError("Passwords do not match")
-      return
+      setLocalError("Passwords do not match");
+      return;
     }
 
     if (password.length < 8) {
-      setLocalError("Password must be at least 8 characters")
-      return
+      setLocalError("Password must be at least 8 characters");
+      return;
     }
 
     if (!invitationInfo?.email) {
-      setLocalError("Invalid invitation")
-      return
+      setLocalError("Invalid invitation");
+      return;
     }
 
     try {
@@ -85,20 +106,20 @@ function InvitePage() {
         password,
         full_name: fullName || undefined,
         email: invitationInfo.email,
-      })
-      navigate({ to: "/" })
+      });
+      navigate({ to: "/" });
     } catch {
       // Error handled by mutation
     }
-  }
+  };
 
   const handleAcceptInvitation = async () => {
     try {
-      await acceptInvitation.mutateAsync()
+      await acceptInvitation.mutateAsync();
     } catch {
       // Error handled by mutation
     }
-  }
+  };
 
   if (isLoadingInvitation || isLoadingUser) {
     return (
@@ -117,11 +138,12 @@ function InvitePage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   if (invitationError || !invitationInfo) {
-    const errorMessage = (invitationError as Error)?.message || "Invalid or expired invitation"
+    const errorMessage =
+      (invitationError as Error)?.message || "Invalid or expired invitation";
     return (
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-muted p-4">
         {/* Background decoration */}
@@ -134,22 +156,28 @@ function InvitePage() {
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10">
               <AlertCircle className="h-7 w-7 text-destructive" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">Invalid Invitation</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Invalid Invitation
+            </h1>
             <p className="mt-1 text-muted-foreground">{errorMessage}</p>
           </div>
           <Card className="border-border/50 bg-card/80 shadow-xl shadow-black/5 backdrop-blur-sm">
             <CardContent className="pt-6">
-              <Button asChild className="w-full shadow-lg shadow-primary/25" size="lg">
+              <Button
+                asChild
+                className="w-full shadow-lg shadow-primary/25"
+                size="lg"
+              >
                 <Link to="/">Go to Home</Link>
               </Button>
             </CardContent>
           </Card>
         </div>
       </div>
-    )
+    );
   }
 
-  const isExpired = new Date(invitationInfo.expires_at) < new Date()
+  const isExpired = new Date(invitationInfo.expires_at) < new Date();
 
   if (isExpired) {
     return (
@@ -164,25 +192,32 @@ function InvitePage() {
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10">
               <Clock className="h-7 w-7 text-amber-500" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">Invitation Expired</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Invitation Expired
+            </h1>
             <p className="mt-1 text-muted-foreground">
-              This invitation has expired. Please contact the organization admin for a new invitation.
+              This invitation has expired. Please contact the organization admin
+              for a new invitation.
             </p>
           </div>
           <Card className="border-border/50 bg-card/80 shadow-xl shadow-black/5 backdrop-blur-sm">
             <CardContent className="pt-6">
-              <Button asChild className="w-full shadow-lg shadow-primary/25" size="lg">
+              <Button
+                asChild
+                className="w-full shadow-lg shadow-primary/25"
+                size="lg"
+              >
                 <Link to="/">Go to Home</Link>
               </Button>
             </CardContent>
           </Card>
         </div>
       </div>
-    )
+    );
   }
 
   if (isLoggedIn() && currentUser) {
-    const isCorrectEmail = currentUser.email === invitationInfo.email
+    const isCorrectEmail = currentUser.email === invitationInfo.email;
 
     return (
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-muted p-4">
@@ -199,7 +234,9 @@ function InvitePage() {
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/25">
               <Building2 className="h-7 w-7 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">Join {invitationInfo.organization_name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Join {invitationInfo.organization_name}
+            </h1>
             <p className="mt-1 text-muted-foreground">
               {invitationInfo.invited_by_name
                 ? `${invitationInfo.invited_by_name} invited you`
@@ -222,8 +259,12 @@ function InvitePage() {
                     <Building2 className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Organization</p>
-                    <p className="font-medium">{invitationInfo.organization_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Organization
+                    </p>
+                    <p className="font-medium">
+                      {invitationInfo.organization_name}
+                    </p>
                   </div>
                 </div>
                 {invitationInfo.team_name && (
@@ -233,7 +274,12 @@ function InvitePage() {
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Team</p>
-                      <p className="font-medium">{invitationInfo.team_name} <span className="text-muted-foreground">({invitationInfo.team_role})</span></p>
+                      <p className="font-medium">
+                        {invitationInfo.team_name}{" "}
+                        <span className="text-muted-foreground">
+                          ({invitationInfo.team_role})
+                        </span>
+                      </p>
                     </div>
                   </div>
                 )}
@@ -243,7 +289,9 @@ function InvitePage() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Your Role</p>
-                    <p className="font-medium capitalize">{invitationInfo.org_role}</p>
+                    <p className="font-medium capitalize">
+                      {invitationInfo.org_role}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -251,18 +299,21 @@ function InvitePage() {
               {!isCorrectEmail && (
                 <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
                   <p>
-                    This invitation was sent to <strong>{invitationInfo.email}</strong>,
-                    but you are logged in as <strong>{currentUser.email}</strong>.
+                    This invitation was sent to{" "}
+                    <strong>{invitationInfo.email}</strong>, but you are logged
+                    in as <strong>{currentUser.email}</strong>.
                   </p>
                   <p className="mt-2">
-                    Please log out and sign up with the correct email, or contact the admin.
+                    Please log out and sign up with the correct email, or
+                    contact the admin.
                   </p>
                 </div>
               )}
 
               {acceptInvitation.error && (
                 <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-                  {(acceptInvitation.error as Error).message || "Failed to accept invitation"}
+                  {(acceptInvitation.error as Error).message ||
+                    "Failed to accept invitation"}
                 </div>
               )}
             </CardContent>
@@ -291,10 +342,10 @@ function InvitePage() {
           </Card>
         </div>
       </div>
-    )
+    );
   }
 
-  const error = localError || registerWithInvitation.error?.message
+  const error = localError || registerWithInvitation.error?.message;
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-muted p-4">
@@ -311,8 +362,12 @@ function InvitePage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/25">
             <UserPlus className="h-7 w-7 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Join {invitationInfo.organization_name}</h1>
-          <p className="mt-1 text-muted-foreground">Create your account to get started</p>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Join {invitationInfo.organization_name}
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            Create your account to get started
+          </p>
         </div>
 
         <Card className="border-border/50 bg-card/80 shadow-xl shadow-black/5 backdrop-blur-sm">
@@ -346,8 +401,12 @@ function InvitePage() {
                     <Building2 className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Organization</p>
-                    <p className="font-medium">{invitationInfo.organization_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Organization
+                    </p>
+                    <p className="font-medium">
+                      {invitationInfo.organization_name}
+                    </p>
                   </div>
                 </div>
                 {invitationInfo.team_name && (
@@ -367,13 +426,18 @@ function InvitePage() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Your Role</p>
-                    <p className="font-medium capitalize">{invitationInfo.org_role}</p>
+                    <p className="font-medium capitalize">
+                      {invitationInfo.org_role}
+                    </p>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name <span className="text-muted-foreground">(optional)</span></Label>
+                <Label htmlFor="fullName">
+                  Full Name{" "}
+                  <span className="text-muted-foreground">(optional)</span>
+                </Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -429,7 +493,9 @@ function InvitePage() {
                 size="lg"
                 disabled={registerWithInvitation.isPending}
               >
-                {registerWithInvitation.isPending ? "Creating account..." : "Create Account & Join"}
+                {registerWithInvitation.isPending
+                  ? "Creating account..."
+                  : "Create Account & Join"}
               </Button>
               <div className="relative w-full">
                 <div className="absolute inset-0 flex items-center">
@@ -454,5 +520,5 @@ function InvitePage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

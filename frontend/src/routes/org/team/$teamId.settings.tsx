@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from "react"
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
-import { z } from "zod"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useState, useEffect, useMemo } from "react";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { z } from "zod";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Users,
   Loader2,
@@ -21,12 +21,9 @@ import {
   Plug,
   Palette,
   FileSearch,
-} from "lucide-react"
-import { useAuth } from "@/lib/auth"
-import {
-  useWorkspace,
-  useOrganizationMembers,
-} from "@/lib/workspace"
+} from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { useWorkspace, useOrganizationMembers } from "@/lib/workspace";
 import {
   teamsApi,
   promptsApi,
@@ -37,14 +34,14 @@ import {
   type TeamChatSettings,
   type LLMProvider,
   ApiError,
-} from "@/lib/api"
+} from "@/lib/api";
 import {
   useOrgChatSettings,
   useTeamChatSettings,
   useUpdateTeamChatSettings,
-} from "@/lib/queries"
-import { ChatSettings } from "@/components/chat-settings"
-import { MemorySettings } from "@/components/settings/memory-settings"
+} from "@/lib/queries";
+import { ChatSettings } from "@/components/chat-settings";
+import { MemorySettings } from "@/components/settings/memory-settings";
 import {
   PromptRow,
   CreatePromptDialog,
@@ -54,18 +51,18 @@ import {
   TeamDetailsSection,
   MCPSettings,
   MCPServersList,
-} from "@/components/settings"
-import { TeamThemeSettings } from "@/components/settings/team-theme-settings"
-import { TeamRAGSettings } from "@/components/settings/team-rag-settings"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
+} from "@/components/settings";
+import { TeamThemeSettings } from "@/components/settings/team-theme-settings";
+import { TeamRAGSettings } from "@/components/settings/team-rag-settings";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -74,7 +71,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -85,82 +82,90 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
+} from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { isValidImageUrl, getInitials } from "@/lib/utils"
-import type { ColumnDef } from "@tanstack/react-table"
-import { DataTable } from "@/components/ui/data-table"
+} from "@/components/ui/collapsible";
+import { isValidImageUrl, getInitials } from "@/lib/utils";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/ui/data-table";
 
 const teamSettingsSearchSchema = z.object({
-  tab: z.enum(["general", "people", "ai", "preferences", "theme", "rag"]).optional(),
-})
+  tab: z
+    .enum(["general", "people", "ai", "preferences", "theme", "rag"])
+    .optional(),
+});
 
-type TeamSettingsTab = z.infer<typeof teamSettingsSearchSchema>["tab"]
+type TeamSettingsTab = z.infer<typeof teamSettingsSearchSchema>["tab"];
 
 export const Route = createFileRoute("/org/team/$teamId/settings")({
   beforeLoad: ({ context }) => {
     if (!context.auth.isAuthenticated && !context.auth.isLoading) {
-      throw redirect({ to: "/login" })
+      throw redirect({ to: "/login" });
     }
   },
   component: TeamSettingsPage,
   validateSearch: teamSettingsSearchSchema,
-})
+});
 
 function TeamSettingsPage() {
-  const navigate = useNavigate()
-  const { teamId } = Route.useParams()
-  const { tab: tabFromUrl } = Route.useSearch()
+  const navigate = useNavigate();
+  const { teamId } = Route.useParams();
+  const { tab: tabFromUrl } = Route.useSearch();
 
-  const currentTab = tabFromUrl || "general"
+  const currentTab = tabFromUrl || "general";
 
   const handleTabChange = (value: string) => {
-    navigate({ to: "/org/team/$teamId/settings", params: { teamId }, search: { tab: value as TeamSettingsTab }, replace: true })
-  }
-  const { currentOrg, currentOrgRole, teams, switchTeam, refresh } = useWorkspace()
+    navigate({
+      to: "/org/team/$teamId/settings",
+      params: { teamId },
+      search: { tab: value as TeamSettingsTab },
+      replace: true,
+    });
+  };
+  const { currentOrg, currentOrgRole, teams, switchTeam, refresh } =
+    useWorkspace();
 
-  const team = teams.find(t => t.id === teamId)
+  const team = teams.find((t) => t.id === teamId);
 
   useEffect(() => {
     if (currentOrg && teams.length > 0 && !team) {
-      navigate({ to: "/org/settings" })
+      navigate({ to: "/org/settings" });
     }
-  }, [currentOrg, teams, team, navigate])
+  }, [currentOrg, teams, team, navigate]);
 
   useEffect(() => {
     if (team) {
-      switchTeam(team.id)
+      switchTeam(team.id);
     }
-  }, [team, switchTeam])
+  }, [team, switchTeam]);
 
   const { data: teamMembersData, isLoading: isLoadingMembers } = useQuery({
     queryKey: ["team-members", currentOrg?.id, teamId],
     queryFn: () => teamsApi.getMembers(currentOrg!.id, teamId),
     enabled: !!currentOrg && !!teamId,
-  })
-  const teamMembers = teamMembersData?.data ?? []
+  });
+  const teamMembers = teamMembersData?.data ?? [];
 
-  const { user } = useAuth()
-  const currentUserMember = teamMembers.find(m => m.user_id === user?.id)
-  const currentTeamRole = currentUserMember?.role
+  const { user } = useAuth();
+  const currentUserMember = teamMembers.find((m) => m.user_id === user?.id);
+  const currentTeamRole = currentUserMember?.role;
 
-  const isOrgAdmin = currentOrgRole === "owner" || currentOrgRole === "admin"
-  const isTeamAdmin = currentTeamRole === "admin"
-  const canManageTeam = isOrgAdmin || isTeamAdmin
+  const isOrgAdmin = currentOrgRole === "owner" || currentOrgRole === "admin";
+  const isTeamAdmin = currentTeamRole === "admin";
+  const canManageTeam = isOrgAdmin || isTeamAdmin;
 
   const tabs = [
     { value: "general", label: "General", icon: Users },
@@ -169,7 +174,7 @@ function TeamSettingsPage() {
     { value: "preferences", label: "Preferences", icon: Settings2 },
     { value: "theme", label: "Theme", icon: Palette },
     { value: "rag", label: "Document Search", icon: FileSearch },
-  ]
+  ];
 
   if (!currentOrg || !team) {
     return (
@@ -193,14 +198,19 @@ function TeamSettingsPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="bg-background min-h-screen">
       <div className="mx-auto max-w-5xl px-6 py-8">
         <h1 className="text-lg font-semibold mb-6">Team Settings</h1>
-        <Tabs value={currentTab} onValueChange={handleTabChange} orientation="vertical" className="flex gap-6">
+        <Tabs
+          value={currentTab}
+          onValueChange={handleTabChange}
+          orientation="vertical"
+          className="flex gap-6"
+        >
           <div className="w-48 flex-shrink-0">
             <div className="sticky top-6">
               <TabsList className="flex flex-col items-stretch h-auto bg-transparent p-0 space-y-0.5">
@@ -221,7 +231,11 @@ function TeamSettingsPage() {
           <div className="flex-1 min-w-0">
             <TabsContent value="general" className="mt-0 space-y-6">
               {canManageTeam && (
-                <TeamDetailsSection orgId={currentOrg.id} team={team} onUpdate={refresh} />
+                <TeamDetailsSection
+                  orgId={currentOrg.id}
+                  team={team}
+                  onUpdate={refresh}
+                />
               )}
               <TeamDangerZone
                 orgId={currentOrg.id}
@@ -230,12 +244,12 @@ function TeamSettingsPage() {
                 canDelete={canManageTeam}
                 memberCount={teamMembers.length}
                 onLeave={() => {
-                  switchTeam(null)
-                  navigate({ to: "/" })
+                  switchTeam(null);
+                  navigate({ to: "/" });
                 }}
                 onDelete={() => {
-                  switchTeam(null)
-                  navigate({ to: "/org/settings" })
+                  switchTeam(null);
+                  navigate({ to: "/org/settings" });
                 }}
               />
             </TabsContent>
@@ -256,7 +270,10 @@ function TeamSettingsPage() {
             {canManageTeam && (
               <>
                 <TabsContent value="ai" className="mt-0 space-y-4">
-                  <AIConfigurationSection orgId={currentOrg.id} teamId={team.id} />
+                  <AIConfigurationSection
+                    orgId={currentOrg.id}
+                    teamId={team.id}
+                  />
                 </TabsContent>
 
                 <TabsContent value="preferences" className="mt-0 space-y-4">
@@ -276,28 +293,28 @@ function TeamSettingsPage() {
         </Tabs>
       </div>
     </div>
-  )
+  );
 }
 
 type TeamMemberRow = {
-  id: string
-  user_id: string
-  role: TeamRole
-  org_role: string
-  user_email: string
-  user_full_name: string | null
-  user_profile_image_url: string | null
-}
+  id: string;
+  user_id: string;
+  role: TeamRole;
+  org_role: string;
+  user_email: string;
+  user_full_name: string | null;
+  user_profile_image_url: string | null;
+};
 
 interface MembersSectionProps {
-  orgId: string
-  teamId: string
-  members: TeamMember[]
-  isLoading: boolean
-  canManage: boolean
-  isOrgAdmin: boolean
-  currentUserId?: string
-  onUpdate: () => void
+  orgId: string;
+  teamId: string;
+  members: TeamMember[];
+  isLoading: boolean;
+  canManage: boolean;
+  isOrgAdmin: boolean;
+  currentUserId?: string;
+  onUpdate: () => void;
 }
 
 function MembersSection({
@@ -310,221 +327,271 @@ function MembersSection({
   currentUserId,
   onUpdate,
 }: MembersSectionProps) {
-  const queryClient = useQueryClient()
-  const [addMemberOpen, setAddMemberOpen] = useState(false)
-  const [selectedUserId, setSelectedUserId] = useState<string>("")
-  const [selectedRole, setSelectedRole] = useState<TeamRole>("member")
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient();
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [selectedRole, setSelectedRole] = useState<TeamRole>("member");
+  const [error, setError] = useState<string | null>(null);
 
-  const { data: orgMembersData } = useOrganizationMembers(orgId)
-  const orgMembers = orgMembersData?.data ?? []
+  const { data: orgMembersData } = useOrganizationMembers(orgId);
+  const orgMembers = orgMembersData?.data ?? [];
 
-  const teamUserIds = new Set(members.map(m => m.user_id))
-  const availableOrgMembers = orgMembers.filter(m => !teamUserIds.has(m.user_id))
+  const teamUserIds = new Set(members.map((m) => m.user_id));
+  const availableOrgMembers = orgMembers.filter(
+    (m) => !teamUserIds.has(m.user_id),
+  );
 
   const addMemberMutation = useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: TeamRole }) =>
       teamsApi.addMember(orgId, teamId, userId, role),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["team-members", orgId, teamId] })
-      onUpdate()
-      resetAddDialog()
+      queryClient.invalidateQueries({
+        queryKey: ["team-members", orgId, teamId],
+      });
+      onUpdate();
+      resetAddDialog();
     },
     onError: (err: ApiError) => {
-      const detail = (err.body as { detail?: string })?.detail
-      setError(detail || "Failed to add member")
+      const detail = (err.body as { detail?: string })?.detail;
+      setError(detail || "Failed to add member");
     },
-  })
+  });
 
   const updateRoleMutation = useMutation({
     mutationFn: ({ memberId, role }: { memberId: string; role: TeamRole }) =>
       teamsApi.updateMemberRole(orgId, teamId, memberId, role),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["team-members", orgId, teamId] })
-      onUpdate()
+      queryClient.invalidateQueries({
+        queryKey: ["team-members", orgId, teamId],
+      });
+      onUpdate();
     },
-  })
+  });
 
   const removeMemberMutation = useMutation({
-    mutationFn: (memberId: string) => teamsApi.removeMember(orgId, teamId, memberId),
+    mutationFn: (memberId: string) =>
+      teamsApi.removeMember(orgId, teamId, memberId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["team-members", orgId, teamId] })
-      onUpdate()
+      queryClient.invalidateQueries({
+        queryKey: ["team-members", orgId, teamId],
+      });
+      onUpdate();
     },
-  })
+  });
 
   const handleAddMember = () => {
-    if (!selectedUserId) return
-    setError(null)
-    addMemberMutation.mutate({ userId: selectedUserId, role: selectedRole })
-  }
+    if (!selectedUserId) return;
+    setError(null);
+    addMemberMutation.mutate({ userId: selectedUserId, role: selectedRole });
+  };
 
   const resetAddDialog = () => {
-    setSelectedUserId("")
-    setSelectedRole("member")
-    setError(null)
-    setAddMemberOpen(false)
-  }
+    setSelectedUserId("");
+    setSelectedRole("member");
+    setError(null);
+    setAddMemberOpen(false);
+  };
 
   const getRoleBadge = (role: TeamRole) => {
     switch (role) {
       case "admin":
         return (
-          <Badge variant="secondary" className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-0 text-xs h-5">
+          <Badge
+            variant="secondary"
+            className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-0 text-xs h-5"
+          >
             <Shield className="mr-1 size-2.5" />
             Admin
           </Badge>
-        )
+        );
       case "member":
         return (
-          <Badge variant="outline" className="text-muted-foreground text-xs h-5">
+          <Badge
+            variant="outline"
+            className="text-muted-foreground text-xs h-5"
+          >
             <User className="mr-1 size-2.5" />
             Member
           </Badge>
-        )
+        );
       case "viewer":
         return (
-          <Badge variant="outline" className="text-muted-foreground text-xs h-5">
+          <Badge
+            variant="outline"
+            className="text-muted-foreground text-xs h-5"
+          >
             <Eye className="mr-1 size-2.5" />
             Viewer
           </Badge>
-        )
+        );
     }
-  }
+  };
 
-  const memberColumns: ColumnDef<TeamMemberRow>[] = useMemo(() => [
-    {
-      accessorKey: "user_full_name",
-      header: "Member",
-      cell: ({ row }) => {
-        const member = row.original
-        const isCurrentUser = member.user_id === currentUserId
-        return (
-          <div className="flex items-center gap-2.5">
-            {isValidImageUrl(member.user_profile_image_url) ? (
-              <img
-                src={member.user_profile_image_url}
-                alt={member.user_full_name || member.user_email}
-                className="size-7 rounded-full object-cover"
-              />
-            ) : (
-              <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-primary/80 to-primary">
-                <span className="text-xs font-medium text-primary-foreground">
-                  {getInitials(member.user_full_name, member.user_email)}
-                </span>
-              </div>
-            )}
-            <div className="min-w-0">
-              <div className="text-sm font-medium truncate flex items-center gap-1">
-                {member.user_full_name || member.user_email}
-                {isCurrentUser && <span className="text-xs text-muted-foreground">(you)</span>}
-              </div>
-              {member.user_full_name && (
-                <div className="text-xs text-muted-foreground truncate">{member.user_email}</div>
+  const memberColumns: ColumnDef<TeamMemberRow>[] = useMemo(
+    () => [
+      {
+        accessorKey: "user_full_name",
+        header: "Member",
+        cell: ({ row }) => {
+          const member = row.original;
+          const isCurrentUser = member.user_id === currentUserId;
+          return (
+            <div className="flex items-center gap-2.5">
+              {isValidImageUrl(member.user_profile_image_url) ? (
+                <img
+                  src={member.user_profile_image_url}
+                  alt={member.user_full_name || member.user_email}
+                  className="size-7 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-primary/80 to-primary">
+                  <span className="text-xs font-medium text-primary-foreground">
+                    {getInitials(member.user_full_name, member.user_email)}
+                  </span>
+                </div>
               )}
-            </div>
-          </div>
-        )
-      },
-    },
-    {
-      accessorKey: "role",
-      header: "Role",
-      cell: ({ row }) => getRoleBadge(row.original.role),
-    },
-    {
-      id: "actions",
-      header: () => <div className="text-right">Actions</div>,
-      cell: ({ row }) => {
-        const member = row.original
-        const isCurrentUser = member.user_id === currentUserId
-        const canManageMember = canManage && !isCurrentUser
-        const canChangeRole = canManageMember && (isOrgAdmin || member.role !== "admin")
-
-        if (!canManageMember) return null
-
-        return (
-          <div className="flex justify-end">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="size-7">
-                  <MoreHorizontal className="size-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
-                {canChangeRole && (
-                  <>
-                    <DropdownMenuItem
-                      onClick={() => updateRoleMutation.mutate({ memberId: member.id, role: "admin" })}
-                      disabled={member.role === "admin"}
-                    >
-                      <Shield className="mr-2 size-3.5" />
-                      Admin
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => updateRoleMutation.mutate({ memberId: member.id, role: "member" })}
-                      disabled={member.role === "member"}
-                    >
-                      <User className="mr-2 size-3.5" />
-                      Member
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => updateRoleMutation.mutate({ memberId: member.id, role: "viewer" })}
-                      disabled={member.role === "viewer"}
-                    >
-                      <Eye className="mr-2 size-3.5" />
-                      Viewer
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
+              <div className="min-w-0">
+                <div className="text-sm font-medium truncate flex items-center gap-1">
+                  {member.user_full_name || member.user_email}
+                  {isCurrentUser && (
+                    <span className="text-xs text-muted-foreground">(you)</span>
+                  )}
+                </div>
+                {member.user_full_name && (
+                  <div className="text-xs text-muted-foreground truncate">
+                    {member.user_email}
+                  </div>
                 )}
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <DropdownMenuItem
-                      onSelect={(e) => e.preventDefault()}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <UserMinus className="mr-2 size-3.5" />
-                      Remove
-                    </DropdownMenuItem>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Remove Member</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Remove {member.user_full_name || member.user_email} from this team?
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => removeMemberMutation.mutate(member.id)}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        Remove
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )
+              </div>
+            </div>
+          );
+        },
       },
-    },
-  ], [currentUserId, canManage, isOrgAdmin, updateRoleMutation, removeMemberMutation])
+      {
+        accessorKey: "role",
+        header: "Role",
+        cell: ({ row }) => getRoleBadge(row.original.role),
+      },
+      {
+        id: "actions",
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => {
+          const member = row.original;
+          const isCurrentUser = member.user_id === currentUserId;
+          const canManageMember = canManage && !isCurrentUser;
+          const canChangeRole =
+            canManageMember && (isOrgAdmin || member.role !== "admin");
 
-  const memberData: TeamMemberRow[] = useMemo(() =>
-    members.map((m) => ({
-      id: m.id,
-      user_id: m.user_id,
-      role: m.role,
-      org_role: m.org_role,
-      user_email: m.user_email,
-      user_full_name: m.user_full_name,
-      user_profile_image_url: m.user_profile_image_url,
-    })),
-  [members])
+          if (!canManageMember) return null;
+
+          return (
+            <div className="flex justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="size-7">
+                    <MoreHorizontal className="size-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  {canChangeRole && (
+                    <>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          updateRoleMutation.mutate({
+                            memberId: member.id,
+                            role: "admin",
+                          })
+                        }
+                        disabled={member.role === "admin"}
+                      >
+                        <Shield className="mr-2 size-3.5" />
+                        Admin
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          updateRoleMutation.mutate({
+                            memberId: member.id,
+                            role: "member",
+                          })
+                        }
+                        disabled={member.role === "member"}
+                      >
+                        <User className="mr-2 size-3.5" />
+                        Member
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          updateRoleMutation.mutate({
+                            memberId: member.id,
+                            role: "viewer",
+                          })
+                        }
+                        disabled={member.role === "viewer"}
+                      >
+                        <Eye className="mr-2 size-3.5" />
+                        Viewer
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <DropdownMenuItem
+                        onSelect={(e) => e.preventDefault()}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <UserMinus className="mr-2 size-3.5" />
+                        Remove
+                      </DropdownMenuItem>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remove Member</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Remove {member.user_full_name || member.user_email}{" "}
+                          from this team?
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => removeMemberMutation.mutate(member.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Remove
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          );
+        },
+      },
+    ],
+    [
+      currentUserId,
+      canManage,
+      isOrgAdmin,
+      updateRoleMutation,
+      removeMemberMutation,
+    ],
+  );
+
+  const memberData: TeamMemberRow[] = useMemo(
+    () =>
+      members.map((m) => ({
+        id: m.id,
+        user_id: m.user_id,
+        role: m.role,
+        org_role: m.org_role,
+        user_email: m.user_email,
+        user_full_name: m.user_full_name,
+        user_profile_image_url: m.user_profile_image_url,
+      })),
+    [members],
+  );
 
   return (
     <div className="space-y-4">
@@ -537,7 +604,12 @@ function MembersSection({
           </Badge>
         </div>
         {canManage && availableOrgMembers.length > 0 && (
-          <Dialog open={addMemberOpen} onOpenChange={(open) => open ? setAddMemberOpen(true) : resetAddDialog()}>
+          <Dialog
+            open={addMemberOpen}
+            onOpenChange={(open) =>
+              open ? setAddMemberOpen(true) : resetAddDialog()
+            }
+          >
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm" className="h-7 text-xs">
                 <Plus className="size-3 mr-1" />
@@ -554,7 +626,10 @@ function MembersSection({
               <div className="space-y-3 py-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Member</Label>
-                  <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                  <Select
+                    value={selectedUserId}
+                    onValueChange={setSelectedUserId}
+                  >
                     <SelectTrigger className="h-8 text-sm">
                       <SelectValue placeholder="Choose a member..." />
                     </SelectTrigger>
@@ -569,7 +644,10 @@ function MembersSection({
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Role</Label>
-                  <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as TeamRole)}>
+                  <Select
+                    value={selectedRole}
+                    onValueChange={(v) => setSelectedRole(v as TeamRole)}
+                  >
                     <SelectTrigger className="h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
@@ -586,8 +664,14 @@ function MembersSection({
                 <Button variant="ghost" size="sm" onClick={resetAddDialog}>
                   Cancel
                 </Button>
-                <Button size="sm" onClick={handleAddMember} disabled={!selectedUserId || addMemberMutation.isPending}>
-                  {addMemberMutation.isPending && <Loader2 className="mr-1.5 size-3 animate-spin" />}
+                <Button
+                  size="sm"
+                  onClick={handleAddMember}
+                  disabled={!selectedUserId || addMemberMutation.isPending}
+                >
+                  {addMemberMutation.isPending && (
+                    <Loader2 className="mr-1.5 size-3 animate-spin" />
+                  )}
                   Add
                 </Button>
               </DialogFooter>
@@ -605,21 +689,36 @@ function MembersSection({
           No members yet
         </p>
       ) : (
-        <DataTable columns={memberColumns} data={memberData} searchKey="user_full_name" searchPlaceholder="Search members..." />
+        <DataTable
+          columns={memberColumns}
+          data={memberData}
+          searchKey="user_full_name"
+          searchPlaceholder="Search members..."
+        />
       )}
     </div>
-  )
+  );
 }
 
-function AIConfigurationSection({ orgId, teamId }: { orgId: string; teamId: string }) {
-  const [promptsOpen, setPromptsOpen] = useState(true)
-  const [apiKeysOpen, setApiKeysOpen] = useState(true)
+function AIConfigurationSection({
+  orgId,
+  teamId,
+}: {
+  orgId: string;
+  teamId: string;
+}) {
+  const [promptsOpen, setPromptsOpen] = useState(true);
+  const [apiKeysOpen, setApiKeysOpen] = useState(true);
 
   return (
     <div className="space-y-4">
       <Collapsible open={promptsOpen} onOpenChange={setPromptsOpen}>
         <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:text-foreground/80 py-2">
-          {promptsOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+          {promptsOpen ? (
+            <ChevronDown className="size-4" />
+          ) : (
+            <ChevronRight className="size-4" />
+          )}
           <Sparkles className="size-4" />
           Prompts & Templates
         </CollapsibleTrigger>
@@ -632,7 +731,11 @@ function AIConfigurationSection({ orgId, teamId }: { orgId: string; teamId: stri
 
       <Collapsible open={apiKeysOpen} onOpenChange={setApiKeysOpen}>
         <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:text-foreground/80 py-2">
-          {apiKeysOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+          {apiKeysOpen ? (
+            <ChevronDown className="size-4" />
+          ) : (
+            <ChevronRight className="size-4" />
+          )}
           <Key className="size-4" />
           API Keys
         </CollapsibleTrigger>
@@ -641,30 +744,34 @@ function AIConfigurationSection({ orgId, teamId }: { orgId: string; teamId: stri
         </CollapsibleContent>
       </Collapsible>
     </div>
-  )
+  );
 }
 
 function PromptsSection({ orgId, teamId }: { orgId: string; teamId: string }) {
   const { data: promptsData, isLoading } = useQuery({
     queryKey: ["team-prompts", orgId, teamId],
     queryFn: () => promptsApi.listTeamPrompts(orgId, teamId),
-  })
+  });
 
-  const prompts = promptsData?.data ?? []
-  const systemPrompts = prompts.filter((p) => p.prompt_type === "system")
-  const templatePrompts = prompts.filter((p) => p.prompt_type === "template")
+  const prompts = promptsData?.data ?? [];
+  const systemPrompts = prompts.filter((p) => p.prompt_type === "system");
+  const templatePrompts = prompts.filter((p) => p.prompt_type === "template");
 
-  const [systemOpen, setSystemOpen] = useState(true)
-  const [templatesOpen, setTemplatesOpen] = useState(true)
+  const [systemOpen, setSystemOpen] = useState(true);
+  const [templatesOpen, setTemplatesOpen] = useState(true);
 
-  const scope = { type: "team" as const, orgId, teamId }
+  const scope = { type: "team" as const, orgId, teamId };
 
   return (
     <div className="pl-6 space-y-3">
       <Collapsible open={systemOpen} onOpenChange={setSystemOpen}>
         <div className="flex items-center justify-between py-1">
           <CollapsibleTrigger className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground">
-            {systemOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+            {systemOpen ? (
+              <ChevronDown className="size-3" />
+            ) : (
+              <ChevronRight className="size-3" />
+            )}
             System Prompts
             <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
               {systemPrompts.length}
@@ -678,10 +785,17 @@ function PromptsSection({ orgId, teamId }: { orgId: string; teamId: string }) {
               <Loader2 className="size-4 animate-spin text-muted-foreground" />
             </div>
           ) : systemPrompts.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-2 text-center">No system prompts</p>
+            <p className="text-xs text-muted-foreground py-2 text-center">
+              No system prompts
+            </p>
           ) : (
             systemPrompts.map((prompt) => (
-              <PromptRow key={prompt.id} prompt={prompt} scope={scope} compact />
+              <PromptRow
+                key={prompt.id}
+                prompt={prompt}
+                scope={scope}
+                compact
+              />
             ))
           )}
         </CollapsibleContent>
@@ -690,7 +804,11 @@ function PromptsSection({ orgId, teamId }: { orgId: string; teamId: string }) {
       <Collapsible open={templatesOpen} onOpenChange={setTemplatesOpen}>
         <div className="flex items-center justify-between py-1">
           <CollapsibleTrigger className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground">
-            {templatesOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+            {templatesOpen ? (
+              <ChevronDown className="size-3" />
+            ) : (
+              <ChevronRight className="size-3" />
+            )}
             Templates
             <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
               {templatePrompts.length}
@@ -704,35 +822,46 @@ function PromptsSection({ orgId, teamId }: { orgId: string; teamId: string }) {
               <Loader2 className="size-4 animate-spin text-muted-foreground" />
             </div>
           ) : templatePrompts.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-2 text-center">No templates</p>
+            <p className="text-xs text-muted-foreground py-2 text-center">
+              No templates
+            </p>
           ) : (
             templatePrompts.map((prompt) => (
-              <PromptRow key={prompt.id} prompt={prompt} scope={scope} compact />
+              <PromptRow
+                key={prompt.id}
+                prompt={prompt}
+                scope={scope}
+                compact
+              />
             ))
           )}
         </CollapsibleContent>
       </Collapsible>
     </div>
-  )
+  );
 }
 
 function ApiKeysSection({ orgId, teamId }: { orgId: string; teamId: string }) {
   const { data: apiKeyStatuses, isLoading } = useQuery({
     queryKey: ["team-api-keys", orgId, teamId],
     queryFn: () => apiKeysApi.listTeamKeys(orgId, teamId),
-  })
+  });
   const { data: defaultProvider, isLoading: isLoadingDefault } = useQuery({
     queryKey: ["team-default-provider", orgId, teamId],
     queryFn: () => apiKeysApi.getTeamDefaultProvider(orgId, teamId),
-  })
+  });
 
-  const scope = { type: "team" as const, orgId, teamId }
+  const scope = { type: "team" as const, orgId, teamId };
 
   return (
     <div className="pl-6 space-y-4">
       <div className="flex items-center gap-3">
         <Label className="text-xs text-muted-foreground">Default:</Label>
-        <DefaultProviderSelector scope={scope} currentProvider={defaultProvider?.provider} isLoading={isLoadingDefault} />
+        <DefaultProviderSelector
+          scope={scope}
+          currentProvider={defaultProvider?.provider}
+          isLoading={isLoadingDefault}
+        />
       </div>
 
       {isLoading ? (
@@ -741,24 +870,47 @@ function ApiKeysSection({ orgId, teamId }: { orgId: string; teamId: string }) {
         </div>
       ) : (
         <div className="space-y-2">
-          {(["openai", "anthropic", "google"] as LLMProvider[]).map((provider) => {
-            const status = apiKeyStatuses?.find((s) => s.provider === provider)
-            return <ProviderRow key={provider} provider={provider} status={status} scope={scope} />
-          })}
+          {(["openai", "anthropic", "google"] as LLMProvider[]).map(
+            (provider) => {
+              const status = apiKeyStatuses?.find(
+                (s) => s.provider === provider,
+              );
+              return (
+                <ProviderRow
+                  key={provider}
+                  provider={provider}
+                  status={status}
+                  scope={scope}
+                />
+              );
+            },
+          )}
         </div>
       )}
     </div>
-  )
+  );
 }
 
-function ChatFeaturesSection({ orgId, teamId }: { orgId: string; teamId: string }) {
-  const { data: orgSettings, isLoading: isLoadingOrg } = useOrgChatSettings(orgId)
-  const { data: teamSettings, isLoading: isLoadingTeam } = useTeamChatSettings(orgId, teamId)
-  const updateMutation = useUpdateTeamChatSettings(orgId, teamId)
+function ChatFeaturesSection({
+  orgId,
+  teamId,
+}: {
+  orgId: string;
+  teamId: string;
+}) {
+  const { data: orgSettings, isLoading: isLoadingOrg } =
+    useOrgChatSettings(orgId);
+  const { data: teamSettings, isLoading: isLoadingTeam } = useTeamChatSettings(
+    orgId,
+    teamId,
+  );
+  const updateMutation = useUpdateTeamChatSettings(orgId, teamId);
 
-  const chatDisabledByOrg = orgSettings ? !orgSettings.chat_enabled : false
-  const chatPanelDisabledByOrg = orgSettings ? !orgSettings.chat_panel_enabled : false
-  const memoryDisabledByOrg = orgSettings ? !orgSettings.memory_enabled : false
+  const chatDisabledByOrg = orgSettings ? !orgSettings.chat_enabled : false;
+  const chatPanelDisabledByOrg = orgSettings
+    ? !orgSettings.chat_panel_enabled
+    : false;
+  const memoryDisabledByOrg = orgSettings ? !orgSettings.memory_enabled : false;
 
   return (
     <div className="space-y-6">
@@ -771,9 +923,22 @@ function ChatFeaturesSection({ orgId, teamId }: { orgId: string; teamId: string 
           Organization settings take precedence over team preferences.
         </p>
         <ChatSettings
-          settings={teamSettings ?? { chat_enabled: true, chat_panel_enabled: true, memory_enabled: true, mcp_enabled: true }}
-          onChatEnabledChange={(enabled) => updateMutation.mutate({ chat_enabled: enabled })}
-          onChatPanelEnabledChange={(enabled) => updateMutation.mutate({ chat_panel_enabled: enabled })}
+          settings={
+            teamSettings ?? {
+              chat_enabled: true,
+              chat_panel_enabled: true,
+              memory_enabled: true,
+              mcp_enabled: true,
+              disabled_mcp_servers: [],
+              disabled_tools: [],
+            }
+          }
+          onChatEnabledChange={(enabled) =>
+            updateMutation.mutate({ chat_enabled: enabled })
+          }
+          onChatPanelEnabledChange={(enabled) =>
+            updateMutation.mutate({ chat_panel_enabled: enabled })
+          }
           chatDisabledByOrg={chatDisabledByOrg}
           chatPanelDisabledByOrg={chatPanelDisabledByOrg}
           isLoading={isLoadingOrg || isLoadingTeam || updateMutation.isPending}
@@ -791,7 +956,9 @@ function ChatFeaturesSection({ orgId, teamId }: { orgId: string; teamId: string 
         </p>
         <MemorySettings
           memoryEnabled={teamSettings?.memory_enabled ?? true}
-          onMemoryEnabledChange={(enabled) => updateMutation.mutate({ memory_enabled: enabled })}
+          onMemoryEnabledChange={(enabled) =>
+            updateMutation.mutate({ memory_enabled: enabled })
+          }
           memoryDisabledByOrg={memoryDisabledByOrg}
           isLoading={isLoadingOrg || isLoadingTeam || updateMutation.isPending}
           level="team"
@@ -809,7 +976,7 @@ function ChatFeaturesSection({ orgId, teamId }: { orgId: string; teamId: string 
         />
       </div>
     </div>
-  )
+  );
 }
 
 function TeamMCPSection({
@@ -820,15 +987,17 @@ function TeamMCPSection({
   updateMutation,
   isLoading,
 }: {
-  orgId: string
-  teamId: string
-  orgSettings: OrganizationChatSettings | undefined
-  teamSettings: TeamChatSettings | undefined
-  updateMutation: ReturnType<typeof useUpdateTeamChatSettings>
-  isLoading: boolean
+  orgId: string;
+  teamId: string;
+  orgSettings: OrganizationChatSettings | undefined;
+  teamSettings: TeamChatSettings | undefined;
+  updateMutation: ReturnType<typeof useUpdateTeamChatSettings>;
+  isLoading: boolean;
 }) {
-  const mcpDisabledByOrg = orgSettings ? !orgSettings.mcp_enabled : false
-  const customServersDisabledByOrg = orgSettings ? !orgSettings.mcp_allow_custom_servers : false
+  const mcpDisabledByOrg = orgSettings ? !orgSettings.mcp_enabled : false;
+  const customServersDisabledByOrg = orgSettings
+    ? !orgSettings.mcp_allow_custom_servers
+    : false;
 
   return (
     <div className="space-y-4">
@@ -843,8 +1012,12 @@ function TeamMCPSection({
       <MCPSettings
         mcpEnabled={teamSettings?.mcp_enabled ?? true}
         mcpAllowCustomServers={teamSettings?.mcp_allow_custom_servers ?? true}
-        onMCPEnabledChange={(enabled) => updateMutation.mutate({ mcp_enabled: enabled })}
-        onMCPAllowCustomServersChange={(allowed) => updateMutation.mutate({ mcp_allow_custom_servers: allowed })}
+        onMCPEnabledChange={(enabled) =>
+          updateMutation.mutate({ mcp_enabled: enabled })
+        }
+        onMCPAllowCustomServersChange={(allowed) =>
+          updateMutation.mutate({ mcp_allow_custom_servers: allowed })
+        }
         disabledBy={mcpDisabledByOrg ? "org" : null}
         customServersDisabledBy={customServersDisabledByOrg ? "org" : null}
         isLoading={isLoading || updateMutation.isPending}
@@ -857,5 +1030,5 @@ function TeamMCPSection({
         </div>
       )}
     </div>
-  )
+  );
 }

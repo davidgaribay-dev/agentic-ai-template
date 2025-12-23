@@ -1,6 +1,6 @@
-import * as React from "react"
-import { useState, useMemo } from "react"
-import { useQuery } from "@tanstack/react-query"
+import * as React from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   FileText,
   Building2,
@@ -8,22 +8,22 @@ import {
   User,
   Search,
   Loader2,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
-import { promptsApi, type Prompt } from "@/lib/api"
-import { Button } from "@/components/ui/button"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { promptsApi, type Prompt } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 
 interface PromptPickerProps {
-  organizationId?: string
-  teamId?: string
-  onSelect: (content: string) => void
-  disabled?: boolean
+  organizationId?: string;
+  teamId?: string;
+  onSelect: (content: string) => void;
+  disabled?: boolean;
 }
 
 export function PromptPicker({
@@ -32,32 +32,33 @@ export function PromptPicker({
   onSelect,
   disabled = false,
 }: PromptPickerProps) {
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState("")
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   // Fetch available prompts when we have org/team context
   const { data: availablePrompts, isLoading: isLoadingAvailable } = useQuery({
     queryKey: ["available-prompts", organizationId, teamId],
-    queryFn: () => promptsApi.getAvailablePrompts(organizationId!, teamId!, "template"),
+    queryFn: () =>
+      promptsApi.getAvailablePrompts(organizationId!, teamId!, "template"),
     enabled: open && !!organizationId && !!teamId,
-  })
+  });
 
   // Fetch user prompts (always available)
   const { data: userPrompts, isLoading: isLoadingUser } = useQuery({
     queryKey: ["user-prompts-templates"],
     queryFn: () => promptsApi.listUserPrompts("template"),
     enabled: open,
-  })
+  });
 
-  const isLoading = isLoadingAvailable || isLoadingUser
+  const isLoading = isLoadingAvailable || isLoadingUser;
 
   // Combine prompts into groups
   const promptGroups = useMemo(() => {
     const groups: Array<{
-      label: string
-      icon: React.ReactNode
-      prompts: Prompt[]
-    }> = []
+      label: string;
+      icon: React.ReactNode;
+      prompts: Prompt[];
+    }> = [];
 
     // Add org prompts if available
     if (availablePrompts?.org_prompts?.length) {
@@ -65,7 +66,7 @@ export function PromptPicker({
         label: "Organization",
         icon: <Building2 className="h-4 w-4" />,
         prompts: availablePrompts.org_prompts,
-      })
+      });
     }
 
     // Add team prompts if available
@@ -74,46 +75,50 @@ export function PromptPicker({
         label: "Team",
         icon: <Users className="h-4 w-4" />,
         prompts: availablePrompts.team_prompts,
-      })
+      });
     }
 
     // Add user prompts (from the separate user prompts query or from availablePrompts)
-    const personalPrompts = availablePrompts?.user_prompts ?? userPrompts?.data ?? []
+    const personalPrompts =
+      availablePrompts?.user_prompts ?? userPrompts?.data ?? [];
     if (personalPrompts.length) {
       groups.push({
         label: "Personal",
         icon: <User className="h-4 w-4" />,
         prompts: personalPrompts,
-      })
+      });
     }
 
-    return groups
-  }, [availablePrompts, userPrompts])
+    return groups;
+  }, [availablePrompts, userPrompts]);
 
   // Filter prompts based on search
   const filteredGroups = useMemo(() => {
-    if (!search.trim()) return promptGroups
+    if (!search.trim()) return promptGroups;
 
-    const searchLower = search.toLowerCase()
+    const searchLower = search.toLowerCase();
     return promptGroups
       .map((group) => ({
         ...group,
         prompts: group.prompts.filter(
           (p) =>
             p.name.toLowerCase().includes(searchLower) ||
-            p.description?.toLowerCase().includes(searchLower)
+            p.description?.toLowerCase().includes(searchLower),
         ),
       }))
-      .filter((group) => group.prompts.length > 0)
-  }, [promptGroups, search])
+      .filter((group) => group.prompts.length > 0);
+  }, [promptGroups, search]);
 
-  const totalPrompts = promptGroups.reduce((acc, g) => acc + g.prompts.length, 0)
+  const totalPrompts = promptGroups.reduce(
+    (acc, g) => acc + g.prompts.length,
+    0,
+  );
 
   const handleSelect = (prompt: Prompt) => {
-    onSelect(prompt.content)
-    setOpen(false)
-    setSearch("")
-  }
+    onSelect(prompt.content);
+    setOpen(false);
+    setSearch("");
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -184,7 +189,9 @@ export function PromptPicker({
                   <div key={group.label}>
                     {groupIndex > 0 && <div className="my-1 border-t" />}
                     <div className="flex items-center gap-2 px-2 py-1.5">
-                      <span className="text-muted-foreground">{group.icon}</span>
+                      <span className="text-muted-foreground">
+                        {group.icon}
+                      </span>
                       <span className="text-xs font-medium text-muted-foreground">
                         {group.label}
                       </span>
@@ -196,7 +203,7 @@ export function PromptPicker({
                         className={cn(
                           "w-full rounded-md px-2 py-2 text-left",
                           "hover:bg-accent focus:bg-accent focus:outline-none",
-                          "transition-colors"
+                          "transition-colors",
                         )}
                       >
                         <p className="text-sm font-medium">{prompt.name}</p>
@@ -215,5 +222,5 @@ export function PromptPicker({
         </div>
       </PopoverContent>
     </Popover>
-  )
+  );
 }

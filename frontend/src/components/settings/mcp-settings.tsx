@@ -1,19 +1,19 @@
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Loader2, AlertTriangle } from "lucide-react"
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, AlertTriangle } from "lucide-react";
 
-type SettingsLevel = "org" | "team" | "user"
+type SettingsLevel = "org" | "team" | "user";
 
 interface MCPSettingsProps {
-  mcpEnabled: boolean
-  mcpAllowCustomServers?: boolean
-  onMCPEnabledChange: (enabled: boolean) => void
-  onMCPAllowCustomServersChange?: (allowed: boolean) => void
-  isLoading?: boolean
-  level: SettingsLevel
-  disabledBy?: "org" | "team" | null
-  customServersDisabledBy?: "org" | "team" | null
+  mcpEnabled: boolean;
+  mcpAllowCustomServers?: boolean;
+  onMCPEnabledChange: (enabled: boolean) => void;
+  onMCPAllowCustomServersChange?: (allowed: boolean) => void;
+  isLoading?: boolean;
+  level: SettingsLevel;
+  disabledBy?: "org" | "team" | null;
+  customServersDisabledBy?: "org" | "team" | null;
 }
 
 export function MCPSettings({
@@ -26,13 +26,13 @@ export function MCPSettings({
   disabledBy,
   customServersDisabledBy,
 }: MCPSettingsProps) {
-  const isDisabledByHigherLevel = !!disabledBy
-  const customServersDisabledByHigher = !!customServersDisabledBy
+  const isDisabledByHigherLevel = !!disabledBy;
+  const customServersDisabledByHigher = !!customServersDisabledBy;
 
   const getDisabledByText = (disabledByLevel: "org" | "team" | null) => {
-    if (!disabledByLevel) return null
-    return disabledByLevel === "org" ? "organization" : "team"
-  }
+    if (!disabledByLevel) return null;
+    return disabledByLevel === "org" ? "organization" : "team";
+  };
 
   return (
     <div className="space-y-4">
@@ -47,7 +47,10 @@ export function MCPSettings({
         </div>
         <div className="flex items-center gap-2">
           {isDisabledByHigherLevel && (
-            <Badge variant="secondary" className="text-xs bg-amber-500/15 text-amber-600 dark:text-amber-400 border-0">
+            <Badge
+              variant="secondary"
+              className="text-xs bg-amber-500/15 text-amber-600 dark:text-amber-400 border-0"
+            >
               <AlertTriangle className="mr-1 size-3" />
               Disabled by {getDisabledByText(disabledBy)}
             </Badge>
@@ -79,7 +82,10 @@ export function MCPSettings({
           </div>
           <div className="flex items-center gap-2">
             {customServersDisabledByHigher && (
-              <Badge variant="secondary" className="text-xs bg-amber-500/15 text-amber-600 dark:text-amber-400 border-0">
+              <Badge
+                variant="secondary"
+                className="text-xs bg-amber-500/15 text-amber-600 dark:text-amber-400 border-0"
+              >
                 <AlertTriangle className="mr-1 size-3" />
                 Disabled by {getDisabledByText(customServersDisabledBy)}
               </Badge>
@@ -89,14 +95,21 @@ export function MCPSettings({
             ) : (
               <Switch
                 id="mcp-custom-servers"
-                checked={(mcpAllowCustomServers ?? true) && !customServersDisabledByHigher}
+                checked={
+                  (mcpAllowCustomServers ?? true) &&
+                  !customServersDisabledByHigher
+                }
                 onCheckedChange={onMCPAllowCustomServersChange}
-                disabled={!mcpEnabled || isDisabledByHigherLevel || customServersDisabledByHigher}
+                disabled={
+                  !mcpEnabled ||
+                  isDisabledByHigherLevel ||
+                  customServersDisabledByHigher
+                }
               />
             )}
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }

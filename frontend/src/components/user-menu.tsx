@@ -1,7 +1,7 @@
-import { LogOut, Settings } from "lucide-react"
-import { Link } from "@tanstack/react-router"
-import { useAuth } from "@/lib/auth"
-import { getInitials, isValidImageUrl } from "@/lib/utils"
+import { LogOut, Settings } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth";
+import { getInitials, isValidImageUrl } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,15 +9,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { ModeToggle } from "@/components/mode-toggle"
+} from "@/components/ui/dropdown-menu";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export function UserMenu() {
-  const { user, logout } = useAuth()
+  const { user, logout } = useAuth();
 
-  if (!user) return null
+  if (!user) return null;
 
-  const initials = getInitials(user.full_name, user.email)
+  const initials = getInitials(user.full_name, user.email);
 
   return (
     <DropdownMenu>
@@ -42,7 +42,9 @@ export function UserMenu() {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             {user.full_name && (
-              <p className="text-sm font-medium leading-none">{user.full_name}</p>
+              <p className="text-sm font-medium leading-none">
+                {user.full_name}
+              </p>
             )}
             <p className="text-xs leading-none text-muted-foreground">
               {user.email}
@@ -65,5 +67,5 @@ export function UserMenu() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }

@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef, useEffect, memo, useCallback } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useState, useMemo, useRef, useEffect, memo, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ChevronDown,
   MessageSquare,
@@ -9,32 +9,32 @@ import {
   Search,
   Star,
   Trash2,
-} from "lucide-react"
+} from "lucide-react";
 
-import { cn, formatRelativeTime } from "@/lib/utils"
-import { conversationsApi, type Conversation } from "@/lib/api"
+import { cn, formatRelativeTime } from "@/lib/utils";
+import { conversationsApi, type Conversation } from "@/lib/api";
 import {
   queryKeys,
   useDeleteConversation,
   useStarConversation,
   useUpdateConversation,
-} from "@/lib/queries"
-import { Button } from "@/components/ui/button"
+} from "@/lib/queries";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,26 +44,26 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 
 interface ChatHistoryDropdownProps {
-  currentConversationId?: string | null
-  currentTitle?: string | null
-  teamId?: string
-  onSelectConversation: (conversationId: string) => void
-  onNewChat: () => void
-  onConversationDeleted?: (conversationId: string) => void
-  className?: string
+  currentConversationId?: string | null;
+  currentTitle?: string | null;
+  teamId?: string;
+  onSelectConversation: (conversationId: string) => void;
+  onNewChat: () => void;
+  onConversationDeleted?: (conversationId: string) => void;
+  className?: string;
 }
 
 interface ConversationItemProps {
-  conversation: Conversation
-  isSelected: boolean
-  teamId?: string
-  onSelect: (id: string) => void
-  onRename: (conversation: Conversation) => void
-  onRequestDelete: (conversation: Conversation) => void
-  formatDate: (date: string) => string
+  conversation: Conversation;
+  isSelected: boolean;
+  teamId?: string;
+  onSelect: (id: string) => void;
+  onRename: (conversation: Conversation) => void;
+  onRequestDelete: (conversation: Conversation) => void;
+  formatDate: (date: string) => string;
 }
 
 const ConversationItem = memo(function ConversationItem({
@@ -75,43 +75,58 @@ const ConversationItem = memo(function ConversationItem({
   onRequestDelete,
   formatDate,
 }: ConversationItemProps) {
-  const [isHovered, setIsHovered] = useState(false)
-  const [actionsOpen, setActionsOpen] = useState(false)
-  const starMutation = useStarConversation(teamId)
+  const [isHovered, setIsHovered] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const starMutation = useStarConversation(teamId);
 
-  const handleStar = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    starMutation.mutate({ id: conversation.id, isStarred: !conversation.is_starred })
-    setActionsOpen(false)
-  }, [starMutation, conversation.id, conversation.is_starred])
+  const handleStar = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      starMutation.mutate({
+        id: conversation.id,
+        isStarred: !conversation.is_starred,
+      });
+      setActionsOpen(false);
+    },
+    [starMutation, conversation.id, conversation.is_starred],
+  );
 
-  const handleRename = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    onRename(conversation)
-    setActionsOpen(false)
-  }, [onRename, conversation])
+  const handleRename = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onRename(conversation);
+      setActionsOpen(false);
+    },
+    [onRename, conversation],
+  );
 
-  const handleDelete = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    onRequestDelete(conversation)
-    setActionsOpen(false)
-  }, [onRequestDelete, conversation])
+  const handleDelete = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onRequestDelete(conversation);
+      setActionsOpen(false);
+    },
+    [onRequestDelete, conversation],
+  );
 
   const handleClick = useCallback(() => {
-    onSelect(conversation.id)
-  }, [onSelect, conversation.id])
+    onSelect(conversation.id);
+  }, [onSelect, conversation.id]);
 
-  const handleMouseEnter = useCallback(() => setIsHovered(true), [])
-  const handleMouseLeave = useCallback(() => setIsHovered(false), [])
-  const handleTriggerClick = useCallback((e: React.MouseEvent) => e.stopPropagation(), [])
+  const handleMouseEnter = useCallback(() => setIsHovered(true), []);
+  const handleMouseLeave = useCallback(() => setIsHovered(false), []);
+  const handleTriggerClick = useCallback(
+    (e: React.MouseEvent) => e.stopPropagation(),
+    [],
+  );
 
-  const showActions = isHovered || actionsOpen
+  const showActions = isHovered || actionsOpen;
 
   return (
     <div
       className={cn(
         "flex cursor-pointer items-center justify-between gap-2 rounded-sm px-2 py-2 text-sm hover:bg-accent",
-        isSelected && "bg-accent"
+        isSelected && "bg-accent",
       )}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
@@ -134,7 +149,7 @@ const ConversationItem = memo(function ConversationItem({
             type="button"
             className={cn(
               "shrink-0 rounded p-0.5 transition-opacity hover:bg-muted",
-              showActions ? "opacity-100" : "opacity-0"
+              showActions ? "opacity-100" : "opacity-0",
             )}
             onClick={handleTriggerClick}
             aria-label="Conversation actions"
@@ -147,7 +162,7 @@ const ConversationItem = memo(function ConversationItem({
             <Star
               className={cn(
                 "mr-2 size-4",
-                conversation.is_starred && "fill-yellow-400 text-yellow-400"
+                conversation.is_starred && "fill-yellow-400 text-yellow-400",
               )}
             />
             {conversation.is_starred ? "Unstar" : "Star"}
@@ -167,8 +182,8 @@ const ConversationItem = memo(function ConversationItem({
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-  )
-})
+  );
+});
 
 export function ChatHistoryDropdown({
   currentConversationId,
@@ -179,101 +194,103 @@ export function ChatHistoryDropdown({
   onConversationDeleted,
   className,
 }: ChatHistoryDropdownProps) {
-  const [search, setSearch] = useState("")
-  const [open, setOpen] = useState(false)
-  const [renameDialogOpen, setRenameDialogOpen] = useState(false)
-  const [conversationToRename, setConversationToRename] = useState<Conversation | null>(null)
-  const [newTitle, setNewTitle] = useState("")
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null)
-  const renameInputRef = useRef<HTMLInputElement>(null)
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [conversationToRename, setConversationToRename] =
+    useState<Conversation | null>(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [conversationToDelete, setConversationToDelete] =
+    useState<Conversation | null>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
-  const updateMutation = useUpdateConversation(teamId)
-  const deleteMutation = useDeleteConversation(teamId)
+  const updateMutation = useUpdateConversation(teamId);
+  const deleteMutation = useDeleteConversation(teamId);
 
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.conversations.list(teamId),
     queryFn: () => conversationsApi.getConversations(0, 50, teamId),
     enabled: open && !!teamId,
-  })
+  });
 
-  const conversations = data?.data ?? []
+  const conversations = data?.data ?? [];
 
   const { starred, recent } = useMemo(() => {
-    let filtered = conversations
+    let filtered = conversations;
     if (search.trim()) {
-      const searchLower = search.toLowerCase()
+      const searchLower = search.toLowerCase();
       filtered = conversations.filter((c) =>
-        c.title.toLowerCase().includes(searchLower)
-      )
+        c.title.toLowerCase().includes(searchLower),
+      );
     }
     return {
       starred: filtered.filter((c) => c.is_starred),
       recent: filtered.filter((c) => !c.is_starred),
-    }
-  }, [conversations, search])
+    };
+  }, [conversations, search]);
 
   const formatDate = (dateString: string) => {
-    return formatRelativeTime(dateString)
-  }
+    return formatRelativeTime(dateString);
+  };
 
   const handleSelect = (conversationId: string) => {
-    onSelectConversation(conversationId)
-    setOpen(false)
-    setSearch("")
-  }
+    onSelectConversation(conversationId);
+    setOpen(false);
+    setSearch("");
+  };
 
   const handleNewChat = () => {
-    onNewChat()
-    setOpen(false)
-    setSearch("")
-  }
+    onNewChat();
+    setOpen(false);
+    setSearch("");
+  };
 
   const handleOpenRename = (conversation: Conversation) => {
-    setConversationToRename(conversation)
-    setNewTitle(conversation.title)
-    setRenameDialogOpen(true)
-  }
+    setConversationToRename(conversation);
+    setNewTitle(conversation.title);
+    setRenameDialogOpen(true);
+  };
 
   const handleRename = () => {
-    if (!conversationToRename || !newTitle.trim()) return
+    if (!conversationToRename || !newTitle.trim()) return;
     updateMutation.mutate(
       { id: conversationToRename.id, data: { title: newTitle.trim() } },
       {
         onSuccess: () => {
-          setRenameDialogOpen(false)
-          setConversationToRename(null)
-          setNewTitle("")
+          setRenameDialogOpen(false);
+          setConversationToRename(null);
+          setNewTitle("");
         },
-      }
-    )
-  }
+      },
+    );
+  };
 
   const handleRequestDelete = (conversation: Conversation) => {
-    setConversationToDelete(conversation)
-    setDeleteDialogOpen(true)
-  }
+    setConversationToDelete(conversation);
+    setDeleteDialogOpen(true);
+  };
 
   const handleConfirmDelete = () => {
-    if (!conversationToDelete) return
-    const conversationId = conversationToDelete.id
+    if (!conversationToDelete) return;
+    const conversationId = conversationToDelete.id;
     deleteMutation.mutate(conversationId, {
       onSuccess: () => {
         if (conversationId === currentConversationId) {
-          onConversationDeleted?.(conversationId)
+          onConversationDeleted?.(conversationId);
         }
-        setDeleteDialogOpen(false)
-        setConversationToDelete(null)
+        setDeleteDialogOpen(false);
+        setConversationToDelete(null);
       },
-    })
-  }
+    });
+  };
 
   useEffect(() => {
     if (renameDialogOpen && renameInputRef.current) {
-      renameInputRef.current.focus()
-      renameInputRef.current.select()
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
     }
-  }, [renameDialogOpen])
+  }, [renameDialogOpen]);
 
   const renderConversationItem = (conversation: Conversation) => (
     <ConversationItem
@@ -286,7 +303,7 @@ export function ChatHistoryDropdown({
       onRequestDelete={handleRequestDelete}
       formatDate={formatDate}
     />
-  )
+  );
 
   return (
     <>
@@ -301,14 +318,17 @@ export function ChatHistoryDropdown({
             <span className="max-w-[120px] truncate">
               {currentConversationId
                 ? currentTitle ||
-                  conversations.find((c) => c.id === currentConversationId)?.title ||
+                  conversations.find((c) => c.id === currentConversationId)
+                    ?.title ||
                   "Chat"
                 : "New Chat"}
             </span>
-            <ChevronDown className={cn(
-              "size-3 text-muted-foreground transition-transform duration-200",
-              open && "rotate-180"
-            )} />
+            <ChevronDown
+              className={cn(
+                "size-3 text-muted-foreground transition-transform duration-200",
+                open && "rotate-180",
+              )}
+            />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-72">
@@ -375,14 +395,17 @@ export function ChatHistoryDropdown({
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                e.preventDefault()
-                handleRename()
+                e.preventDefault();
+                handleRename();
               }
             }}
             placeholder="Enter new title"
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setRenameDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -400,7 +423,8 @@ export function ChatHistoryDropdown({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete "{conversationToDelete?.title}". This action cannot be undone.
+              This will delete "{conversationToDelete?.title}". This action
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -416,5 +440,5 @@ export function ChatHistoryDropdown({
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
+  );
 }

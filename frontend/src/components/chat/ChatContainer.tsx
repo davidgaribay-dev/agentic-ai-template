@@ -1,19 +1,19 @@
-import { memo } from "react"
-import { cn } from "@/lib/utils"
-import { ChatMessage } from "./ChatMessage"
-import type { MessageSource } from "@/lib/chat-store"
+import { memo } from "react";
+import { cn } from "@/lib/utils";
+import { ChatMessage } from "./ChatMessage";
+import type { MessageSource } from "@/lib/chat-store";
 
 export interface Message {
-  id: string
-  role: "user" | "assistant"
-  content: string
-  isStreaming?: boolean
-  sources?: MessageSource[]
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  isStreaming?: boolean;
+  sources?: MessageSource[];
 }
 
 interface ChatContainerProps {
-  messages: Message[]
-  className?: string
+  messages: Message[];
+  className?: string;
 }
 
 export const ChatContainer = memo(function ChatContainer({
@@ -21,7 +21,7 @@ export const ChatContainer = memo(function ChatContainer({
   className,
 }: ChatContainerProps) {
   if (messages.length === 0) {
-    return null
+    return null;
   }
 
   return (
@@ -42,5 +42,5 @@ export const ChatContainer = memo(function ChatContainer({
         />
       ))}
     </div>
-  )
-})
+  );
+});

@@ -1,8 +1,7 @@
-import { useState } from "react"
-import { createFileRoute, redirect, Link } from "@tanstack/react-router"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useState } from "react";
+import { createFileRoute, redirect, Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  FileText,
   Loader2,
   Plus,
   Pencil,
@@ -14,8 +13,8 @@ import {
   MessageSquare,
   Power,
   PowerOff,
-} from "lucide-react"
-import { useWorkspace } from "@/lib/workspace"
+} from "lucide-react";
+import { useWorkspace } from "@/lib/workspace";
 import {
   promptsApi,
   type Prompt,
@@ -23,26 +22,26 @@ import {
   type PromptUpdate,
   type PromptType,
   type ApiError,
-} from "@/lib/api"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -51,7 +50,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,22 +61,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+} from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/org/prompts")({
   beforeLoad: ({ context }) => {
     if (!context.auth.isAuthenticated && !context.auth.isLoading) {
-      throw redirect({ to: "/login" })
+      throw redirect({ to: "/login" });
     }
   },
   component: OrgPromptsPage,
-})
+});
 
 function OrgPromptsPage() {
-  const { currentOrg, currentOrgRole } = useWorkspace()
-  const isAdmin = currentOrgRole === "owner" || currentOrgRole === "admin"
+  const { currentOrg, currentOrgRole } = useWorkspace();
+  const isAdmin = currentOrgRole === "owner" || currentOrgRole === "admin";
 
   if (!currentOrg || currentOrgRole === null) {
     return (
@@ -91,7 +90,7 @@ function OrgPromptsPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (!isAdmin) {
@@ -110,7 +109,7 @@ function OrgPromptsPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -142,8 +141,9 @@ function OrgPromptsPage() {
             <div className="text-sm">
               <p className="font-medium">Organization Prompts</p>
               <p className="text-muted-foreground">
-                Prompts created here are available to all members of {currentOrg.name}.
-                System prompts configure the AI's behavior, while templates are reusable text snippets.
+                Prompts created here are available to all members of{" "}
+                {currentOrg.name}. System prompts configure the AI's behavior,
+                while templates are reusable text snippets.
               </p>
             </div>
           </div>
@@ -153,18 +153,18 @@ function OrgPromptsPage() {
         <PromptsTabsSection orgId={currentOrg.id} />
       </div>
     </div>
-  )
+  );
 }
 
 function PromptsTabsSection({ orgId }: { orgId: string }) {
   const { data: promptsData, isLoading } = useQuery({
     queryKey: ["org-prompts", orgId],
     queryFn: () => promptsApi.listOrgPrompts(orgId),
-  })
+  });
 
-  const prompts = promptsData?.data ?? []
-  const systemPrompts = prompts.filter((p) => p.prompt_type === "system")
-  const templatePrompts = prompts.filter((p) => p.prompt_type === "template")
+  const prompts = promptsData?.data ?? [];
+  const systemPrompts = prompts.filter((p) => p.prompt_type === "system");
+  const templatePrompts = prompts.filter((p) => p.prompt_type === "template");
 
   if (isLoading) {
     return (
@@ -173,7 +173,7 @@ function PromptsTabsSection({ orgId }: { orgId: string }) {
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-32 w-full" />
       </div>
-    )
+    );
   }
 
   return (
@@ -227,7 +227,7 @@ function PromptsTabsSection({ orgId }: { orgId: string }) {
         )}
       </TabsContent>
     </Tabs>
-  )
+  );
 }
 
 function EmptyState({
@@ -235,9 +235,9 @@ function EmptyState({
   title,
   description,
 }: {
-  icon: React.ComponentType<{ className?: string }>
-  title: string
-  description: string
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
 }) {
   return (
     <div className="rounded-lg border border-dashed p-8 text-center">
@@ -245,20 +245,20 @@ function EmptyState({
       <h3 className="mt-4 text-lg font-medium">{title}</h3>
       <p className="mt-2 text-sm text-muted-foreground">{description}</p>
     </div>
-  )
+  );
 }
 
 function PromptCard({ prompt, orgId }: { prompt: Prompt; orgId: string }) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   const activateMutation = useMutation({
     mutationFn: () => promptsApi.activateOrgPrompt(orgId, prompt.id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["org-prompts", orgId] })
+      queryClient.invalidateQueries({ queryKey: ["org-prompts", orgId] });
     },
-  })
+  });
 
-  const isSystem = prompt.prompt_type === "system"
+  const isSystem = prompt.prompt_type === "system";
 
   return (
     <Card>
@@ -276,7 +276,10 @@ function PromptCard({ prompt, orgId }: { prompt: Prompt; orgId: string }) {
               <CardTitle className="text-base flex items-center gap-2">
                 {prompt.name}
                 {isSystem && prompt.is_active && (
-                  <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0">
+                  <Badge
+                    variant="secondary"
+                    className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0"
+                  >
                     <Check className="mr-1 h-3 w-3" />
                     Active
                   </Badge>
@@ -324,51 +327,53 @@ function PromptCard({ prompt, orgId }: { prompt: Prompt; orgId: string }) {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 function CreatePromptDialog({ orgId }: { orgId: string }) {
-  const [open, setOpen] = useState(false)
-  const [name, setName] = useState("")
-  const [description, setDescription] = useState("")
-  const [content, setContent] = useState("")
-  const [promptType, setPromptType] = useState<PromptType>("template")
-  const [error, setError] = useState<string | null>(null)
-  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [content, setContent] = useState("");
+  const [promptType, setPromptType] = useState<PromptType>("template");
+  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const createMutation = useMutation({
     mutationFn: (data: PromptCreate) => promptsApi.createOrgPrompt(orgId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["org-prompts", orgId] })
-      resetForm()
+      queryClient.invalidateQueries({ queryKey: ["org-prompts", orgId] });
+      resetForm();
     },
     onError: (err: ApiError) => {
-      setError((err.body as { detail?: string })?.detail || "Failed to create prompt")
+      setError(
+        (err.body as { detail?: string })?.detail || "Failed to create prompt",
+      );
     },
-  })
+  });
 
   const resetForm = () => {
-    setName("")
-    setDescription("")
-    setContent("")
-    setPromptType("template")
-    setError(null)
-    setOpen(false)
-  }
+    setName("");
+    setDescription("");
+    setContent("");
+    setPromptType("template");
+    setError(null);
+    setOpen(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!name.trim() || !content.trim()) {
-      setError("Name and content are required")
-      return
+      setError("Name and content are required");
+      return;
     }
     createMutation.mutate({
       name: name.trim(),
       description: description.trim() || null,
       content: content.trim(),
       prompt_type: promptType,
-    })
-  }
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -389,7 +394,10 @@ function CreatePromptDialog({ orgId }: { orgId: string }) {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="prompt-type">Type</Label>
-              <Select value={promptType} onValueChange={(v) => setPromptType(v as PromptType)}>
+              <Select
+                value={promptType}
+                onValueChange={(v) => setPromptType(v as PromptType)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -420,8 +428,8 @@ function CreatePromptDialog({ orgId }: { orgId: string }) {
                 id="name"
                 value={name}
                 onChange={(e) => {
-                  setName(e.target.value)
-                  setError(null)
+                  setName(e.target.value);
+                  setError(null);
                 }}
                 placeholder="e.g., Code Review Assistant"
               />
@@ -441,8 +449,8 @@ function CreatePromptDialog({ orgId }: { orgId: string }) {
                 id="content"
                 value={content}
                 onChange={(e) => {
-                  setContent(e.target.value)
-                  setError(null)
+                  setContent(e.target.value);
+                  setError(null);
                 }}
                 placeholder={
                   promptType === "system"
@@ -469,54 +477,66 @@ function CreatePromptDialog({ orgId }: { orgId: string }) {
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
-function EditPromptDialog({ prompt, orgId }: { prompt: Prompt; orgId: string }) {
-  const [open, setOpen] = useState(false)
-  const [name, setName] = useState(prompt.name)
-  const [description, setDescription] = useState(prompt.description ?? "")
-  const [content, setContent] = useState(prompt.content)
-  const [error, setError] = useState<string | null>(null)
-  const queryClient = useQueryClient()
+function EditPromptDialog({
+  prompt,
+  orgId,
+}: {
+  prompt: Prompt;
+  orgId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(prompt.name);
+  const [description, setDescription] = useState(prompt.description ?? "");
+  const [content, setContent] = useState(prompt.content);
+  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const updateMutation = useMutation({
-    mutationFn: (data: PromptUpdate) => promptsApi.updateOrgPrompt(orgId, prompt.id, data),
+    mutationFn: (data: PromptUpdate) =>
+      promptsApi.updateOrgPrompt(orgId, prompt.id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["org-prompts", orgId] })
-      setOpen(false)
-      setError(null)
+      queryClient.invalidateQueries({ queryKey: ["org-prompts", orgId] });
+      setOpen(false);
+      setError(null);
     },
     onError: (err: ApiError) => {
-      setError((err.body as { detail?: string })?.detail || "Failed to update prompt")
+      setError(
+        (err.body as { detail?: string })?.detail || "Failed to update prompt",
+      );
     },
-  })
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!name.trim() || !content.trim()) {
-      setError("Name and content are required")
-      return
+      setError("Name and content are required");
+      return;
     }
     updateMutation.mutate({
       name: name.trim(),
       description: description.trim() || null,
       content: content.trim(),
-    })
-  }
+    });
+  };
 
   const resetForm = () => {
-    setName(prompt.name)
-    setDescription(prompt.description ?? "")
-    setContent(prompt.content)
-    setError(null)
-  }
+    setName(prompt.name);
+    setDescription(prompt.description ?? "");
+    setContent(prompt.content);
+    setError(null);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
-      setOpen(isOpen)
-      if (!isOpen) resetForm()
-    }}>
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        setOpen(isOpen);
+        if (!isOpen) resetForm();
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon">
           <Pencil className="h-4 w-4" />
@@ -525,9 +545,7 @@ function EditPromptDialog({ prompt, orgId }: { prompt: Prompt; orgId: string }) 
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit Prompt</DialogTitle>
-          <DialogDescription>
-            Update the prompt details.
-          </DialogDescription>
+          <DialogDescription>Update the prompt details.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
@@ -537,8 +555,8 @@ function EditPromptDialog({ prompt, orgId }: { prompt: Prompt; orgId: string }) 
                 id="edit-name"
                 value={name}
                 onChange={(e) => {
-                  setName(e.target.value)
-                  setError(null)
+                  setName(e.target.value);
+                  setError(null);
                 }}
               />
             </div>
@@ -556,8 +574,8 @@ function EditPromptDialog({ prompt, orgId }: { prompt: Prompt; orgId: string }) 
                 id="edit-content"
                 value={content}
                 onChange={(e) => {
-                  setContent(e.target.value)
-                  setError(null)
+                  setContent(e.target.value);
+                  setError(null);
                 }}
                 rows={6}
                 className="font-mono text-sm"
@@ -566,7 +584,11 @@ function EditPromptDialog({ prompt, orgId }: { prompt: Prompt; orgId: string }) 
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={updateMutation.isPending}>
@@ -579,23 +601,33 @@ function EditPromptDialog({ prompt, orgId }: { prompt: Prompt; orgId: string }) 
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
-function DeletePromptButton({ prompt, orgId }: { prompt: Prompt; orgId: string }) {
-  const queryClient = useQueryClient()
+function DeletePromptButton({
+  prompt,
+  orgId,
+}: {
+  prompt: Prompt;
+  orgId: string;
+}) {
+  const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
     mutationFn: () => promptsApi.deleteOrgPrompt(orgId, prompt.id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["org-prompts", orgId] })
+      queryClient.invalidateQueries({ queryKey: ["org-prompts", orgId] });
     },
-  })
+  });
 
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-destructive hover:text-destructive"
+        >
           <Trash2 className="h-4 w-4" />
         </Button>
       </AlertDialogTrigger>
@@ -603,7 +635,8 @@ function DeletePromptButton({ prompt, orgId }: { prompt: Prompt; orgId: string }
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Prompt</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete "{prompt.name}"? This action cannot be undone.
+            Are you sure you want to delete "{prompt.name}"? This action cannot
+            be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -624,5 +657,5 @@ function DeletePromptButton({ prompt, orgId }: { prompt: Prompt; orgId: string }
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

@@ -1,31 +1,31 @@
-import * as React from "react"
-import { Dialog as DialogPrimitive } from "radix-ui"
-import { X } from "lucide-react"
+import * as React from "react";
+import { Dialog as DialogPrimitive } from "radix-ui";
+import { X } from "lucide-react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
 
 function DialogTrigger({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
 }
 
 function DialogPortal({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
 }
 
 function DialogClose({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Close>) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
+  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
 function DialogOverlay({
@@ -37,11 +37,11 @@ function DialogOverlay({
       data-slot="dialog-overlay"
       className={cn(
         "fixed inset-0 z-50 bg-black/80 overflow-y-auto grid place-items-center p-4",
-        className
+        className,
       )}
       {...props}
     />
-  )
+  );
 }
 
 function DialogContent({
@@ -56,7 +56,7 @@ function DialogContent({
           data-slot="dialog-content"
           className={cn(
             "bg-background relative z-50 grid w-full max-w-lg gap-4 border p-6 shadow-lg sm:rounded-lg max-h-[calc(100vh-2rem)] overflow-hidden",
-            className
+            className,
           )}
           {...props}
         >
@@ -68,39 +68,33 @@ function DialogContent({
         </DialogPrimitive.Content>
       </DialogOverlay>
     </DialogPortal>
-  )
+  );
 }
 
-function DialogHeader({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
       className={cn(
         "flex flex-col space-y-1.5 text-center sm:text-left",
-        className
+        className,
       )}
       {...props}
     />
-  )
+  );
 }
 
-function DialogFooter({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-footer"
       className={cn(
         "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
-        className
+        className,
       )}
       {...props}
     />
-  )
+  );
 }
 
 function DialogTitle({
@@ -112,11 +106,11 @@ function DialogTitle({
       data-slot="dialog-title"
       className={cn(
         "text-lg font-semibold leading-none tracking-tight",
-        className
+        className,
       )}
       {...props}
     />
-  )
+  );
 }
 
 function DialogDescription({
@@ -129,7 +123,7 @@ function DialogDescription({
       className={cn("text-sm text-muted-foreground", className)}
       {...props}
     />
-  )
+  );
 }
 
 export {
@@ -143,4 +137,4 @@ export {
   DialogFooter,
   DialogTitle,
   DialogDescription,
-}
+};

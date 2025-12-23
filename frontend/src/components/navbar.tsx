@@ -1,16 +1,16 @@
-import { Link } from "@tanstack/react-router"
-import { PanelRight } from "lucide-react"
-import { useAuth } from "@/lib/auth"
-import { UserMenu } from "./user-menu"
-import { useSidePanel } from "./side-panel"
-import { WorkspaceSwitcher } from "./workspace-switcher"
+import { Link } from "@tanstack/react-router";
+import { PanelRight } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { UserMenu } from "./user-menu";
+import { useSidePanel } from "./side-panel";
+import { WorkspaceSwitcher } from "./workspace-switcher";
 
 export function Navbar() {
-  const { isAuthenticated, isLoading } = useAuth()
-  const { toggle } = useSidePanel()
+  const { isAuthenticated, isLoading } = useAuth();
+  const { toggle } = useSidePanel();
 
   if (isLoading || !isAuthenticated) {
-    return null
+    return null;
   }
 
   return (
@@ -34,5 +34,5 @@ export function Navbar() {
         </div>
       </div>
     </header>
-  )
+  );
 }

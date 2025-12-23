@@ -11,7 +11,7 @@
  *   const mutation = useChatMutation()
  */
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   agentApi,
   chatSettingsApi,
@@ -30,15 +30,15 @@ import {
   type OrganizationThemeSettingsUpdate,
   type TeamThemeSettingsUpdate,
   type UserThemeSettingsUpdate,
-} from "./api"
-import { ragSettingsApi, documentsApi } from "./api"
+} from "./api";
+import { ragSettingsApi, documentsApi } from "./api";
 import type {
   OrganizationRAGSettingsUpdate,
   TeamRAGSettingsUpdate,
   UserRAGSettingsUpdate,
   UploadDocumentParams,
   ListDocumentsParams,
-} from "./api"
+} from "./api";
 
 export const queryKeys = {
   agent: {
@@ -48,7 +48,8 @@ export const queryKeys = {
   },
   conversations: {
     all: ["conversations"] as const,
-    list: (teamId?: string, searchQuery?: string) => ["conversations", "list", teamId, searchQuery] as const,
+    list: (teamId?: string, searchQuery?: string) =>
+      ["conversations", "list", teamId, searchQuery] as const,
     detail: (id: string) => ["conversations", "detail", id] as const,
   },
   chatSettings: {
@@ -95,7 +96,7 @@ export const queryKeys = {
       ["documents", "list", orgId, teamId, status] as const,
     detail: (id: string) => ["documents", "detail", id] as const,
   },
-}
+};
 
 /**
  * Hook to check agent health status.
@@ -106,7 +107,7 @@ export function useAgentHealth() {
     queryKey: queryKeys.agent.health,
     queryFn: () => agentApi.health(),
     staleTime: 1000 * 60 * 5, // 5 minutes
-  })
+  });
 }
 
 /**
@@ -118,7 +119,7 @@ export function useConversationHistory(conversationId: string | undefined) {
     queryKey: queryKeys.agent.history(conversationId ?? ""),
     queryFn: () => agentApi.getHistory(conversationId!),
     enabled: !!conversationId,
-  })
+  });
 }
 
 /**
@@ -126,7 +127,7 @@ export function useConversationHistory(conversationId: string | undefined) {
  * Automatically updates the conversation history cache.
  */
 export function useChatMutation() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (request: ChatRequest) => agentApi.chat(request),
@@ -138,67 +139,79 @@ export function useChatMutation() {
             ...(old || []),
             { role: "user", content: variables.message },
             { role: "assistant", content: response.message },
-          ]
-        )
+          ],
+        );
       }
     },
-  })
+  });
 }
 
 /** Hook to fetch paginated conversations list, optionally filtered by team and/or search query. */
-export function useConversations(teamId?: string, searchQuery?: string, skip = 0, limit = 100) {
+export function useConversations(
+  teamId?: string,
+  searchQuery?: string,
+  skip = 0,
+  limit = 100,
+) {
   return useQuery({
     queryKey: queryKeys.conversations.list(teamId, searchQuery),
-    queryFn: () => conversationsApi.getConversations(skip, limit, teamId, searchQuery),
+    queryFn: () =>
+      conversationsApi.getConversations(skip, limit, teamId, searchQuery),
     enabled: !!teamId,
-  })
+  });
 }
 
 /** Mutation hook for updating a conversation. */
 export function useUpdateConversation(teamId?: string) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: ConversationUpdate }) =>
       conversationsApi.updateConversation(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["conversations", "list", teamId] })
+      queryClient.invalidateQueries({
+        queryKey: ["conversations", "list", teamId],
+      });
     },
     onError: (error) => {
-      console.error("Failed to update conversation:", error)
+      console.error("Failed to update conversation:", error);
     },
-  })
+  });
 }
 
 /** Mutation hook for deleting a conversation (soft delete). */
 export function useDeleteConversation(teamId?: string) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: string) => conversationsApi.deleteConversation(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["conversations", "list", teamId] })
+      queryClient.invalidateQueries({
+        queryKey: ["conversations", "list", teamId],
+      });
     },
     onError: (error) => {
-      console.error("Failed to delete conversation:", error)
+      console.error("Failed to delete conversation:", error);
     },
-  })
+  });
 }
 
 /** Mutation hook for starring/unstarring a conversation. */
 export function useStarConversation(teamId?: string) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({ id, isStarred }: { id: string; isStarred: boolean }) =>
       conversationsApi.starConversation(id, isStarred),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["conversations", "list", teamId] })
+      queryClient.invalidateQueries({
+        queryKey: ["conversations", "list", teamId],
+      });
     },
     onError: (error) => {
-      console.error("Failed to update star status:", error)
+      console.error("Failed to update star status:", error);
     },
-  })
+  });
 }
 
 /** Hook to fetch organization chat visibility settings. */
@@ -207,38 +220,45 @@ export function useOrgChatSettings(orgId: string | undefined) {
     queryKey: queryKeys.chatSettings.org(orgId ?? ""),
     queryFn: () => chatSettingsApi.getOrgSettings(orgId!),
     enabled: !!orgId,
-  })
+  });
 }
 
 /** Mutation hook for updating organization chat settings. */
 export function useUpdateOrgChatSettings(orgId: string | undefined) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (settings: OrgSettingsUpdate) =>
       chatSettingsApi.updateOrgSettings(orgId!, settings),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.chatSettings.org(orgId!) })
-      queryClient.invalidateQueries({ queryKey: ["chatSettings", "effective"] })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.chatSettings.org(orgId!),
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["chatSettings", "effective"],
+      });
     },
-  })
+  });
 }
 
 /** Hook to fetch team chat visibility settings. */
-export function useTeamChatSettings(orgId: string | undefined, teamId: string | undefined) {
+export function useTeamChatSettings(
+  orgId: string | undefined,
+  teamId: string | undefined,
+) {
   return useQuery({
     queryKey: queryKeys.chatSettings.team(orgId ?? "", teamId ?? ""),
     queryFn: () => chatSettingsApi.getTeamSettings(orgId!, teamId!),
     enabled: !!orgId && !!teamId,
-  })
+  });
 }
 
 /** Mutation hook for updating team chat settings. */
 export function useUpdateTeamChatSettings(
   orgId: string | undefined,
-  teamId: string | undefined
+  teamId: string | undefined,
 ) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (settings: TeamSettingsUpdate) =>
@@ -246,10 +266,12 @@ export function useUpdateTeamChatSettings(
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.chatSettings.team(orgId!, teamId!),
-      })
-      queryClient.invalidateQueries({ queryKey: ["chatSettings", "effective"] })
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["chatSettings", "effective"],
+      });
     },
-  })
+  });
 }
 
 /** Hook to fetch user chat visibility settings. */
@@ -257,34 +279,36 @@ export function useUserChatSettings() {
   return useQuery({
     queryKey: queryKeys.chatSettings.user,
     queryFn: () => chatSettingsApi.getUserSettings(),
-  })
+  });
 }
 
 /** Mutation hook for updating user chat settings. */
 export function useUpdateUserChatSettings() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (settings: ChatSettingsUpdate) =>
       chatSettingsApi.updateUserSettings(settings),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.chatSettings.user })
-      queryClient.invalidateQueries({ queryKey: ["chatSettings", "effective"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.chatSettings.user });
+      queryClient.invalidateQueries({
+        queryKey: ["chatSettings", "effective"],
+      });
     },
-  })
+  });
 }
 
 /** Hook to fetch effective (computed) chat settings. */
 export function useEffectiveChatSettings(
   orgId: string | undefined,
-  teamId: string | undefined
+  teamId: string | undefined,
 ) {
   return useQuery({
     queryKey: queryKeys.chatSettings.effective(orgId, teamId),
     queryFn: () => chatSettingsApi.getEffectiveSettings(orgId, teamId),
     enabled: !!orgId,
     staleTime: 1000 * 60, // 1 minute
-  })
+  });
 }
 
 // =============================================================================
@@ -296,37 +320,42 @@ export function useUserMemories(orgId?: string, teamId?: string, limit = 50) {
   return useQuery({
     queryKey: queryKeys.memory.user(orgId, teamId),
     queryFn: () => memoryApi.listMemories(orgId, teamId, limit),
-  })
+  });
 }
 
 /** Mutation hook for deleting a specific memory. */
 export function useDeleteMemory(orgId?: string, teamId?: string) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (memoryId: string) => memoryApi.deleteMemory(memoryId, orgId, teamId),
+    mutationFn: (memoryId: string) =>
+      memoryApi.deleteMemory(memoryId, orgId, teamId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.memory.user(orgId, teamId) })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.memory.user(orgId, teamId),
+      });
     },
     onError: (error) => {
-      console.error("Failed to delete memory:", error)
+      console.error("Failed to delete memory:", error);
     },
-  })
+  });
 }
 
 /** Mutation hook for clearing all user memories. */
 export function useClearAllMemories(orgId?: string, teamId?: string) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: () => memoryApi.clearAllMemories(orgId, teamId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.memory.user(orgId, teamId) })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.memory.user(orgId, teamId),
+      });
     },
     onError: (error) => {
-      console.error("Failed to clear memories:", error)
+      console.error("Failed to clear memories:", error);
     },
-  })
+  });
 }
 
 // =============================================================================
@@ -339,169 +368,239 @@ export function useOrgMCPServers(orgId: string | undefined) {
     queryKey: queryKeys.mcpServers.org(orgId ?? ""),
     queryFn: () => mcpServersApi.listOrgServers(orgId!),
     enabled: !!orgId,
-  })
+  });
 }
 
 /** Hook to fetch team-level MCP servers. */
-export function useTeamMCPServers(orgId: string | undefined, teamId: string | undefined) {
+export function useTeamMCPServers(
+  orgId: string | undefined,
+  teamId: string | undefined,
+) {
   return useQuery({
     queryKey: queryKeys.mcpServers.team(orgId ?? "", teamId ?? ""),
     queryFn: () => mcpServersApi.listTeamServers(orgId!, teamId!),
     enabled: !!orgId && !!teamId,
-  })
+  });
 }
 
 /** Hook to fetch user-level MCP servers. */
-export function useUserMCPServers(orgId: string | undefined, teamId: string | undefined) {
+export function useUserMCPServers(
+  orgId: string | undefined,
+  teamId: string | undefined,
+) {
   return useQuery({
     queryKey: queryKeys.mcpServers.user(orgId ?? "", teamId),
     queryFn: () => mcpServersApi.listUserServers(orgId!, teamId!),
     enabled: !!orgId && !!teamId,
-  })
+  });
 }
 
 /** Hook to fetch effective (combined) MCP servers for a user. */
-export function useEffectiveMCPServers(orgId: string | undefined, teamId: string | undefined) {
+export function useEffectiveMCPServers(
+  orgId: string | undefined,
+  teamId: string | undefined,
+) {
   return useQuery({
     queryKey: queryKeys.mcpServers.effective(orgId ?? "", teamId),
     queryFn: () => mcpServersApi.listEffectiveServers(orgId!, teamId),
     enabled: !!orgId,
-  })
+  });
 }
 
 /** Mutation hook for creating an org-level MCP server. */
 export function useCreateOrgMCPServer(orgId: string | undefined) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: MCPServerCreate) => mcpServersApi.createOrgServer(orgId!, data),
+    mutationFn: (data: MCPServerCreate) =>
+      mcpServersApi.createOrgServer(orgId!, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.org(orgId!) })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.mcpServers.org(orgId!),
+      });
     },
-  })
+  });
 }
 
 /** Mutation hook for updating an org-level MCP server. */
 export function useUpdateOrgMCPServer(orgId: string | undefined) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ serverId, data }: { serverId: string; data: MCPServerUpdate }) =>
-      mcpServersApi.updateOrgServer(orgId!, serverId, data),
+    mutationFn: ({
+      serverId,
+      data,
+    }: {
+      serverId: string;
+      data: MCPServerUpdate;
+    }) => mcpServersApi.updateOrgServer(orgId!, serverId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.org(orgId!) })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.mcpServers.org(orgId!),
+      });
     },
-  })
+  });
 }
 
 /** Mutation hook for deleting an org-level MCP server. */
 export function useDeleteOrgMCPServer(orgId: string | undefined) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (serverId: string) => mcpServersApi.deleteOrgServer(orgId!, serverId),
+    mutationFn: (serverId: string) =>
+      mcpServersApi.deleteOrgServer(orgId!, serverId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.org(orgId!) })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.mcpServers.org(orgId!),
+      });
     },
-  })
+  });
 }
 
 /** Mutation hook for creating a team-level MCP server. */
-export function useCreateTeamMCPServer(orgId: string | undefined, teamId: string | undefined) {
-  const queryClient = useQueryClient()
+export function useCreateTeamMCPServer(
+  orgId: string | undefined,
+  teamId: string | undefined,
+) {
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: MCPServerCreate) => mcpServersApi.createTeamServer(orgId!, teamId!, data),
+    mutationFn: (data: MCPServerCreate) =>
+      mcpServersApi.createTeamServer(orgId!, teamId!, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.team(orgId!, teamId!) })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.mcpServers.team(orgId!, teamId!),
+      });
     },
-  })
+  });
 }
 
 /** Mutation hook for updating a team-level MCP server. */
-export function useUpdateTeamMCPServer(orgId: string | undefined, teamId: string | undefined) {
-  const queryClient = useQueryClient()
+export function useUpdateTeamMCPServer(
+  orgId: string | undefined,
+  teamId: string | undefined,
+) {
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ serverId, data }: { serverId: string; data: MCPServerUpdate }) =>
-      mcpServersApi.updateTeamServer(orgId!, teamId!, serverId, data),
+    mutationFn: ({
+      serverId,
+      data,
+    }: {
+      serverId: string;
+      data: MCPServerUpdate;
+    }) => mcpServersApi.updateTeamServer(orgId!, teamId!, serverId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.team(orgId!, teamId!) })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.mcpServers.team(orgId!, teamId!),
+      });
     },
-  })
+  });
 }
 
 /** Mutation hook for deleting a team-level MCP server. */
-export function useDeleteTeamMCPServer(orgId: string | undefined, teamId: string | undefined) {
-  const queryClient = useQueryClient()
+export function useDeleteTeamMCPServer(
+  orgId: string | undefined,
+  teamId: string | undefined,
+) {
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (serverId: string) => mcpServersApi.deleteTeamServer(orgId!, teamId!, serverId),
+    mutationFn: (serverId: string) =>
+      mcpServersApi.deleteTeamServer(orgId!, teamId!, serverId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.team(orgId!, teamId!) })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.mcpServers.team(orgId!, teamId!),
+      });
     },
-  })
+  });
 }
 
 /** Mutation hook for creating a user-level MCP server. */
-export function useCreateUserMCPServer(orgId: string | undefined, teamId: string | undefined) {
-  const queryClient = useQueryClient()
+export function useCreateUserMCPServer(
+  orgId: string | undefined,
+  teamId: string | undefined,
+) {
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: MCPServerCreate) => mcpServersApi.createUserServer(orgId!, teamId!, data),
+    mutationFn: (data: MCPServerCreate) =>
+      mcpServersApi.createUserServer(orgId!, teamId!, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.user(orgId!, teamId) })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.mcpServers.user(orgId!, teamId),
+      });
     },
-  })
+  });
 }
 
 /** Mutation hook for updating a user-level MCP server. */
-export function useUpdateUserMCPServer(orgId: string | undefined, teamId: string | undefined) {
-  const queryClient = useQueryClient()
+export function useUpdateUserMCPServer(
+  orgId: string | undefined,
+  teamId: string | undefined,
+) {
+  const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ serverId, data }: { serverId: string; data: MCPServerUpdate }) =>
-      mcpServersApi.updateUserServer(serverId, data),
+    mutationFn: ({
+      serverId,
+      data,
+    }: {
+      serverId: string;
+      data: MCPServerUpdate;
+    }) => mcpServersApi.updateUserServer(serverId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.user(orgId!, teamId) })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.mcpServers.user(orgId!, teamId),
+      });
     },
-  })
+  });
 }
 
 /** Mutation hook for deleting a user-level MCP server. */
-export function useDeleteUserMCPServer(orgId: string | undefined, teamId: string | undefined) {
-  const queryClient = useQueryClient()
+export function useDeleteUserMCPServer(
+  orgId: string | undefined,
+  teamId: string | undefined,
+) {
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (serverId: string) => mcpServersApi.deleteUserServer(serverId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.mcpServers.user(orgId!, teamId) })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.mcpServers.user(orgId!, teamId),
+      });
     },
-  })
+  });
 }
 
 /** Hook to fetch all tools from effective MCP servers. */
-export function useEffectiveMCPTools(orgId: string | undefined, teamId: string | undefined) {
+export function useEffectiveMCPTools(
+  orgId: string | undefined,
+  teamId: string | undefined,
+) {
   return useQuery({
     queryKey: ["mcpTools", "effective", orgId, teamId],
     queryFn: () => mcpServersApi.listEffectiveTools(orgId!, teamId),
     enabled: !!orgId,
     staleTime: 5 * 60 * 1000, // 5 minutes - tools don't change often
-  })
+  });
 }
 
 /** Mutation hook for updating user tool configuration. */
 export function useUpdateUserToolConfig() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (settings: ChatSettingsUpdate) =>
       chatSettingsApi.updateUserSettings(settings),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.chatSettings.user })
-      queryClient.invalidateQueries({ queryKey: ["chatSettings", "effective"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.chatSettings.user });
+      queryClient.invalidateQueries({
+        queryKey: ["chatSettings", "effective"],
+      });
     },
-  })
+  });
 }
 
 // ============================================================================
@@ -514,38 +613,45 @@ export function useOrgThemeSettings(orgId: string | undefined) {
     queryKey: queryKeys.themeSettings.org(orgId ?? ""),
     queryFn: () => themeSettingsApi.getOrgSettings(orgId!),
     enabled: !!orgId,
-  })
+  });
 }
 
 /** Mutation hook for updating organization theme settings. */
 export function useUpdateOrgThemeSettings(orgId: string | undefined) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (settings: OrganizationThemeSettingsUpdate) =>
       themeSettingsApi.updateOrgSettings(orgId!, settings),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.themeSettings.org(orgId!) })
-      queryClient.invalidateQueries({ queryKey: ["themeSettings", "effective"] })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.themeSettings.org(orgId!),
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["themeSettings", "effective"],
+      });
     },
-  })
+  });
 }
 
 /** Hook to fetch team theme settings. */
-export function useTeamThemeSettings(orgId: string | undefined, teamId: string | undefined) {
+export function useTeamThemeSettings(
+  orgId: string | undefined,
+  teamId: string | undefined,
+) {
   return useQuery({
     queryKey: queryKeys.themeSettings.team(orgId ?? "", teamId ?? ""),
     queryFn: () => themeSettingsApi.getTeamSettings(orgId!, teamId!),
     enabled: !!orgId && !!teamId,
-  })
+  });
 }
 
 /** Mutation hook for updating team theme settings. */
 export function useUpdateTeamThemeSettings(
   orgId: string | undefined,
-  teamId: string | undefined
+  teamId: string | undefined,
 ) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (settings: TeamThemeSettingsUpdate) =>
@@ -553,10 +659,12 @@ export function useUpdateTeamThemeSettings(
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.themeSettings.team(orgId!, teamId!),
-      })
-      queryClient.invalidateQueries({ queryKey: ["themeSettings", "effective"] })
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["themeSettings", "effective"],
+      });
     },
-  })
+  });
 }
 
 /** Hook to fetch user theme settings. */
@@ -564,34 +672,41 @@ export function useUserThemeSettings() {
   return useQuery({
     queryKey: queryKeys.themeSettings.user,
     queryFn: () => themeSettingsApi.getUserSettings(),
-  })
+  });
 }
 
 /** Mutation hook for updating user theme settings. */
 export function useUpdateUserThemeSettings() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (settings: UserThemeSettingsUpdate) =>
       themeSettingsApi.updateUserSettings(settings),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.themeSettings.user })
-      queryClient.invalidateQueries({ queryKey: ["themeSettings", "effective"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.themeSettings.user });
+      queryClient.invalidateQueries({
+        queryKey: ["themeSettings", "effective"],
+      });
     },
-  })
+  });
 }
 
 /** Hook to fetch effective (computed) theme settings. */
 export function useEffectiveThemeSettings(
   orgId: string | undefined,
   teamId: string | undefined,
-  systemPrefersDark?: boolean
+  systemPrefersDark?: boolean,
 ) {
   return useQuery({
-    queryKey: queryKeys.themeSettings.effective(orgId, teamId, systemPrefersDark),
-    queryFn: () => themeSettingsApi.getEffectiveSettings(orgId, teamId, systemPrefersDark),
+    queryKey: queryKeys.themeSettings.effective(
+      orgId,
+      teamId,
+      systemPrefersDark,
+    ),
+    queryFn: () =>
+      themeSettingsApi.getEffectiveSettings(orgId, teamId, systemPrefersDark),
     enabled: !!orgId,
-  })
+  });
 }
 
 /** Hook to fetch all predefined theme color palettes. */
@@ -600,7 +715,7 @@ export function usePredefinedThemes() {
     queryKey: queryKeys.themeSettings.predefined,
     queryFn: () => themeSettingsApi.getPredefinedThemes(),
     staleTime: Infinity, // Predefined themes never change
-  })
+  });
 }
 
 // ============================================================================
@@ -613,38 +728,43 @@ export function useOrgRAGSettings(orgId: string | undefined) {
     queryKey: queryKeys.ragSettings.org(orgId ?? ""),
     queryFn: () => ragSettingsApi.getOrgSettings(orgId!),
     enabled: !!orgId,
-  })
+  });
 }
 
 /** Mutation hook for updating organization RAG settings. */
 export function useUpdateOrgRAGSettings(orgId: string | undefined) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (settings: OrganizationRAGSettingsUpdate) =>
       ragSettingsApi.updateOrgSettings(orgId!, settings),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.ragSettings.org(orgId!) })
-      queryClient.invalidateQueries({ queryKey: ["ragSettings", "effective"] })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.ragSettings.org(orgId!),
+      });
+      queryClient.invalidateQueries({ queryKey: ["ragSettings", "effective"] });
     },
-  })
+  });
 }
 
 /** Hook to fetch team RAG settings. */
-export function useTeamRAGSettings(orgId: string | undefined, teamId: string | undefined) {
+export function useTeamRAGSettings(
+  orgId: string | undefined,
+  teamId: string | undefined,
+) {
   return useQuery({
     queryKey: queryKeys.ragSettings.team(orgId ?? "", teamId ?? ""),
     queryFn: () => ragSettingsApi.getTeamSettings(orgId!, teamId!),
     enabled: !!orgId && !!teamId,
-  })
+  });
 }
 
 /** Mutation hook for updating team RAG settings. */
 export function useUpdateTeamRAGSettings(
   orgId: string | undefined,
-  teamId: string | undefined
+  teamId: string | undefined,
 ) {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (settings: TeamRAGSettingsUpdate) =>
@@ -652,10 +772,10 @@ export function useUpdateTeamRAGSettings(
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.ragSettings.team(orgId!, teamId!),
-      })
-      queryClient.invalidateQueries({ queryKey: ["ragSettings", "effective"] })
+      });
+      queryClient.invalidateQueries({ queryKey: ["ragSettings", "effective"] });
     },
-  })
+  });
 }
 
 /** Hook to fetch user RAG settings. */
@@ -663,34 +783,34 @@ export function useUserRAGSettings() {
   return useQuery({
     queryKey: queryKeys.ragSettings.user,
     queryFn: () => ragSettingsApi.getUserSettings(),
-  })
+  });
 }
 
 /** Mutation hook for updating user RAG settings. */
 export function useUpdateUserRAGSettings() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (settings: UserRAGSettingsUpdate) =>
       ragSettingsApi.updateUserSettings(settings),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.ragSettings.user })
-      queryClient.invalidateQueries({ queryKey: ["ragSettings", "effective"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.ragSettings.user });
+      queryClient.invalidateQueries({ queryKey: ["ragSettings", "effective"] });
     },
-  })
+  });
 }
 
 /** Hook to fetch effective (computed) RAG settings. */
 export function useEffectiveRAGSettings(
   orgId: string | undefined,
-  teamId: string | undefined
+  teamId: string | undefined,
 ) {
   return useQuery({
     queryKey: queryKeys.ragSettings.effective(orgId, teamId),
     queryFn: () => ragSettingsApi.getEffectiveSettings(orgId, teamId),
     enabled: !!orgId,
     staleTime: 1000 * 60, // 1 minute
-  })
+  });
 }
 
 // ============================================================================
@@ -703,11 +823,11 @@ export function useDocuments(params: ListDocumentsParams) {
     queryKey: queryKeys.documents.list(
       params.organization_id,
       params.team_id,
-      params.status
+      params.status,
     ),
     queryFn: () => documentsApi.list(params),
     enabled: !!params.organization_id,
-  })
+  });
 }
 
 /** Hook to fetch a single document by ID. */
@@ -716,12 +836,12 @@ export function useDocument(documentId: string | undefined) {
     queryKey: queryKeys.documents.detail(documentId ?? ""),
     queryFn: () => documentsApi.get(documentId!),
     enabled: !!documentId,
-  })
+  });
 }
 
 /** Mutation hook for uploading a document. */
 export function useUploadDocument() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (params: UploadDocumentParams) => documentsApi.upload(params),
@@ -729,35 +849,35 @@ export function useUploadDocument() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.documents.list(
           variables.organization_id,
-          variables.team_id
+          variables.team_id,
         ),
-      })
+      });
     },
-  })
+  });
 }
 
 /** Mutation hook for deleting a document. */
 export function useDeleteDocument() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (documentId: string) => documentsApi.delete(documentId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.documents.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.documents.all });
     },
-  })
+  });
 }
 
 /** Mutation hook for reprocessing a failed document. */
 export function useReprocessDocument() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (documentId: string) => documentsApi.reprocess(documentId),
     onSuccess: (_, documentId) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.documents.detail(documentId),
-      })
+      });
     },
-  })
+  });
 }

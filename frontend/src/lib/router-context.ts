@@ -1,5 +1,5 @@
-import type { useAuth } from "./auth"
+import type { useAuth } from "./auth";
 
 export interface RouterContext {
-  auth: ReturnType<typeof useAuth>
+  auth: ReturnType<typeof useAuth>;
 }

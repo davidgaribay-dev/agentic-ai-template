@@ -1,17 +1,17 @@
-import { Moon, Sun, Monitor } from "lucide-react"
-import { useTheme } from "@/components/theme-provider"
+import { Moon, Sun, Monitor } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
 import {
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 
-type Theme = "dark" | "light" | "system"
+type Theme = "dark" | "light" | "system";
 
 export function ModeToggle() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme } = useTheme();
 
   return (
     <DropdownMenuSub>
@@ -21,7 +21,10 @@ export function ModeToggle() {
         Theme
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent>
-        <DropdownMenuRadioGroup value={theme} onValueChange={(value) => setTheme(value as Theme)}>
+        <DropdownMenuRadioGroup
+          value={theme}
+          onValueChange={(value) => setTheme(value as Theme)}
+        >
           <DropdownMenuRadioItem value="light">
             <Sun className="mr-2 size-4" />
             Light
@@ -37,5 +40,5 @@ export function ModeToggle() {
         </DropdownMenuRadioGroup>
       </DropdownMenuSubContent>
     </DropdownMenuSub>
-  )
+  );
 }

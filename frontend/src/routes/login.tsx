@@ -1,40 +1,45 @@
-import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router"
-import { useState } from "react"
-import { useQueryClient } from "@tanstack/react-query"
-import { Sparkles } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { useLogin, authQueryOptions, isLoggedIn } from "@/lib/auth"
+import {
+  createFileRoute,
+  Link,
+  useNavigate,
+  redirect,
+} from "@tanstack/react-router";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useLogin, authQueryOptions, isLoggedIn } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
   beforeLoad: ({ context }) => {
     // Check both router context AND localStorage token for immediate redirect
     if (context.auth.isAuthenticated || isLoggedIn()) {
-      throw redirect({ to: "/chat" })
+      throw redirect({ to: "/chat" });
     }
   },
-})
+});
 
 function LoginPage() {
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const login = useLogin()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const login = useLogin();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     try {
-      await login.mutateAsync({ email, password })
+      await login.mutateAsync({ email, password });
       // Wait for the user query to fully resolve before navigating
       // This ensures the auth context is updated before route guards run
-      await queryClient.fetchQuery(authQueryOptions.user)
-      navigate({ to: "/chat" })
+      await queryClient.fetchQuery(authQueryOptions.user);
+      navigate({ to: "/chat" });
     } catch {
       // Mutation handles error display
     }
-  }
+  };
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-background p-4">
@@ -44,7 +49,9 @@ function LoginPage() {
           <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
             <Sparkles className="h-6 w-6 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight">Sign in below to continue</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Sign in below to continue
+          </h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -88,12 +95,15 @@ function LoginPage() {
 
           <p className="pt-4 text-center text-sm text-muted-foreground">
             Don't have an account?{" "}
-            <Link to="/signup" className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-muted-foreground">
+            <Link
+              to="/signup"
+              className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-muted-foreground"
+            >
               Create one
             </Link>
           </p>
         </form>
       </div>
     </div>
-  )
+  );
 }

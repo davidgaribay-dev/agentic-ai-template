@@ -1,21 +1,21 @@
-import { Info } from "lucide-react"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
+import { Info } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
-import type { DisabledByLevel } from "@/lib/api"
+} from "@/components/ui/tooltip";
+import type { DisabledByLevel } from "@/lib/api";
 
 export interface MemorySettingsProps {
-  memoryEnabled: boolean
-  onMemoryEnabledChange: (enabled: boolean) => void
-  memoryDisabledByOrg?: boolean
-  memoryDisabledByTeam?: boolean
-  isLoading?: boolean
-  level: "org" | "team" | "user"
+  memoryEnabled: boolean;
+  onMemoryEnabledChange: (enabled: boolean) => void;
+  memoryDisabledByOrg?: boolean;
+  memoryDisabledByTeam?: boolean;
+  isLoading?: boolean;
+  level: "org" | "team" | "user";
 }
 
 export function MemorySettings({
@@ -27,21 +27,21 @@ export function MemorySettings({
   level,
 }: MemorySettingsProps) {
   const getDisabledBy = (): DisabledByLevel => {
-    if (memoryDisabledByOrg) return "org"
-    if (memoryDisabledByTeam && level !== "team") return "team"
-    return null
-  }
+    if (memoryDisabledByOrg) return "org";
+    if (memoryDisabledByTeam && level !== "team") return "team";
+    return null;
+  };
 
-  const disabledBy = getDisabledBy()
-  const isDisabledByHigherLevel = disabledBy === "org" || disabledBy === "team"
+  const disabledBy = getDisabledBy();
+  const isDisabledByHigherLevel = disabledBy === "org" || disabledBy === "team";
 
   const getTooltipMessage = (): string | null => {
-    if (disabledBy === "org") return "Disabled by organization settings"
-    if (disabledBy === "team") return "Disabled by team settings"
-    return null
-  }
+    if (disabledBy === "org") return "Disabled by organization settings";
+    if (disabledBy === "team") return "Disabled by team settings";
+    return null;
+  };
 
-  const tooltipMessage = getTooltipMessage()
+  const tooltipMessage = getTooltipMessage();
 
   return (
     <div className="flex items-center justify-between py-2">
@@ -77,5 +77,5 @@ export function MemorySettings({
         disabled={isDisabledByHigherLevel || isLoading}
       />
     </div>
-  )
+  );
 }

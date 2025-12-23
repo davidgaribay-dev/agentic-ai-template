@@ -1,7 +1,12 @@
-import { useState, useRef, useMemo } from "react"
-import { createFileRoute, redirect, Link, useNavigate } from "@tanstack/react-router"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import type { ColumnDef } from "@tanstack/react-table"
+import { useState, useRef, useMemo } from "react";
+import {
+  createFileRoute,
+  redirect,
+  Link,
+  useNavigate,
+} from "@tanstack/react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   Building2,
   Plus,
@@ -15,9 +20,9 @@ import {
   ArrowUpDown,
   MoreHorizontal,
   ArrowRightLeft,
-} from "lucide-react"
-import { useAuth } from "@/lib/auth"
-import { useWorkspace, workspaceKeys } from "@/lib/workspace"
+} from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { useWorkspace, workspaceKeys } from "@/lib/workspace";
 import {
   organizationsApi,
   teamsApi,
@@ -25,11 +30,11 @@ import {
   type TeamCreate,
   type Organization,
   ApiError,
-} from "@/lib/api"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -38,31 +43,30 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { isValidImageUrl } from "@/lib/utils"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Badge } from "@/components/ui/badge"
-import { DataTable } from "@/components/ui/data-table"
+} from "@/components/ui/dialog";
+import { isValidImageUrl } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { DataTable } from "@/components/ui/data-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/organizations")({
   beforeLoad: ({ context }) => {
     if (!context.auth.isAuthenticated && !context.auth.isLoading) {
-      throw redirect({ to: "/login" })
+      throw redirect({ to: "/login" });
     }
   },
   component: OrganizationsPage,
-})
+});
 
 function OrganizationsPage() {
-  const navigate = useNavigate()
-  const { user } = useAuth()
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const {
     currentOrg,
     currentOrgRole,
@@ -70,10 +74,11 @@ function OrganizationsPage() {
     isLoadingOrgs,
     switchOrganization,
     refresh,
-  } = useWorkspace()
+  } = useWorkspace();
 
-  const isPlatformAdmin = user?.is_platform_admin ?? false
-  const isCurrentOrgAdmin = currentOrgRole === "owner" || currentOrgRole === "admin"
+  const isPlatformAdmin = user?.is_platform_admin ?? false;
+  const isCurrentOrgAdmin =
+    currentOrgRole === "owner" || currentOrgRole === "admin";
 
   if (!isLoadingOrgs && currentOrg && currentOrgRole === null) {
     return (
@@ -84,7 +89,7 @@ function OrganizationsPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (!isLoadingOrgs && currentOrgRole === "member") {
@@ -95,18 +100,18 @@ function OrganizationsPage() {
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 mb-4">
               <AlertTriangle className="h-8 w-8 text-destructive" />
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight mb-2">Access Denied</h1>
+            <h1 className="text-2xl font-semibold tracking-tight mb-2">
+              Access Denied
+            </h1>
             <p className="text-muted-foreground mb-6 max-w-md">
-              You don't have permission to view organization settings.
-              Only organization owners and admins can access this page.
+              You don't have permission to view organization settings. Only
+              organization owners and admins can access this page.
             </p>
-            <Button onClick={() => navigate({ to: "/" })}>
-              Go to Home
-            </Button>
+            <Button onClick={() => navigate({ to: "/" })}>Go to Home</Button>
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -144,7 +149,8 @@ function OrganizationsPage() {
             </div>
             <h3 className="text-lg font-medium">No organizations yet</h3>
             <p className="text-sm text-muted-foreground mt-1 mb-6 max-w-sm">
-              Create your first organization to start collaborating with your team.
+              Create your first organization to start collaborating with your
+              team.
             </p>
             <CreateOrganizationDialog onSuccess={refresh} />
           </div>
@@ -158,14 +164,14 @@ function OrganizationsPage() {
         )}
       </div>
     </div>
-  )
+  );
 }
 
 interface OrganizationsDataTableProps {
-  data: Organization[]
-  currentOrgId?: string
-  isCurrentOrgAdmin: boolean
-  onSwitch: (orgId: string) => void
+  data: Organization[];
+  currentOrgId?: string;
+  isCurrentOrgAdmin: boolean;
+  onSwitch: (orgId: string) => void;
 }
 
 function OrganizationsDataTable({
@@ -183,15 +189,17 @@ function OrganizationsDataTable({
             <Button
               variant="ghost"
               className="-ml-4"
-              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
             >
               Organization
               <ArrowUpDown className="ml-2 size-4" />
             </Button>
-          )
+          );
         },
         cell: ({ row }) => {
-          const org = row.original
+          const org = row.original;
           return (
             <div className="flex items-center gap-3">
               {isValidImageUrl(org.logo_url) ? (
@@ -207,28 +215,30 @@ function OrganizationsDataTable({
               )}
               <span className="font-medium">{org.name}</span>
             </div>
-          )
+          );
         },
       },
       {
         accessorKey: "description",
         header: "Description",
         cell: ({ row }) => {
-          const description = row.getValue("description") as string | null
+          const description = row.getValue("description") as string | null;
           return description ? (
             <span className="text-muted-foreground line-clamp-1 max-w-[300px]">
               {description}
             </span>
           ) : (
-            <span className="text-muted-foreground/50 italic">No description</span>
-          )
+            <span className="text-muted-foreground/50 italic">
+              No description
+            </span>
+          );
         },
       },
       {
         id: "status",
         header: "Status",
         cell: ({ row }) => {
-          const isCurrentOrg = row.original.id === currentOrgId
+          const isCurrentOrg = row.original.id === currentOrgId;
           return isCurrentOrg ? (
             <Badge
               variant="secondary"
@@ -241,15 +251,15 @@ function OrganizationsDataTable({
             <Badge variant="outline" className="text-muted-foreground">
               Inactive
             </Badge>
-          )
+          );
         },
       },
       {
         id: "actions",
         header: () => <div className="text-right">Actions</div>,
         cell: ({ row }) => {
-          const org = row.original
-          const isCurrentOrg = org.id === currentOrgId
+          const org = row.original;
+          const isCurrentOrg = org.id === currentOrgId;
           return (
             <div className="flex justify-end">
               <DropdownMenu>
@@ -286,12 +296,12 @@ function OrganizationsDataTable({
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          )
+          );
         },
       },
     ],
-    [currentOrgId, isCurrentOrgAdmin, onSwitch]
-  )
+    [currentOrgId, isCurrentOrgAdmin, onSwitch],
+  );
 
   return (
     <DataTable
@@ -300,164 +310,177 @@ function OrganizationsDataTable({
       searchKey="name"
       searchPlaceholder="Search organizations..."
     />
-  )
+  );
 }
 
 interface CreateOrganizationDialogProps {
-  onSuccess: () => void
+  onSuccess: () => void;
 }
 
-type OnboardingStep = "org" | "team"
+type OnboardingStep = "org" | "team";
 
-function CreateOrganizationDialog({ onSuccess }: CreateOrganizationDialogProps) {
-  const queryClient = useQueryClient()
-  const { switchOrganization, switchTeam } = useWorkspace()
-  const [open, setOpen] = useState(false)
-  const [step, setStep] = useState<OnboardingStep>("org")
+function CreateOrganizationDialog({
+  onSuccess,
+}: CreateOrganizationDialogProps) {
+  const queryClient = useQueryClient();
+  const { switchOrganization, switchTeam } = useWorkspace();
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<OnboardingStep>("org");
 
-  const [orgName, setOrgName] = useState("")
-  const [orgDescription, setOrgDescription] = useState("")
-  const [orgError, setOrgError] = useState<string | null>(null)
-  const [createdOrgId, setCreatedOrgId] = useState<string | null>(null)
-  const [orgLogoFile, setOrgLogoFile] = useState<File | null>(null)
-  const [orgLogoPreview, setOrgLogoPreview] = useState<string | null>(null)
-  const orgFileInputRef = useRef<HTMLInputElement>(null)
+  const [orgName, setOrgName] = useState("");
+  const [orgDescription, setOrgDescription] = useState("");
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [createdOrgId, setCreatedOrgId] = useState<string | null>(null);
+  const [orgLogoFile, setOrgLogoFile] = useState<File | null>(null);
+  const [orgLogoPreview, setOrgLogoPreview] = useState<string | null>(null);
+  const orgFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [teamName, setTeamName] = useState("")
-  const [teamDescription, setTeamDescription] = useState("")
-  const [teamError, setTeamError] = useState<string | null>(null)
-  const [teamLogoFile, setTeamLogoFile] = useState<File | null>(null)
-  const [teamLogoPreview, setTeamLogoPreview] = useState<string | null>(null)
-  const teamFileInputRef = useRef<HTMLInputElement>(null)
+  const [teamName, setTeamName] = useState("");
+  const [teamDescription, setTeamDescription] = useState("");
+  const [teamError, setTeamError] = useState<string | null>(null);
+  const [teamLogoFile, setTeamLogoFile] = useState<File | null>(null);
+  const [teamLogoPreview, setTeamLogoPreview] = useState<string | null>(null);
+  const teamFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [isUploadingOrgLogo, setIsUploadingOrgLogo] = useState(false)
-  const [isUploadingTeamLogo, setIsUploadingTeamLogo] = useState(false)
+  const [isUploadingOrgLogo, setIsUploadingOrgLogo] = useState(false);
+  const [isUploadingTeamLogo, setIsUploadingTeamLogo] = useState(false);
 
   const createOrgMutation = useMutation({
     mutationFn: (data: OrganizationCreate) =>
       organizationsApi.createOrganization(data),
     onSuccess: async (newOrg) => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.organizations })
-      switchOrganization(newOrg.id)
-      setCreatedOrgId(newOrg.id)
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.organizations });
+      switchOrganization(newOrg.id);
+      setCreatedOrgId(newOrg.id);
 
       // Upload org logo if selected
       if (orgLogoFile) {
-        setIsUploadingOrgLogo(true)
+        setIsUploadingOrgLogo(true);
         try {
-          await organizationsApi.uploadLogo(newOrg.id, orgLogoFile)
-          queryClient.invalidateQueries({ queryKey: workspaceKeys.organizations })
+          await organizationsApi.uploadLogo(newOrg.id, orgLogoFile);
+          queryClient.invalidateQueries({
+            queryKey: workspaceKeys.organizations,
+          });
         } catch (err) {
-          console.error("Failed to upload org logo:", err)
+          console.error("Failed to upload org logo:", err);
         } finally {
-          setIsUploadingOrgLogo(false)
+          setIsUploadingOrgLogo(false);
         }
       }
 
-      setStep("team")
-      setOrgError(null)
+      setStep("team");
+      setOrgError(null);
     },
     onError: (err: ApiError) => {
-      const detail = (err.body as { detail?: string })?.detail
-      setOrgError(detail || "Failed to create organization")
+      const detail = (err.body as { detail?: string })?.detail;
+      setOrgError(detail || "Failed to create organization");
     },
-  })
+  });
 
   const createTeamMutation = useMutation({
     mutationFn: (data: TeamCreate) => teamsApi.createTeam(createdOrgId!, data),
     onSuccess: async (newTeam) => {
       queryClient.invalidateQueries({
         queryKey: workspaceKeys.teams(createdOrgId!),
-      })
-      switchTeam(newTeam.id)
+      });
+      switchTeam(newTeam.id);
 
       // Upload team logo if selected
       if (teamLogoFile) {
-        setIsUploadingTeamLogo(true)
+        setIsUploadingTeamLogo(true);
         try {
-          await teamsApi.uploadLogo(createdOrgId!, newTeam.id, teamLogoFile)
+          await teamsApi.uploadLogo(createdOrgId!, newTeam.id, teamLogoFile);
           queryClient.invalidateQueries({
             queryKey: workspaceKeys.teams(createdOrgId!),
-          })
+          });
         } catch (err) {
-          console.error("Failed to upload team logo:", err)
+          console.error("Failed to upload team logo:", err);
         } finally {
-          setIsUploadingTeamLogo(false)
+          setIsUploadingTeamLogo(false);
         }
       }
 
-      onSuccess()
-      resetDialog()
+      onSuccess();
+      resetDialog();
     },
     onError: (err: ApiError) => {
-      const detail = (err.body as { detail?: string })?.detail
-      setTeamError(detail || "Failed to create team")
+      const detail = (err.body as { detail?: string })?.detail;
+      setTeamError(detail || "Failed to create team");
     },
-  })
+  });
 
   const handleOrgLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    const file = e.target.files?.[0];
     if (file) {
-      setOrgLogoFile(file)
-      const reader = new FileReader()
+      setOrgLogoFile(file);
+      const reader = new FileReader();
       reader.onloadend = () => {
-        setOrgLogoPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+        setOrgLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
-    e.target.value = ""
-  }
+    e.target.value = "";
+  };
 
   const handleTeamLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    const file = e.target.files?.[0];
     if (file) {
-      setTeamLogoFile(file)
-      const reader = new FileReader()
+      setTeamLogoFile(file);
+      const reader = new FileReader();
       reader.onloadend = () => {
-        setTeamLogoPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+        setTeamLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
-    e.target.value = ""
-  }
+    e.target.value = "";
+  };
 
   const handleCreateOrg = () => {
-    setOrgError(null)
-    createOrgMutation.mutate({ name: orgName, description: orgDescription || null })
-  }
+    setOrgError(null);
+    createOrgMutation.mutate({
+      name: orgName,
+      description: orgDescription || null,
+    });
+  };
 
   const handleCreateTeam = () => {
-    if (!createdOrgId) return
-    setTeamError(null)
-    createTeamMutation.mutate({ name: teamName, description: teamDescription || null })
-  }
+    if (!createdOrgId) return;
+    setTeamError(null);
+    createTeamMutation.mutate({
+      name: teamName,
+      description: teamDescription || null,
+    });
+  };
 
   const handleSkipTeam = () => {
-    onSuccess()
-    resetDialog()
-  }
+    onSuccess();
+    resetDialog();
+  };
 
   const resetDialog = () => {
-    setOrgName("")
-    setOrgDescription("")
-    setOrgError(null)
-    setOrgLogoFile(null)
-    setOrgLogoPreview(null)
-    setTeamName("")
-    setTeamDescription("")
-    setTeamError(null)
-    setTeamLogoFile(null)
-    setTeamLogoPreview(null)
-    setCreatedOrgId(null)
-    setStep("org")
-    setOpen(false)
-  }
+    setOrgName("");
+    setOrgDescription("");
+    setOrgError(null);
+    setOrgLogoFile(null);
+    setOrgLogoPreview(null);
+    setTeamName("");
+    setTeamDescription("");
+    setTeamError(null);
+    setTeamLogoFile(null);
+    setTeamLogoPreview(null);
+    setCreatedOrgId(null);
+    setStep("org");
+    setOpen(false);
+  };
 
-  const isCreatingOrg = createOrgMutation.isPending || isUploadingOrgLogo
-  const isCreatingTeam = createTeamMutation.isPending || isUploadingTeamLogo
+  const isCreatingOrg = createOrgMutation.isPending || isUploadingOrgLogo;
+  const isCreatingTeam = createTeamMutation.isPending || isUploadingTeamLogo;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : resetDialog())}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => (o ? setOpen(true) : resetDialog())}
+    >
       <DialogTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
@@ -508,15 +531,17 @@ function CreateOrganizationDialog({ onSuccess }: CreateOrganizationDialogProps) 
                   </button>
                   {orgLogoFile && (
                     <div className="flex flex-col gap-1">
-                      <span className="text-sm text-muted-foreground">{orgLogoFile.name}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {orgLogoFile.name}
+                      </span>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         className="h-auto p-0 text-destructive hover:text-destructive"
                         onClick={() => {
-                          setOrgLogoFile(null)
-                          setOrgLogoPreview(null)
+                          setOrgLogoFile(null);
+                          setOrgLogoPreview(null);
                         }}
                       >
                         <Trash2 className="mr-1 size-3" />
@@ -552,7 +577,9 @@ function CreateOrganizationDialog({ onSuccess }: CreateOrganizationDialogProps) 
                   rows={3}
                 />
               </div>
-              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
+              {orgError && (
+                <p className="text-sm text-destructive">{orgError}</p>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={resetDialog}>
@@ -574,7 +601,8 @@ function CreateOrganizationDialog({ onSuccess }: CreateOrganizationDialogProps) 
             <DialogHeader>
               <DialogTitle>Create Your First Team</DialogTitle>
               <DialogDescription>
-                Teams help you organize work within your organization. Create your first team to get started.
+                Teams help you organize work within your organization. Create
+                your first team to get started.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -612,15 +640,17 @@ function CreateOrganizationDialog({ onSuccess }: CreateOrganizationDialogProps) 
                   </button>
                   {teamLogoFile && (
                     <div className="flex flex-col gap-1">
-                      <span className="text-sm text-muted-foreground">{teamLogoFile.name}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {teamLogoFile.name}
+                      </span>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         className="h-auto p-0 text-destructive hover:text-destructive"
                         onClick={() => {
-                          setTeamLogoFile(null)
-                          setTeamLogoPreview(null)
+                          setTeamLogoFile(null);
+                          setTeamLogoPreview(null);
                         }}
                       >
                         <Trash2 className="mr-1 size-3" />
@@ -656,7 +686,9 @@ function CreateOrganizationDialog({ onSuccess }: CreateOrganizationDialogProps) 
                   rows={3}
                 />
               </div>
-              {teamError && <p className="text-sm text-destructive">{teamError}</p>}
+              {teamError && (
+                <p className="text-sm text-destructive">{teamError}</p>
+              )}
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={handleSkipTeam}>
@@ -676,5 +708,5 @@ function CreateOrganizationDialog({ onSuccess }: CreateOrganizationDialogProps) 
         )}
       </DialogContent>
     </Dialog>
-  )
+  );
 }
