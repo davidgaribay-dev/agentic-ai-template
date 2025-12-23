@@ -5,20 +5,21 @@ import logging
 from sqlmodel import Session
 
 from backend.auth import UserCreate, create_user, get_user_by_email
+from backend.conversations.models import Conversation  # noqa: F401
 from backend.core.config import settings
 from backend.core.db import engine
+from backend.invitations.models import Invitation  # noqa: F401
 
 # Import all models to ensure relationships are properly configured
 from backend.items.models import Item  # noqa: F401
-from backend.conversations.models import Conversation  # noqa: F401
-from backend.organizations.models import Organization, OrganizationMember  # noqa: F401
-from backend.teams.models import Team, TeamMember  # noqa: F401
-from backend.invitations.models import Invitation  # noqa: F401
-
 from backend.organizations import crud as org_crud
-from backend.organizations.models import OrganizationCreate
+from backend.organizations.models import (  # noqa: F401
+    Organization,
+    OrganizationCreate,
+    OrganizationMember,
+)
 from backend.teams import crud as team_crud
-from backend.teams.models import TeamCreate
+from backend.teams.models import Team, TeamCreate, TeamMember  # noqa: F401
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ def init() -> None:
                 name="Admin Team",
                 description="Default team for platform administration",
             )
-            team, team_membership = team_crud.create_team(
+            team, _team_membership = team_crud.create_team(
                 session=session,
                 organization_id=organization.id,
                 team_in=team_create,

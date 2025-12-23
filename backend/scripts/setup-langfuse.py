@@ -24,10 +24,10 @@ Environment variables (optional):
 """
 
 import os
+from pathlib import Path
 import re
 import secrets
 import sys
-from pathlib import Path
 
 # Configuration
 SCRIPT_DIR = Path(__file__).parent
@@ -38,7 +38,7 @@ ENV_FILE = BACKEND_ROOT / ".env"
 
 def load_env_value(key: str, default: str = "") -> str:
     """Load a value from environment or .env file."""
-    if key in os.environ and os.environ[key]:
+    if os.environ.get(key):
         return os.environ[key]
 
     if ENV_FILE.exists():

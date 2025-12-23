@@ -1,9 +1,9 @@
 import ast
+from datetime import UTC, datetime
 import json
 import operator
-import uuid
-from datetime import datetime
 from typing import Any
+import uuid
 
 from langchain_core.tools import StructuredTool, tool
 from pydantic import BaseModel, Field
@@ -35,28 +35,27 @@ def _safe_eval_node(node: ast.AST) -> float | int:
         if isinstance(node.value, (int, float)):
             return node.value
         raise ValueError(f"Unsupported constant type: {type(node.value)}")
-    elif isinstance(node, ast.BinOp):
+    if isinstance(node, ast.BinOp):
         op_func = _SAFE_OPERATORS.get(type(node.op))
         if op_func is None:
             raise ValueError(f"Unsupported operator: {type(node.op).__name__}")
         left = _safe_eval_node(node.left)
         right = _safe_eval_node(node.right)
         return op_func(left, right)
-    elif isinstance(node, ast.UnaryOp):
+    if isinstance(node, ast.UnaryOp):
         op_func = _SAFE_OPERATORS.get(type(node.op))
         if op_func is None:
             raise ValueError(f"Unsupported operator: {type(node.op).__name__}")
         return op_func(_safe_eval_node(node.operand))
-    elif isinstance(node, ast.Expression):
+    if isinstance(node, ast.Expression):
         return _safe_eval_node(node.body)
-    else:
-        raise ValueError(f"Unsupported expression type: {type(node).__name__}")
+    raise ValueError(f"Unsupported expression type: {type(node).__name__}")
 
 
 @tool
 def get_current_time() -> str:
     """Get the current date and time in ISO format."""
-    return datetime.now().isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 @tool
@@ -121,7 +120,7 @@ async def _search_documents_impl(
         user_uuid = uuid.UUID(user_id)
         team_uuid = uuid.UUID(team_id) if team_id else None
     except ValueError as e:
-        logger.error("search_documents_invalid_uuid", error=str(e))
+        logger.exception("search_documents_invalid_uuid", error=str(e))
         return json.dumps({"error": f"Invalid UUID: {e}"}, indent=2)
 
     # Get database session
@@ -176,15 +175,16 @@ async def _search_documents_impl(
 
             return json.dumps(
                 {
-                    "message": f"Found {len(results)} relevant chunks" + citation_instruction,
+                    "message": f"Found {len(results)} relevant chunks"
+                    + citation_instruction,
                     "results": results,
                 },
                 indent=2,
             )
 
         except Exception as e:
-            logger.error("search_documents_failed", error=str(e))
-            return json.dumps({"error": f"Search failed: {str(e)}"}, indent=2)
+            logger.exception("search_documents_failed", error=str(e))
+            return json.dumps({"error": f"Search failed: {e!s}"}, indent=2)
 
 
 def create_search_documents_tool(

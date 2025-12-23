@@ -112,6 +112,7 @@ export function UserThemeSettings() {
         'solarized-light',
         'everforest-light',
         'min-light',
+        'notebook-light',
       ].includes(id)
     )
   )
@@ -129,6 +130,7 @@ export function UserThemeSettings() {
         'synthwave-84',
         'palenight',
         'shades-of-purple',
+        'notebook-dark',
       ].includes(id)
     )
   )

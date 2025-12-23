@@ -1,14 +1,21 @@
 from functools import lru_cache
 from typing import Literal
 
+from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 
 from backend.core.config import settings
 from backend.core.logging import get_logger
+from backend.core.secrets import get_secrets_service
 
 logger = get_logger(__name__)
 
 LLMProvider = Literal["anthropic", "openai", "google"]
+
+# Maximum length for generated conversation titles
+MAX_TITLE_LENGTH = 50
 
 
 @lru_cache
@@ -34,7 +41,6 @@ def get_chat_model(provider: LLMProvider | None = None) -> BaseChatModel:
     if provider == "anthropic":
         if not settings.ANTHROPIC_API_KEY:
             raise ValueError("ANTHROPIC_API_KEY is not set")
-        from langchain_anthropic import ChatAnthropic
 
         return ChatAnthropic(
             model="claude-haiku-4-5-20251001",
@@ -42,28 +48,25 @@ def get_chat_model(provider: LLMProvider | None = None) -> BaseChatModel:
             max_tokens=4096,
         )
 
-    elif provider == "openai":
+    if provider == "openai":
         if not settings.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY is not set")
-        from langchain_openai import ChatOpenAI
 
         return ChatOpenAI(
             model="gpt-4o",
             api_key=settings.OPENAI_API_KEY,
         )
 
-    elif provider == "google":
+    if provider == "google":
         if not settings.GOOGLE_API_KEY:
             raise ValueError("GOOGLE_API_KEY is not set")
-        from langchain_google_genai import ChatGoogleGenerativeAI
 
         return ChatGoogleGenerativeAI(
             model="gemini-2.0-flash",
             google_api_key=settings.GOOGLE_API_KEY,
         )
 
-    else:
-        raise ValueError(f"Unsupported LLM provider: {provider}")
+    raise ValueError(f"Unsupported LLM provider: {provider}")
 
 
 def get_chat_model_with_context(
@@ -90,8 +93,6 @@ def get_chat_model_with_context(
     Raises:
         ValueError: If no API key is available for the provider
     """
-    from backend.core.secrets import get_secrets_service
-
     secrets = get_secrets_service()
 
     if provider is None:
@@ -114,32 +115,25 @@ def get_chat_model_with_context(
     )
 
     if provider == "anthropic":
-        from langchain_anthropic import ChatAnthropic
-
         return ChatAnthropic(
             model="claude-haiku-4-5-20251001",
             api_key=api_key,
             max_tokens=4096,
         )
 
-    elif provider == "openai":
-        from langchain_openai import ChatOpenAI
-
+    if provider == "openai":
         return ChatOpenAI(
             model="gpt-4o",
             api_key=api_key,
         )
 
-    elif provider == "google":
-        from langchain_google_genai import ChatGoogleGenerativeAI
-
+    if provider == "google":
         return ChatGoogleGenerativeAI(
             model="gemini-2.0-flash",
             google_api_key=api_key,
         )
 
-    else:
-        raise ValueError(f"Unsupported LLM provider: {provider}")
+    raise ValueError(f"Unsupported LLM provider: {provider}")
 
 
 async def generate_conversation_title(
@@ -161,10 +155,7 @@ async def generate_conversation_title(
     Returns:
         A short title (5-7 words) summarizing the conversation topic
     """
-    if org_id:
-        llm = get_chat_model_with_context(org_id, team_id)
-    else:
-        llm = get_chat_model()
+    llm = get_chat_model_with_context(org_id, team_id) if org_id else get_chat_model()
 
     prompt = f"""Generate a very short title (3-6 words max) that summarizes this conversation topic.
 The title should be descriptive and help the user identify the conversation later.
@@ -178,10 +169,12 @@ Title:"""
     try:
         response = await llm.ainvoke(prompt)
         title = str(response.content).strip()
-        title = title.strip('"\'').strip()
-        if len(title) > 50:
-            title = title[:47] + "..."
-        return title or user_message[:50]
+        title = title.strip("\"'").strip()
+        if len(title) > MAX_TITLE_LENGTH:
+            title = title[: MAX_TITLE_LENGTH - 3] + "..."
+        return title or user_message[:MAX_TITLE_LENGTH]
     except Exception as e:
         logger.warning("title_generation_failed", error=str(e))
-        return user_message[:50] + ("..." if len(user_message) > 50 else "")
+        return user_message[:MAX_TITLE_LENGTH] + (
+            "..." if len(user_message) > MAX_TITLE_LENGTH else ""
+        )

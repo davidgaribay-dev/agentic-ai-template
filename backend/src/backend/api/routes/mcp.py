@@ -4,8 +4,9 @@ Provides endpoints for managing MCP server registrations at
 organization, team, and user levels.
 """
 
-import uuid
+import time
 from typing import Annotated
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 from sqlmodel import SQLModel
@@ -13,8 +14,8 @@ from sqlmodel import SQLModel
 from backend.audit import audit_service
 from backend.audit.schemas import AuditAction, Target
 from backend.auth.deps import CurrentUser, SessionDep
+from backend.mcp.client import test_mcp_server_connection
 from backend.mcp.models import (
-    MCPServer,
     MCPServerCreate,
     MCPServerList,
     MCPServerPublic,
@@ -23,7 +24,6 @@ from backend.mcp.models import (
     MCPToolPublic,
     MCPToolsList,
 )
-from backend.mcp.client import test_mcp_server_connection
 from backend.mcp.service import (
     check_server_limits,
     create_mcp_server,
@@ -46,7 +46,9 @@ from backend.rbac import (
 from backend.settings.service import get_effective_settings
 
 # Organization-level MCP server routes
-org_router = APIRouter(prefix="/organizations/{organization_id}/mcp-servers", tags=["mcp"])
+org_router = APIRouter(
+    prefix="/organizations/{organization_id}/mcp-servers", tags=["mcp"]
+)
 
 # Team-level MCP server routes
 team_router = APIRouter(
@@ -325,7 +327,9 @@ def get_team_mcp_server(
     if not server or server.team_id != team_context.team_id:
         raise HTTPException(status_code=404, detail="MCP server not found")
     if server.user_id is not None:
-        raise HTTPException(status_code=404, detail="MCP server not found at team level")
+        raise HTTPException(
+            status_code=404, detail="MCP server not found at team level"
+        )
     return MCPServerPublic.from_model(server)
 
 
@@ -347,7 +351,9 @@ async def update_team_mcp_server(
     if not server or server.team_id != team_context.team_id:
         raise HTTPException(status_code=404, detail="MCP server not found")
     if server.user_id is not None:
-        raise HTTPException(status_code=404, detail="MCP server not found at team level")
+        raise HTTPException(
+            status_code=404, detail="MCP server not found at team level"
+        )
 
     # Capture changes for audit
     changes = {}
@@ -395,7 +401,9 @@ async def delete_team_mcp_server(
     if not server or server.team_id != team_context.team_id:
         raise HTTPException(status_code=404, detail="MCP server not found")
     if server.user_id is not None:
-        raise HTTPException(status_code=404, detail="MCP server not found at team level")
+        raise HTTPException(
+            status_code=404, detail="MCP server not found at team level"
+        )
 
     server_name = server.name
     delete_mcp_server(session, server_id)
@@ -652,8 +660,6 @@ async def test_org_mcp_server(
     Attempts to connect to the server and discover available tools.
     Returns detailed connection status and any errors encountered.
     """
-    import time
-
     server = get_mcp_server(session, server_id)
     if not server or server.organization_id != org_context.org_id:
         raise HTTPException(status_code=404, detail="MCP server not found")
@@ -668,19 +674,21 @@ async def test_org_mcp_server(
         return MCPTestResult(
             success=True,
             message=f"Successfully connected and discovered {result['tool_count']} tools",
-            tools=[MCPToolPublic(name=t["name"], description=t["description"]) for t in result["tools"]],
+            tools=[
+                MCPToolPublic(name=t["name"], description=t["description"])
+                for t in result["tools"]
+            ],
             tool_count=result["tool_count"],
             connection_time_ms=round(elapsed_ms, 2),
         )
-    else:
-        return MCPTestResult(
-            success=False,
-            message="Failed to connect to MCP server",
-            tools=[],
-            tool_count=0,
-            connection_time_ms=round(elapsed_ms, 2),
-            error_details=result.get("error", "Unknown error"),
-        )
+    return MCPTestResult(
+        success=False,
+        message="Failed to connect to MCP server",
+        tools=[],
+        tool_count=0,
+        connection_time_ms=round(elapsed_ms, 2),
+        error_details=result.get("error", "Unknown error"),
+    )
 
 
 @team_router.post(
@@ -694,13 +702,13 @@ async def test_team_mcp_server(
     server_id: Annotated[uuid.UUID, Path()],
 ) -> MCPTestResult:
     """Test connection to a team-level MCP server."""
-    import time
-
     server = get_mcp_server(session, server_id)
     if not server or server.team_id != team_context.team_id:
         raise HTTPException(status_code=404, detail="MCP server not found")
     if server.user_id is not None:
-        raise HTTPException(status_code=404, detail="MCP server not found at team level")
+        raise HTTPException(
+            status_code=404, detail="MCP server not found at team level"
+        )
 
     start_time = time.time()
     result = await test_mcp_server_connection(server, str(team_context.org_id))
@@ -710,19 +718,21 @@ async def test_team_mcp_server(
         return MCPTestResult(
             success=True,
             message=f"Successfully connected and discovered {result['tool_count']} tools",
-            tools=[MCPToolPublic(name=t["name"], description=t["description"]) for t in result["tools"]],
+            tools=[
+                MCPToolPublic(name=t["name"], description=t["description"])
+                for t in result["tools"]
+            ],
             tool_count=result["tool_count"],
             connection_time_ms=round(elapsed_ms, 2),
         )
-    else:
-        return MCPTestResult(
-            success=False,
-            message="Failed to connect to MCP server",
-            tools=[],
-            tool_count=0,
-            connection_time_ms=round(elapsed_ms, 2),
-            error_details=result.get("error", "Unknown error"),
-        )
+    return MCPTestResult(
+        success=False,
+        message="Failed to connect to MCP server",
+        tools=[],
+        tool_count=0,
+        connection_time_ms=round(elapsed_ms, 2),
+        error_details=result.get("error", "Unknown error"),
+    )
 
 
 @user_router.post(
@@ -735,8 +745,6 @@ async def test_user_mcp_server(
     server_id: Annotated[uuid.UUID, Path()],
 ) -> MCPTestResult:
     """Test connection to a personal MCP server."""
-    import time
-
     server = get_mcp_server(session, server_id)
     if not server or server.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="MCP server not found")
@@ -749,19 +757,21 @@ async def test_user_mcp_server(
         return MCPTestResult(
             success=True,
             message=f"Successfully connected and discovered {result['tool_count']} tools",
-            tools=[MCPToolPublic(name=t["name"], description=t["description"]) for t in result["tools"]],
+            tools=[
+                MCPToolPublic(name=t["name"], description=t["description"])
+                for t in result["tools"]
+            ],
             tool_count=result["tool_count"],
             connection_time_ms=round(elapsed_ms, 2),
         )
-    else:
-        return MCPTestResult(
-            success=False,
-            message="Failed to connect to MCP server",
-            tools=[],
-            tool_count=0,
-            connection_time_ms=round(elapsed_ms, 2),
-            error_details=result.get("error", "Unknown error"),
-        )
+    return MCPTestResult(
+        success=False,
+        message="Failed to connect to MCP server",
+        tools=[],
+        tool_count=0,
+        connection_time_ms=round(elapsed_ms, 2),
+        error_details=result.get("error", "Unknown error"),
+    )
 
 
 @user_router.get(

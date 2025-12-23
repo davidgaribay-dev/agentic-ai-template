@@ -1,13 +1,14 @@
 """Login and token authentication routes."""
 
-import asyncio
 from typing import Annotated, Any
 
-import jwt
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
+import jwt
 from pydantic import ValidationError
 
+from backend.audit.schemas import AuditAction, Target
+from backend.audit.service import audit_service
 from backend.auth import (
     CurrentUser,
     SessionDep,
@@ -15,9 +16,7 @@ from backend.auth import (
     UserPublic,
     authenticate,
 )
-from backend.auth.models import RefreshTokenRequest, TokenPayload
-from backend.audit.schemas import AuditAction, Target
-from backend.audit.service import audit_service
+from backend.auth.models import RefreshTokenRequest, TokenPayload, User
 from backend.core.config import settings
 from backend.core.logging import get_logger
 from backend.core.rate_limit import AUTH_RATE_LIMIT, REFRESH_RATE_LIMIT, limiter
@@ -42,7 +41,9 @@ async def login_access_token(
 
     Rate limited to prevent brute force attacks.
     """
-    user = authenticate(session=session, email=form_data.username, password=form_data.password)
+    user = authenticate(
+        session=session, email=form_data.username, password=form_data.password
+    )
     if not user:
         await audit_service.log(
             AuditAction.USER_LOGIN_FAILED,
@@ -112,7 +113,7 @@ def refresh_access_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
     if token_data.type != "refresh":
         logger.warning("wrong_token_type", expected="refresh", got=token_data.type)
@@ -121,8 +122,6 @@ def refresh_access_token(
             detail="Invalid token type",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    from backend.auth.models import User
 
     user = session.get(User, token_data.sub)
     if not user:

@@ -112,7 +112,7 @@ def upload_file(
         )
         logger.info("file_uploaded", key=object_key, size=len(content))
     except ClientError as e:
-        logger.error("upload_failed", key=object_key, error=str(e))
+        logger.exception("upload_failed", key=object_key, error=str(e))
         raise StorageError(f"Failed to upload file: {e}") from e
 
     return f"{settings.s3_public_base_url}/{settings.S3_BUCKET_NAME}/{object_key}"
@@ -132,16 +132,17 @@ def delete_file(url: str) -> bool:
         logger.warning("invalid_url_for_deletion", url=url)
         return False
 
-    object_key = url[len(prefix):]
+    object_key = url[len(prefix) :]
 
     client = get_s3_client()
     try:
         client.delete_object(Bucket=settings.S3_BUCKET_NAME, Key=object_key)
         logger.info("file_deleted", key=object_key)
-        return True
     except ClientError as e:
-        logger.error("delete_failed", key=object_key, error=str(e))
+        logger.exception("delete_failed", key=object_key, error=str(e))
         return False
+    else:
+        return True
 
 
 def upload_document(
@@ -197,7 +198,7 @@ def upload_document(
         )
         logger.info("document_uploaded", key=object_key, size=len(content))
     except ClientError as e:
-        logger.error("document_upload_failed", key=object_key, error=str(e))
+        logger.exception("document_upload_failed", key=object_key, error=str(e))
         raise StorageError(f"Failed to upload document: {e}") from e
 
     return object_key
@@ -221,13 +222,14 @@ def get_document_content(object_key: str) -> bytes:
         response = client.get_object(Bucket=settings.S3_BUCKET_NAME, Key=object_key)
         content = response["Body"].read()
         logger.debug("document_downloaded", key=object_key, size=len(content))
-        return content
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code")
         if error_code == "NoSuchKey":
             raise StorageError(f"Document not found: {object_key}") from e
-        logger.error("document_download_failed", key=object_key, error=str(e))
+        logger.exception("document_download_failed", key=object_key, error=str(e))
         raise StorageError(f"Failed to download document: {e}") from e
+    else:
+        return content
 
 
 def delete_document(object_key: str) -> bool:
@@ -243,10 +245,11 @@ def delete_document(object_key: str) -> bool:
     try:
         client.delete_object(Bucket=settings.S3_BUCKET_NAME, Key=object_key)
         logger.info("document_deleted", key=object_key)
-        return True
     except ClientError as e:
-        logger.error("document_delete_failed", key=object_key, error=str(e))
+        logger.exception("document_delete_failed", key=object_key, error=str(e))
         return False
+    else:
+        return True
 
 
 def get_document_url(object_key: str) -> str:

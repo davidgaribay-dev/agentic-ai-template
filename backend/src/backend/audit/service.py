@@ -1,7 +1,8 @@
 import asyncio
-import uuid
+import contextlib
 from datetime import UTC, datetime
 from typing import Any
+import uuid
 
 from fastapi import Request
 
@@ -58,10 +59,8 @@ class AuditService:
                 await self._process_single()
 
             self._worker_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._worker_task
-            except asyncio.CancelledError:
-                pass
 
             logger.info("audit_service_stopped")
 
@@ -73,7 +72,7 @@ class AuditService:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error("audit_queue_processing_error", error=str(e))
+                logger.exception("audit_queue_processing_error", error=str(e))
                 await asyncio.sleep(1)
 
     async def _process_single(self) -> None:
@@ -83,7 +82,7 @@ class AuditService:
             index_prefix = item.pop("_index_prefix")
             await index_document(index_prefix, item)
             self._queue.task_done()
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
 
     def _extract_request_context(

@@ -1,10 +1,10 @@
 from backend.items.crud import (
     create_item,
+    delete_item,
     get_item,
     get_items,
     get_items_by_owner,
     update_item,
-    delete_item,
 )
 from backend.items.models import (
     Item,
@@ -21,13 +21,13 @@ __all__ = [
     "ItemBase",
     "ItemCreate",
     "ItemPublic",
-    "ItemsPublic",
     "ItemUpdate",
+    "ItemsPublic",
     # CRUD
     "create_item",
+    "delete_item",
     "get_item",
     "get_items",
     "get_items_by_owner",
     "update_item",
-    "delete_item",
 ]

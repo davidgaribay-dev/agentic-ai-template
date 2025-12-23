@@ -164,6 +164,9 @@ OpenSearch indices: `audit-logs-YYYY.MM.DD` (90-day retention), `app-logs-YYYY.M
 
 ```bash
 # Backend (from backend/)
+uv run ruff check .                        # Lint check (MUST pass before commit)
+uv run ruff check . --fix                  # Auto-fix lint issues
+uv run ruff format .                       # Format code
 uv run pytest                              # Run tests
 uv run alembic revision --autogenerate -m "msg"  # Create migration
 
@@ -172,6 +175,15 @@ npm run build                              # TypeScript + Vite build
 npm run lint                               # ESLint
 npx shadcn@latest add <name>               # Add UI component
 ```
+
+## Pre-Commit/Push Checklist
+
+**CRITICAL**: Always run these before committing backend changes:
+```bash
+cd backend && uv run ruff check . && uv run ruff format --check .
+```
+
+If CI fails, run `uv run ruff check . --fix` to auto-fix most issues.
 
 ## Critical Integration Points
 
@@ -219,6 +231,93 @@ New agent tool: Add `@tool` function in `backend/agents/tools.py`
 
 New MCP server: Add via UI at org/team/user settings pages, or via API (`/v1/organizations/{id}/mcp-servers`, `/v1/organizations/{id}/teams/{id}/mcp-servers`, `/v1/mcp-servers/me`)
 
-## Code Style
+## Code Style & Linting Standards
 
 Both backend and frontend follow self-documenting code principles. Keep docstrings (generates API docs), "why" comments for non-obvious decisions. Avoid section separators, "what" comments that repeat code.
+
+### Backend Python Standards (Enforced by Ruff)
+
+**MUST follow these patterns** - CI will fail otherwise:
+
+1. **Imports at top of file** (PLC0415): Never use inline/lazy imports inside functions. Move all imports to the module top.
+   ```python
+   # ✅ Correct
+   from backend.auth.models import User
+
+   def get_user(): ...
+
+   # ❌ Wrong - will fail CI
+   def get_user():
+       from backend.auth.models import User  # PLC0415 error
+   ```
+
+2. **Exception chaining** (B904): Always chain exceptions with `from err` or `from None`
+   ```python
+   # ✅ Correct
+   except ValueError as e:
+       raise HTTPException(status_code=400, detail=str(e)) from e
+
+   # ❌ Wrong
+   except ValueError as e:
+       raise HTTPException(status_code=400, detail=str(e))  # B904 error
+   ```
+
+3. **Return in else after try-except** (TRY300): Move return statements to `else:` block
+   ```python
+   # ✅ Correct
+   try:
+       result = risky_operation()
+   except SomeError:
+       return None
+   else:
+       return result
+
+   # ❌ Wrong
+   try:
+       result = risky_operation()
+   except SomeError:
+       return None
+   return result  # TRY300 error
+   ```
+
+4. **No magic numbers** (PLR2004): Use named constants for numeric literals
+   ```python
+   # ✅ Correct
+   MAX_RETRY_ATTEMPTS = 3
+   if attempts > MAX_RETRY_ATTEMPTS: ...
+
+   # ❌ Wrong
+   if attempts > 3: ...  # PLR2004 error
+   ```
+
+5. **Timezone-aware datetime** (DTZ): Always use `datetime.now(UTC)` not `datetime.now()`
+   ```python
+   # ✅ Correct
+   from datetime import UTC, datetime
+   now = datetime.now(UTC)
+
+   # ❌ Wrong
+   now = datetime.now()  # DTZ error
+   ```
+
+6. **ClassVar for mutable class attributes** (RUF012):
+   ```python
+   # ✅ Correct
+   from typing import ClassVar
+   class Parser:
+       supported_types: ClassVar[list[str]] = ["pdf", "txt"]
+
+   # ❌ Wrong
+   class Parser:
+       supported_types: list[str] = ["pdf", "txt"]  # RUF012 error
+   ```
+
+### Allowed Patterns (Per-file ignores configured)
+
+These patterns are intentionally allowed in specific contexts:
+- **FastAPI routes**: `Query()`, `Depends()` in default args (B008), unused `current_user`/`request` params (ARG001)
+- **Singleton modules**: Global statements for singleton patterns (PLW0603) in `agents/`, `audit/`, `memory/`, `core/secrets.py`
+- **Complex handlers**: High branch/statement counts (PLR0912/PLR0915) in routes, agents, settings resolution
+- **Tests**: Magic values, assert statements, unused fixtures
+
+See `backend/pyproject.toml` `[tool.ruff.lint.per-file-ignores]` for full list.

@@ -5,8 +5,19 @@ from typing import TYPE_CHECKING, Any
 from backend.core.config import settings
 from backend.core.logging import get_logger
 
-if TYPE_CHECKING:
+# Optional runtime imports (only available if langfuse is installed)
+try:
+    from langfuse import Langfuse, get_client
     from langfuse.langchain import CallbackHandler
+
+    LANGFUSE_AVAILABLE = True
+except ImportError:
+    LANGFUSE_AVAILABLE = False
+    # Stub for type checking when langfuse is not available
+    if TYPE_CHECKING:
+        from langfuse.langchain import CallbackHandler
+    else:
+        CallbackHandler = None  # type: ignore[assignment, misc]
 
 logger = get_logger(__name__)
 
@@ -31,16 +42,28 @@ def init_langfuse() -> bool:
     if _langfuse_initialized:
         return True
 
-    try:
-        from langfuse import Langfuse
+    if not LANGFUSE_AVAILABLE:
+        logger.warning(
+            "langfuse_import_error",
+            message="langfuse package not installed, tracing disabled",
+        )
+        return False
 
+    try:
         # Note: Langfuse v3 uses base_url instead of host
         Langfuse(
             public_key=settings.LANGFUSE_PUBLIC_KEY,
             secret_key=settings.LANGFUSE_SECRET_KEY,
             base_url=settings.langfuse_base_url,
         )
-
+    except Exception as e:
+        logger.exception(
+            "langfuse_init_error",
+            error=str(e),
+            message="Failed to initialize Langfuse client",
+        )
+        return False
+    else:
         _langfuse_initialized = True
         logger.info(
             "langfuse_initialized",
@@ -48,50 +71,34 @@ def init_langfuse() -> bool:
         )
         return True
 
-    except ImportError:
-        logger.warning(
-            "langfuse_import_error",
-            message="langfuse package not installed, tracing disabled",
-        )
-        return False
-    except Exception as e:
-        logger.error(
-            "langfuse_init_error",
-            error=str(e),
-            message="Failed to initialize Langfuse client",
-        )
-        return False
-
 
 def get_langfuse_handler() -> CallbackHandler | None:
     if not settings.langfuse_enabled:
         return None
 
     # Ensure client is initialized
-    if not _langfuse_initialized:
-        if not init_langfuse():
-            return None
+    if not _langfuse_initialized and not init_langfuse():
+        return None
 
-    try:
-        from langfuse.langchain import CallbackHandler
-
-        handler = CallbackHandler()
-        logger.debug("langfuse_handler_created")
-        return handler
-
-    except ImportError:
+    if not LANGFUSE_AVAILABLE:
         logger.warning(
             "langfuse_import_error",
             message="langfuse or langchain package not installed",
         )
         return None
+
+    try:
+        handler = CallbackHandler()
     except Exception as e:
-        logger.error(
+        logger.exception(
             "langfuse_handler_error",
             error=str(e),
             message="Failed to create Langfuse handler",
         )
         return None
+    else:
+        logger.debug("langfuse_handler_created")
+        return handler
 
 
 def build_langfuse_config(
@@ -180,14 +187,15 @@ def flush_langfuse() -> None:
     if not settings.langfuse_enabled or not _langfuse_initialized:
         return
 
-    try:
-        from langfuse import get_client
+    if not LANGFUSE_AVAILABLE:
+        return
 
+    try:
         client = get_client()
         client.flush()
         logger.info("langfuse_flushed")
     except Exception as e:
-        logger.error("langfuse_flush_error", error=str(e))
+        logger.exception("langfuse_flush_error", error=str(e))
 
 
 def shutdown_langfuse() -> None:
@@ -200,15 +208,16 @@ def shutdown_langfuse() -> None:
     if not _langfuse_initialized:
         return
 
-    try:
-        from langfuse import get_client
+    if not LANGFUSE_AVAILABLE:
+        return
 
+    try:
         client = get_client()
         client.shutdown()
         _langfuse_initialized = False
         logger.info("langfuse_shutdown")
     except Exception as e:
-        logger.error("langfuse_shutdown_error", error=str(e))
+        logger.exception("langfuse_shutdown_error", error=str(e))
 
 
 def check_langfuse_connection() -> bool:
@@ -222,15 +231,15 @@ def check_langfuse_connection() -> bool:
     if not settings.langfuse_enabled:
         return False
 
-    if not _langfuse_initialized:
-        if not init_langfuse():
-            return False
+    if not _langfuse_initialized and not init_langfuse():
+        return False
+
+    if not LANGFUSE_AVAILABLE:
+        return False
 
     try:
-        from langfuse import get_client
-
         client = get_client()
         return client.auth_check()
     except Exception as e:
-        logger.error("langfuse_auth_check_failed", error=str(e))
+        logger.exception("langfuse_auth_check_failed", error=str(e))
         return False

@@ -69,7 +69,9 @@ class ResourceNotFoundError(AppException):
             msg,
             f"{resource.upper().replace(' ', '_')}_NOT_FOUND",
             404,
-            {"resource": resource, "id": identifier} if identifier else {"resource": resource},
+            {"resource": resource, "id": identifier}
+            if identifier
+            else {"resource": resource},
         )
 
 
@@ -103,7 +105,9 @@ class ValidationError(AppException):
 class RateLimitError(AppException):
     """Rate limit exceeded for this endpoint/user."""
 
-    def __init__(self, message: str = "Rate limit exceeded", retry_after: int | None = None):
+    def __init__(
+        self, message: str = "Rate limit exceeded", retry_after: int | None = None
+    ):
         super().__init__(
             message,
             "RATE_LIMIT_EXCEEDED",
@@ -170,9 +174,7 @@ class LLMConfigurationError(AgentError):
             msg,
             "LLM_NOT_CONFIGURED",
             503,
-            {"provider": provider, "scope": scope}
-            if provider
-            else {},
+            {"provider": provider, "scope": scope} if provider else {},
         )
 
 
@@ -203,7 +205,9 @@ class ToolExecutionError(AgentError):
 class ToolApprovalRequiredError(AgentError):
     """Tool requires user approval before execution (not an error, but an interrupt)."""
 
-    def __init__(self, tool_name: str, tool_call_id: str, args: dict[str, Any] | None = None):
+    def __init__(
+        self, tool_name: str, tool_call_id: str, args: dict[str, Any] | None = None
+    ):
         super().__init__(
             f"Tool '{tool_name}' requires approval",
             "TOOL_APPROVAL_REQUIRED",

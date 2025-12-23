@@ -19,12 +19,13 @@ Or with custom settings:
     uv run python scripts/setup-infisical.py
 """
 
+from http import HTTPStatus
 import os
+from pathlib import Path
 import re
 import secrets
 import sys
 import time
-from pathlib import Path
 
 try:
     import httpx
@@ -44,7 +45,7 @@ ENV_FILE = BACKEND_ROOT / ".env"
 def load_env_value(key: str, default: str = "") -> str:
     """Load a value from environment or .env file."""
     # Check environment first
-    if key in os.environ and os.environ[key]:
+    if os.environ.get(key):
         return os.environ[key]
 
     # Try to read from .env file
@@ -73,7 +74,7 @@ def wait_for_infisical(timeout: int = 120) -> bool:
     for i in range(timeout // 2):
         try:
             resp = httpx.get(f"{INFISICAL_URL}/api/status", timeout=5)
-            if resp.status_code == 200:
+            if resp.status_code == HTTPStatus.OK:
                 print("✓ Infisical is ready")
                 return True
         except httpx.RequestError:
@@ -83,7 +84,9 @@ def wait_for_infisical(timeout: int = 120) -> bool:
         time.sleep(2)
 
     print("Error: Infisical did not become ready in time.")
-    print("Make sure to run: docker compose up -d infisical-db infisical-redis infisical")
+    print(
+        "Make sure to run: docker compose up -d infisical-db infisical-redis infisical"
+    )
     return False
 
 
@@ -104,26 +107,27 @@ def bootstrap_infisical() -> dict | None:
             timeout=30,
         )
 
-        if resp.status_code == 200:
+        if resp.status_code == HTTPStatus.OK:
             result = resp.json()
             print("✓ Bootstrap complete")
-            return result
-        elif resp.status_code == 400 and "already" in resp.text.lower():
+        elif resp.status_code == HTTPStatus.BAD_REQUEST and "already" in resp.text.lower():
             print("⚠ Infisical already bootstrapped")
             print("\nTo complete setup manually:")
             print(f"  1. Go to {INFISICAL_URL}")
             print("  2. Log in with your admin account")
             print("  3. Create a project and machine identity")
             print("  4. Update backend/.env with the credentials")
-            return None
+            result = None
         else:
             print(f"Error: Bootstrap failed with status {resp.status_code}")
             print(f"Response: {resp.text}")
-            return None
+            result = None
 
     except httpx.RequestError as e:
         print(f"Error: Bootstrap request failed: {e}")
         return None
+    else:
+        return result
 
 
 def create_project(token: str, org_id: str) -> str | None:
@@ -142,18 +146,25 @@ def create_project(token: str, org_id: str) -> str | None:
 
         if resp.status_code in (200, 201):
             result = resp.json()
-            project_id = result.get("project", {}).get("id") or result.get("workspace", {}).get("id")
+            project_id = result.get("project", {}).get("id") or result.get(
+                "workspace", {}
+            ).get("id")
             if project_id:
                 print(f"✓ Project created: {project_id}")
-                return project_id
-
-        print(f"Warning: Could not create project. Status: {resp.status_code}")
-        print(f"Response: {resp.text}")
-        return None
+            else:
+                project_id = None
+                print(f"Warning: Could not create project. Status: {resp.status_code}")
+                print(f"Response: {resp.text}")
+        else:
+            print(f"Warning: Could not create project. Status: {resp.status_code}")
+            print(f"Response: {resp.text}")
+            project_id = None
 
     except httpx.RequestError as e:
         print(f"Error creating project: {e}")
         return None
+    else:
+        return project_id
 
 
 def create_machine_identity(token: str, org_id: str) -> tuple[str, str, str] | None:
@@ -174,58 +185,64 @@ def create_machine_identity(token: str, org_id: str) -> tuple[str, str, str] | N
         if resp.status_code not in (200, 201):
             print(f"Warning: Could not create identity. Status: {resp.status_code}")
             print(f"Response: {resp.text}")
-            return None
+            result = None
+        else:
+            identity_id = resp.json().get("identity", {}).get("id")
+            if not identity_id:
+                print("Warning: No identity ID in response")
+                result = None
+            else:
+                print(f"✓ Machine identity created: {identity_id}")
 
-        identity_id = resp.json().get("identity", {}).get("id")
-        if not identity_id:
-            print("Warning: No identity ID in response")
-            return None
+                # Set up universal auth
+                print("Setting up universal auth...")
+                resp = httpx.post(
+                    f"{INFISICAL_URL}/api/v1/auth/universal-auth/identities/{identity_id}",
+                    headers=headers,
+                    json={
+                        "accessTokenTrustedIps": [{"ipAddress": "0.0.0.0/0"}],
+                        "accessTokenTTL": 2592000,  # 30 days
+                    },
+                    timeout=30,
+                )
 
-        print(f"✓ Machine identity created: {identity_id}")
+                if resp.status_code not in (200, 201):
+                    print(
+                        f"Warning: Could not set up universal auth. Status: {resp.status_code}"
+                    )
+                    result = None
+                else:
+                    client_id = resp.json().get("identityUniversalAuth", {}).get("clientId")
 
-        # Set up universal auth
-        print("Setting up universal auth...")
-        resp = httpx.post(
-            f"{INFISICAL_URL}/api/v1/auth/universal-auth/identities/{identity_id}",
-            headers=headers,
-            json={
-                "accessTokenTrustedIps": [{"ipAddress": "0.0.0.0/0"}],
-                "accessTokenTTL": 2592000,  # 30 days
-            },
-            timeout=30,
-        )
+                    # Create client secret
+                    resp = httpx.post(
+                        f"{INFISICAL_URL}/api/v1/auth/universal-auth/identities/{identity_id}/client-secrets",
+                        headers=headers,
+                        json={"description": "Backend service secret"},
+                        timeout=30,
+                    )
 
-        if resp.status_code not in (200, 201):
-            print(f"Warning: Could not set up universal auth. Status: {resp.status_code}")
-            return None
+                    if resp.status_code not in (200, 201):
+                        print(
+                            f"Warning: Could not create client secret. Status: {resp.status_code}"
+                        )
+                        result = None
+                    else:
+                        client_secret = resp.json().get("clientSecret")
 
-        client_id = resp.json().get("identityUniversalAuth", {}).get("clientId")
-
-        # Create client secret
-        resp = httpx.post(
-            f"{INFISICAL_URL}/api/v1/auth/universal-auth/identities/{identity_id}/client-secrets",
-            headers=headers,
-            json={"description": "Backend service secret"},
-            timeout=30,
-        )
-
-        if resp.status_code not in (200, 201):
-            print(f"Warning: Could not create client secret. Status: {resp.status_code}")
-            return None
-
-        client_secret = resp.json().get("clientSecret")
-
-        if client_id and client_secret:
-            print(f"✓ Universal auth configured")
-            print(f"  Client ID: {client_id}")
-            print(f"  Client Secret: {client_secret[:10]}...")
-            return identity_id, client_id, client_secret
-
-        return None
+                        if client_id and client_secret:
+                            print("✓ Universal auth configured")
+                            print(f"  Client ID: {client_id}")
+                            print(f"  Client Secret: {client_secret[:10]}...")
+                            result = identity_id, client_id, client_secret
+                        else:
+                            result = None
 
     except httpx.RequestError as e:
         print(f"Error creating machine identity: {e}")
         return None
+    else:
+        return result
 
 
 def add_identity_to_project(token: str, project_id: str, identity_id: str) -> bool:
@@ -244,17 +261,21 @@ def add_identity_to_project(token: str, project_id: str, identity_id: str) -> bo
 
         if resp.status_code in (200, 201):
             print("✓ Identity added to project")
-            return True
+            success = True
         else:
             print(f"Warning: Could not add identity to project. Status: {resp.status_code}")
-            return False
+            success = False
 
     except httpx.RequestError as e:
         print(f"Error adding identity to project: {e}")
         return False
+    else:
+        return success
 
 
-def update_env_file(client_id: str, client_secret: str, project_id: str, admin_password: str) -> bool:
+def update_env_file(
+    client_id: str, client_secret: str, project_id: str, admin_password: str
+) -> bool:
     """Update the .env file with Infisical credentials."""
     print(f"\nUpdating {ENV_FILE}...")
 
@@ -326,7 +347,9 @@ def print_summary(client_id: str, client_secret: str, project_id: str):
     print("  1. Restart your backend to pick up the new credentials")
     print("  2. Go to Org Settings > API Keys to manage LLM API keys")
     print()
-    print("⚠ IMPORTANT: Save the admin password above - you'll need it to log into Infisical!")
+    print(
+        "⚠ IMPORTANT: Save the admin password above - you'll need it to log into Infisical!"
+    )
 
 
 def print_manual_instructions():

@@ -71,7 +71,9 @@ async def update_user_me(
             AuditAction.USER_PROFILE_UPDATED,
             actor=current_user,
             request=request,
-            targets=[Target(type="user", id=str(current_user.id), name=current_user.email)],
+            targets=[
+                Target(type="user", id=str(current_user.id), name=current_user.email)
+            ],
             changes={"before": old_values, "after": new_values},
             metadata={"fields_updated": list(new_values.keys())},
         )
@@ -119,7 +121,9 @@ async def upload_profile_image(
             AuditAction.USER_PROFILE_IMAGE_UPLOADED,
             actor=current_user,
             request=request,
-            targets=[Target(type="user", id=str(current_user.id), name=current_user.email)],
+            targets=[
+                Target(type="user", id=str(current_user.id), name=current_user.email)
+            ],
             metadata={
                 "content_type": file.content_type,
                 "filename": file.filename,
@@ -127,24 +131,24 @@ async def upload_profile_image(
             },
         )
 
-        return current_user
-
     except InvalidFileTypeError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
     except FileTooLargeError as e:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=str(e),
-        )
+        ) from e
     except StorageError as e:
-        logger.error("profile_image_upload_failed", error=str(e))
+        logger.exception("profile_image_upload_failed", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to upload image",
-        )
+        ) from e
+    else:
+        return current_user
 
 
 @router.delete("/me/profile-image", response_model=UserPublic)
@@ -197,7 +201,7 @@ async def delete_user_me(
             detail="Platform admins cannot delete themselves",
         )
 
-    orgs, count = org_crud.get_user_organizations(
+    orgs, _count = org_crud.get_user_organizations(
         session=session,
         user_id=current_user.id,
     )
@@ -209,11 +213,13 @@ async def delete_user_me(
             user_id=current_user.id,
         )
         if membership:
-            org_memberships.append({
-                "organization_id": str(org.id),
-                "organization_name": org.name,
-                "role": membership.role.value,
-            })
+            org_memberships.append(
+                {
+                    "organization_id": str(org.id),
+                    "organization_name": org.name,
+                    "role": membership.role.value,
+                }
+            )
             if membership.role == OrgRole.OWNER:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

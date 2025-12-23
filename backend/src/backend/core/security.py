@@ -1,6 +1,6 @@
-import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Literal
+import uuid
 
 import jwt
 from passlib.context import CryptContext
@@ -23,17 +23,14 @@ def create_access_token(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
 
-    jti = str(uuid.uuid4())  
+    jti = str(uuid.uuid4())
     to_encode = {
         "exp": expire,
         "sub": str(subject),
         "type": "access",
         "jti": jti,
     }
-    encoded_jwt = jwt.encode(
-        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
-    )
-    return encoded_jwt
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 def create_refresh_token(
@@ -43,21 +40,16 @@ def create_refresh_token(
     if expires_delta:
         expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(UTC) + timedelta(
-            days=settings.REFRESH_TOKEN_EXPIRE_DAYS
-        )
+        expire = datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
-    jti = str(uuid.uuid4()) 
+    jti = str(uuid.uuid4())
     to_encode = {
         "exp": expire,
         "sub": str(subject),
         "type": "refresh",
         "jti": jti,
     }
-    encoded_jwt = jwt.encode(
-        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
-    )
-    return encoded_jwt
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 def create_token_pair(subject: str) -> tuple[str, str, int]:

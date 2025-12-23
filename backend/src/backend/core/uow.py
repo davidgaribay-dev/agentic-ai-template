@@ -7,7 +7,9 @@ Based on patterns from Cosmic Python:
 https://www.cosmicpython.com/book/chapter_06_uow.html
 """
 
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import contextmanager
+import functools
+import inspect
 from typing import TypeVar
 
 from sqlmodel import Session
@@ -155,9 +157,6 @@ def transactional(func):
             session.add(member)
             return team
     """
-    import functools
-    import inspect
-
     sig = inspect.signature(func)
 
     @functools.wraps(func)

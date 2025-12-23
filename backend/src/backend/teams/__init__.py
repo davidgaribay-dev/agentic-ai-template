@@ -6,8 +6,8 @@ from backend.teams.models import (
     TeamMemberPublic,
     TeamMemberUpdate,
     TeamPublic,
-    TeamsPublic,
     TeamRole,
+    TeamsPublic,
     TeamUpdate,
 )
 
@@ -19,7 +19,7 @@ __all__ = [
     "TeamMemberPublic",
     "TeamMemberUpdate",
     "TeamPublic",
-    "TeamsPublic",
     "TeamRole",
     "TeamUpdate",
+    "TeamsPublic",
 ]

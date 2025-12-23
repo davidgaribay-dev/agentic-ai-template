@@ -7,6 +7,7 @@ Smart chunking based on file type:
 """
 
 import asyncio
+from typing import ClassVar
 
 from langchain_core.documents import Document as LangChainDocument
 from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
@@ -23,7 +24,7 @@ class DocumentChunker:
 
     # Language mapping for code-aware chunking
     # Only includes languages supported by langchain_text_splitters.Language
-    CODE_LANGUAGES: dict[str, Language] = {
+    CODE_LANGUAGES: ClassVar[dict[str, Language]] = {
         "py": Language.PYTHON,
         "js": Language.JS,
         "ts": Language.TS,

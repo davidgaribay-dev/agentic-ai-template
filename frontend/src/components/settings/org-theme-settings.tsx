@@ -137,6 +137,7 @@ export function OrgThemeSettings({ orgId }: OrgThemeSettingsProps) {
         'solarized-light',
         'everforest-light',
         'min-light',
+        'notebook-light',
       ].includes(id)
     )
   )
@@ -154,6 +155,7 @@ export function OrgThemeSettings({ orgId }: OrgThemeSettingsProps) {
         'synthwave-84',
         'palenight',
         'shades-of-purple',
+        'notebook-dark',
       ].includes(id)
     )
   )

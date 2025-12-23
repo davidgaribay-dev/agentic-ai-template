@@ -1,7 +1,16 @@
-import uuid
 from typing import Annotated, Any
+import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Path,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 
 from backend.audit.schemas import AuditAction, Target
 from backend.audit.service import audit_service
@@ -17,12 +26,11 @@ from backend.core.storage import (
 )
 from backend.organizations import crud
 from backend.organizations.models import (
-    Organization,
     OrganizationCreate,
     OrganizationMemberPublic,
+    OrganizationMembersPublic,
     OrganizationMemberUpdate,
     OrganizationMemberWithUser,
-    OrganizationMembersPublic,
     OrganizationPublic,
     OrganizationsPublic,
     OrganizationUpdate,
@@ -31,7 +39,6 @@ from backend.organizations.models import (
 from backend.rbac import (
     OrgContextDep,
     OrgPermission,
-    RequireOrgAdminDep,
     RequireOrgOwnerDep,
     can_assign_org_role,
     require_org_permission,
@@ -62,7 +69,9 @@ def list_my_organizations(
     )
 
 
-@router.post("/", response_model=OrganizationPublic, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/", response_model=OrganizationPublic, status_code=status.HTTP_201_CREATED
+)
 async def create_organization(
     request: Request,
     session: SessionDep,
@@ -81,7 +90,9 @@ async def create_organization(
         actor=current_user,
         request=request,
         organization_id=organization.id,
-        targets=[Target(type="organization", id=str(organization.id), name=organization.name)],
+        targets=[
+            Target(type="organization", id=str(organization.id), name=organization.name)
+        ],
     )
 
     return OrganizationPublic.model_validate(organization)
@@ -139,7 +150,11 @@ async def update_organization(
             actor=org_context.user,
             request=request,
             organization_id=org_context.org_id,
-            targets=[Target(type="organization", id=str(organization.id), name=organization.name)],
+            targets=[
+                Target(
+                    type="organization", id=str(organization.id), name=organization.name
+                )
+            ],
             changes={"before": old_values, "after": new_values},
             metadata={"fields_updated": list(new_values.keys())},
         )
@@ -295,8 +310,13 @@ async def update_organization_member(
             actor=org_context.user,
             request=request,
             organization_id=org_context.org_id,
-            targets=[Target(type="user", id=str(member.user_id), name=member_user_email)],
-            changes={"before": {"role": old_role}, "after": {"role": member_in.role.value}},
+            targets=[
+                Target(type="user", id=str(member.user_id), name=member_user_email)
+            ],
+            changes={
+                "before": {"role": old_role},
+                "after": {"role": member_in.role.value},
+            },
             metadata={
                 "member_id": str(member_id),
                 "member_email": member_user_email,
@@ -383,7 +403,11 @@ async def leave_organization(
         actor=org_context.user,
         request=request,
         organization_id=org_context.org_id,
-        targets=[Target(type="user", id=str(org_context.user.id), name=org_context.user.email)],
+        targets=[
+            Target(
+                type="user", id=str(org_context.user.id), name=org_context.user.email
+            )
+        ],
         metadata={
             "org_name": org_context.organization.name,
             "previous_role": org_context.role.value if org_context.role else None,
@@ -396,7 +420,9 @@ async def leave_organization(
 @router.post(
     "/{organization_id}/transfer-ownership",
     response_model=Message,
-    dependencies=[Depends(require_org_permission(OrgPermission.ORG_TRANSFER_OWNERSHIP))],
+    dependencies=[
+        Depends(require_org_permission(OrgPermission.ORG_TRANSFER_OWNERSHIP))
+    ],
 )
 async def transfer_organization_ownership(
     request: Request,
@@ -427,7 +453,7 @@ async def transfer_organization_ownership(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
     await audit_service.log(
         AuditAction.ORG_OWNERSHIP_TRANSFERRED,
@@ -498,7 +524,13 @@ async def upload_organization_logo(
             actor=org_context.user,
             request=request,
             organization_id=org_context.org_id,
-            targets=[Target(type="organization", id=str(org_context.org_id), name=org_context.organization.name)],
+            targets=[
+                Target(
+                    type="organization",
+                    id=str(org_context.org_id),
+                    name=org_context.organization.name,
+                )
+            ],
             metadata={
                 "content_type": file.content_type,
                 "filename": file.filename,
@@ -512,18 +544,18 @@ async def upload_organization_logo(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
     except FileTooLargeError as e:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=str(e),
-        )
+        ) from e
     except StorageError as e:
-        logger.error("org_logo_upload_failed", error=str(e))
+        logger.exception("org_logo_upload_failed", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to upload logo",
-        )
+        ) from e
 
 
 @router.delete(
@@ -560,7 +592,13 @@ async def delete_organization_logo(
         actor=org_context.user,
         request=request,
         organization_id=org_context.org_id,
-        targets=[Target(type="organization", id=str(org_context.org_id), name=org_context.organization.name)],
+        targets=[
+            Target(
+                type="organization",
+                id=str(org_context.org_id),
+                name=org_context.organization.name,
+            )
+        ],
     )
 
     return OrganizationPublic.model_validate(org_context.organization)

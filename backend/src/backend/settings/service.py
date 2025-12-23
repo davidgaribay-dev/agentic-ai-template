@@ -1,5 +1,5 @@
-import uuid
 from datetime import UTC, datetime
+import uuid
 
 from sqlmodel import Session, select
 
@@ -58,9 +58,7 @@ def update_org_settings(
     return settings
 
 
-def get_or_create_team_settings(
-    session: Session, team_id: uuid.UUID
-) -> TeamSettings:
+def get_or_create_team_settings(session: Session, team_id: uuid.UUID) -> TeamSettings:
     statement = select(TeamSettings).where(TeamSettings.team_id == team_id)
     settings = session.exec(statement).first()
 

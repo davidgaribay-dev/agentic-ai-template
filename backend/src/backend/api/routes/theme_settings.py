@@ -1,7 +1,7 @@
-import uuid
 from typing import Annotated
+import uuid
 
-from fastapi import APIRouter, Depends, Path, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 
 from backend.audit import audit_service
 from backend.audit.schemas import AuditAction, Target
@@ -85,7 +85,9 @@ async def update_org_theme_settings(
             actor=current_user,
             request=request,
             organization_id=org_context.org_id,
-            targets=[Target(type="organization_theme_settings", id=str(org_context.org_id))],
+            targets=[
+                Target(type="organization_theme_settings", id=str(org_context.org_id))
+            ],
             changes=changes,
         )
 

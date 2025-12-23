@@ -3,6 +3,7 @@
 Handles document upload, listing, retrieval, deletion, and reprocessing.
 """
 
+import json
 from typing import Annotated
 import uuid
 
@@ -16,19 +17,39 @@ from fastapi import (
     UploadFile,
     status,
 )
+from sqlmodel import select
 
+from backend.audit.schemas import Target
 from backend.audit.service import AuditService
 from backend.auth.deps import CurrentUser, SessionDep
 from backend.core.logging import get_logger
+from backend.core.storage import (
+    StorageError,
+)
+from backend.core.storage import (
+    get_document_content as storage_get_document_content,
+)
+from backend.core.storage import (
+    upload_document as storage_upload_document,
+)
+from backend.core.tasks import create_safe_task, process_document_task
 from backend.documents.models import (
+    DocumentChunk,
     DocumentChunkPublic,
     DocumentPublic,
     DocumentsPublic,
 )
 from backend.documents.parsers import DocumentParser
 from backend.documents.service import DocumentService
+from backend.organizations.models import OrganizationMember
 from backend.rag_settings.service import get_effective_rag_settings
-from backend.rbac.permissions import OrgPermission, TeamPermission
+from backend.rbac.permissions import (
+    OrgPermission,
+    TeamPermission,
+    has_org_permission,
+    has_team_permission,
+)
+from backend.teams.models import TeamMember
 
 logger = get_logger(__name__)
 
@@ -74,10 +95,6 @@ async def upload_document(
     Raises:
         HTTPException: If validation fails, permission denied, or limits exceeded
     """
-    from sqlmodel import select
-
-    from backend.organizations.models import OrganizationMember
-
     # Verify organization membership
     stmt = select(OrganizationMember).where(
         OrganizationMember.organization_id == organization_id,
@@ -104,8 +121,6 @@ async def upload_document(
     org_role = org_membership.role
 
     # RBAC: Check scope-specific permissions
-    from backend.rbac.permissions import has_org_permission, has_team_permission
-
     if scope == "org":
         # Org-level upload: requires org admin/owner
         if not has_org_permission(org_role, OrgPermission.DOCUMENTS_UPLOAD_ORG):
@@ -134,7 +149,6 @@ async def upload_document(
             )
 
         # Get team membership using org_member_id
-        from backend.teams.models import TeamMember
         team_membership = session.exec(
             select(TeamMember).where(
                 TeamMember.team_id == team_id,
@@ -173,7 +187,6 @@ async def upload_document(
             )
 
         # Get team membership using org_member_id
-        from backend.teams.models import TeamMember
         team_membership = session.exec(
             select(TeamMember).where(
                 TeamMember.team_id == team_id,
@@ -273,14 +286,12 @@ async def upload_document(
         )
 
     # Upload file to SeaweedFS/S3
-    from backend.core.storage import StorageError, upload_document
-
     content = await file.read()
     await file.seek(0)  # Reset for potential re-reads
 
     try:
         # Upload to S3 with hierarchical path based on scope
-        s3_object_key = upload_document(
+        s3_object_key = storage_upload_document(
             content=content,
             filename=file.filename,
             content_type=file.content_type or "application/octet-stream",
@@ -293,7 +304,7 @@ async def upload_document(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upload document: {e!s}",
-        )
+        ) from e
 
     logger.debug(
         "document_uploaded_to_s3",
@@ -327,8 +338,6 @@ async def upload_document(
     )
 
     # Trigger background processing task
-    from backend.core.tasks import create_safe_task, process_document_task
-
     # Process document in background (fire-and-forget)
     # In production, use a task queue (Arq/Celery) for better reliability
     create_safe_task(
@@ -348,7 +357,6 @@ async def upload_document(
     )
 
     # Comprehensive audit log for successful upload
-    from backend.audit.schemas import Target
     await audit_service.log(
         "document.upload.success",
         actor=current_user,
@@ -404,8 +412,12 @@ async def list_documents(
     session: SessionDep,
     current_user: CurrentUser,
     organization_id: Annotated[uuid.UUID, Query(description="Organization ID")],
-    team_id: Annotated[uuid.UUID | None, Query(description="Optional team ID filter")] = None,
-    status_filter: Annotated[str | None, Query(description="Optional processing status filter")] = None,
+    team_id: Annotated[
+        uuid.UUID | None, Query(description="Optional team ID filter")
+    ] = None,
+    status_filter: Annotated[
+        str | None, Query(description="Optional processing status filter")
+    ] = None,
 ) -> DocumentsPublic:
     """List documents with optional filters.
 
@@ -422,10 +434,6 @@ async def list_documents(
     Raises:
         HTTPException: If not authorized
     """
-    from sqlmodel import select
-
-    from backend.organizations.models import OrganizationMember
-
     # Verify organization membership
     stmt = select(OrganizationMember).where(
         OrganizationMember.organization_id == organization_id,
@@ -521,12 +529,6 @@ async def delete_document(
         )
 
     # Get user's org membership and role
-    from sqlmodel import select
-
-    from backend.organizations.models import OrganizationMember
-    from backend.rbac.permissions import has_org_permission, has_team_permission
-    from backend.teams.models import TeamMember
-
     stmt = select(OrganizationMember).where(
         OrganizationMember.organization_id == doc.organization_id,
         OrganizationMember.user_id == current_user.id,
@@ -566,7 +568,6 @@ async def delete_document(
             deletion_reason = "team_admin"
 
     if not can_delete:
-        from backend.audit.schemas import Target
         await audit_service.log(
             "document.delete.forbidden",
             actor=current_user,
@@ -592,7 +593,6 @@ async def delete_document(
     await doc_service.delete_document(document_id)
 
     # Comprehensive audit log
-    from backend.audit.schemas import Target
     await audit_service.log(
         "document.delete.success",
         actor=current_user,
@@ -604,7 +604,9 @@ async def delete_document(
             "filename": doc.filename,
             "file_type": doc.file_type,
             "file_size_bytes": doc.file_size,
-            "scope": "org" if not doc.team_id else ("team" if not doc.user_id else "user"),
+            "scope": "org"
+            if not doc.team_id
+            else ("team" if not doc.user_id else "user"),
             "team_id": str(doc.team_id) if doc.team_id else None,
             "document_owner": str(doc.created_by_id),
             "chunk_count": doc.chunk_count,
@@ -647,11 +649,6 @@ async def get_document_content(
     Raises:
         HTTPException: If not found or not authorized
     """
-    from sqlmodel import select
-
-    from backend.documents.models import DocumentChunk
-    from backend.organizations.models import OrganizationMember
-
     doc_service = DocumentService(session)
     doc = doc_service.get_document(document_id)
 
@@ -684,10 +681,8 @@ async def get_document_content(
 
     # Try to read original file from S3/SeaweedFS
     if doc.file_path:
-        from backend.core.storage import StorageError, get_document_content
-
         try:
-            file_bytes = get_document_content(doc.file_path)
+            file_bytes = storage_get_document_content(doc.file_path)
             # Try to decode as text
             try:
                 content = file_bytes.decode("utf-8")
@@ -751,11 +746,6 @@ async def get_document_chunks(
     Raises:
         HTTPException: If not found or not authorized
     """
-    from sqlmodel import select
-
-    from backend.documents.models import DocumentChunk
-    from backend.organizations.models import OrganizationMember
-
     doc_service = DocumentService(session)
     doc = doc_service.get_document(document_id)
 
@@ -796,7 +786,6 @@ async def get_document_chunks(
     # Parse metadata from JSON string if needed
     result = []
     for chunk in chunks:
-        import json
         metadata = chunk.metadata_
         if isinstance(metadata, str):
             try:
@@ -804,15 +793,17 @@ async def get_document_chunks(
             except (json.JSONDecodeError, TypeError):
                 metadata = None
 
-        result.append(DocumentChunkPublic(
-            id=chunk.id,
-            document_id=chunk.document_id,
-            chunk_index=chunk.chunk_index,
-            content=chunk.content,
-            token_count=chunk.token_count,
-            metadata_=metadata,
-            created_at=chunk.created_at,
-        ))
+        result.append(
+            DocumentChunkPublic(
+                id=chunk.id,
+                document_id=chunk.document_id,
+                chunk_index=chunk.chunk_index,
+                content=chunk.content,
+                token_count=chunk.token_count,
+                metadata_=metadata,
+                created_at=chunk.created_at,
+            )
+        )
 
     return result
 
@@ -866,8 +857,6 @@ async def reprocess_document(
     session.commit()
 
     # Trigger background reprocessing task
-    from backend.core.tasks import create_safe_task, process_document_task
-
     create_safe_task(
         process_document_task(
             document_id=document_id,

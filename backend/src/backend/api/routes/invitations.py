@@ -1,5 +1,5 @@
-import uuid
 from typing import Annotated
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 
@@ -7,10 +7,8 @@ from backend.audit.schemas import AuditAction, Target
 from backend.audit.service import audit_service
 from backend.auth.deps import CurrentUser, SessionDep
 from backend.auth.models import Message
-from backend.core.config import settings
 from backend.invitations import crud
 from backend.invitations.models import (
-    Invitation,
     InvitationAccept,
     InvitationCreate,
     InvitationCreatedResponse,
@@ -20,12 +18,14 @@ from backend.invitations.models import (
     InvitationStatus,
 )
 from backend.organizations import crud as org_crud
+from backend.organizations.models import OrgRole
 from backend.rbac import (
     OrgContextDep,
     OrgPermission,
     require_org_permission,
 )
 from backend.teams import crud as team_crud
+from backend.teams.models import TeamRole
 
 router = APIRouter(tags=["invitations"])
 
@@ -114,13 +114,17 @@ async def create_invitation(
         request=request,
         organization_id=org_context.org_id,
         team_id=invitation_in.team_id,
-        targets=[Target(type="invitation", id=str(invitation.id), name=invitation.email)],
+        targets=[
+            Target(type="invitation", id=str(invitation.id), name=invitation.email)
+        ],
         metadata={
             "invitee_email": invitation.email,
             "org_role": invitation.org_role,
             "team_role": invitation.team_role,
             "team_id": str(invitation_in.team_id) if invitation_in.team_id else None,
-            "expires_at": invitation.expires_at.isoformat() if invitation.expires_at else None,
+            "expires_at": invitation.expires_at.isoformat()
+            if invitation.expires_at
+            else None,
         },
     )
 
@@ -228,7 +232,7 @@ async def resend_invitation(
             detail="Cannot resend an accepted invitation",
         )
 
-    new_invitation, token = crud.resend_invitation(
+    new_invitation, _token = crud.resend_invitation(
         session=session,
         invitation=invitation,
         expires_in_days=expires_in_days,
@@ -239,7 +243,11 @@ async def resend_invitation(
         actor=org_context.user,
         request=request,
         organization_id=org_context.org_id,
-        targets=[Target(type="invitation", id=str(new_invitation.id), name=new_invitation.email)],
+        targets=[
+            Target(
+                type="invitation", id=str(new_invitation.id), name=new_invitation.email
+            )
+        ],
         metadata={
             "invitee_email": new_invitation.email,
             "old_invitation_id": str(invitation_id),
@@ -299,12 +307,12 @@ def get_invitation_info(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invitation has expired",
             )
-        elif invitation.status == InvitationStatus.ACCEPTED:
+        if invitation.status == InvitationStatus.ACCEPTED:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invitation has already been accepted",
             )
-        elif invitation.status == InvitationStatus.REVOKED:
+        if invitation.status == InvitationStatus.REVOKED:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invitation has been revoked",
@@ -366,12 +374,12 @@ async def accept_invitation(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invitation has expired",
             )
-        elif invitation.status == InvitationStatus.ACCEPTED:
+        if invitation.status == InvitationStatus.ACCEPTED:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invitation has already been accepted",
             )
-        elif invitation.status == InvitationStatus.REVOKED:
+        if invitation.status == InvitationStatus.REVOKED:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invitation has been revoked",
@@ -394,8 +402,6 @@ async def accept_invitation(
             detail="You are already a member of this organization",
         )
 
-    from backend.organizations.models import OrgRole
-
     org_role = OrgRole(invitation.org_role)
     org_membership = org_crud.add_org_member(
         session=session,
@@ -406,8 +412,6 @@ async def accept_invitation(
 
     team_joined = None
     if invitation.team_id and invitation.team_role:
-        from backend.teams.models import TeamRole
-
         team_role = TeamRole(invitation.team_role)
         team_crud.add_team_member(
             session=session,
@@ -433,7 +437,9 @@ async def accept_invitation(
             "org_role": org_role.value,
             "team_role": invitation.team_role if team_joined else None,
             "team_id": str(team_joined) if team_joined else None,
-            "invited_by_id": str(invitation.invited_by_id) if invitation.invited_by_id else None,
+            "invited_by_id": str(invitation.invited_by_id)
+            if invitation.invited_by_id
+            else None,
         },
     )
 

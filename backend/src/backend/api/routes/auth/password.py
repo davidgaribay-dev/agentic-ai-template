@@ -44,7 +44,9 @@ async def update_password_me(
             request=request,
             outcome="failure",
             severity=LogLevel.WARNING,
-            targets=[Target(type="user", id=str(current_user.id), name=current_user.email)],
+            targets=[
+                Target(type="user", id=str(current_user.id), name=current_user.email)
+            ],
             error_code="INCORRECT_PASSWORD",
             error_message="Incorrect current password provided",
         )
@@ -116,11 +118,15 @@ async def recover_password(request: Request, email: str, session: SessionDep) ->
         logger.info("password_recovery_attempted_unknown_email", email=email)
 
     # Always return same message to prevent user enumeration
-    return Message(message="If an account exists with this email, a recovery link has been sent")
+    return Message(
+        message="If an account exists with this email, a recovery link has been sent"
+    )
 
 
 @router.post("/reset-password", response_model=Message)
-async def reset_password(request: Request, session: SessionDep, body: NewPassword) -> Any:
+async def reset_password(
+    request: Request, session: SessionDep, body: NewPassword
+) -> Any:
     """Reset password using a valid reset token.
 
     Validates the token and updates the user's password.

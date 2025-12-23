@@ -15,18 +15,19 @@ The script will:
 """
 
 import asyncio
-import sys
 from pathlib import Path
+import sys
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from sqlmodel import Session, func, select
 
 from backend.agents.base import get_conversation_history
 from backend.conversations.crud import create_conversation_message
 from backend.conversations.models import Conversation, ConversationMessage
 from backend.core.db import engine
 from backend.core.logging import get_logger
-from sqlmodel import Session, select, func
 
 logger = get_logger(__name__)
 

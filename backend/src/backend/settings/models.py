@@ -1,6 +1,5 @@
-import uuid
-from datetime import datetime
 from typing import TYPE_CHECKING
+import uuid
 
 from sqlalchemy.dialects.postgresql import JSON
 from sqlmodel import Field, Relationship, SQLModel
@@ -176,10 +175,6 @@ class EffectiveSettings(SQLModel):
     disabled_mcp_servers: list[str] = []
     disabled_tools: list[str] = []
 
-
-from backend.auth.models import User  # noqa: E402, F401
-from backend.organizations.models import Organization  # noqa: E402, F401
-from backend.teams.models import Team  # noqa: E402, F401
 
 OrganizationSettings.model_rebuild()
 TeamSettings.model_rebuild()

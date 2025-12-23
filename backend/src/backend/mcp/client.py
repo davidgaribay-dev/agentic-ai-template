@@ -8,11 +8,17 @@ Each tool invocation creates a fresh MCP ClientSession, executes the tool,
 and then cleans up automatically.
 """
 
-import uuid
+import re
 from typing import Any
+import uuid
 
 from langchain_core.tools import BaseTool
 from sqlmodel import Session
+
+try:
+    from langchain_mcp_adapters.client import MultiServerMCPClient
+except ImportError:
+    MultiServerMCPClient = None  # type: ignore
 
 from backend.core.logging import get_logger
 from backend.core.secrets import get_secrets_service
@@ -83,7 +89,11 @@ async def get_mcp_tools_for_context(
         user_id=uuid.UUID(user_id),
     )
 
-    logger.info("mcp_servers_found", server_count=len(servers), server_names=[s.name for s in servers])
+    logger.info(
+        "mcp_servers_found",
+        server_count=len(servers),
+        server_names=[s.name for s in servers],
+    )
 
     if not servers:
         logger.info("no_mcp_servers_configured", org_id=org_id, team_id=team_id)
@@ -109,7 +119,9 @@ async def get_mcp_tools_for_context(
 
     # Build combined config for all servers
     combined_config: dict[str, dict[str, Any]] = {}
-    server_prefixes: dict[str, tuple[str, bool]] = {}  # server_name -> (original_name, should_prefix)
+    server_prefixes: dict[
+        str, tuple[str, bool]
+    ] = {}  # server_name -> (original_name, should_prefix)
 
     for server in servers:
         config = _build_server_config(server, org_id)
@@ -136,7 +148,6 @@ async def get_mcp_tools_for_context(
             server_count=len(combined_config),
             tool_count=len(tools),
         )
-        return tools
     except Exception as e:
         logger.warning(
             "mcp_tools_loading_failed",
@@ -144,6 +155,8 @@ async def get_mcp_tools_for_context(
             server_count=len(combined_config),
         )
         return []
+    else:
+        return tools
 
 
 async def _load_tools_from_servers(
@@ -163,10 +176,8 @@ async def _load_tools_from_servers(
     Returns:
         List of tools from all servers
     """
-    try:
-        from langchain_mcp_adapters.client import MultiServerMCPClient
-    except ImportError:
-        logger.error("langchain_mcp_adapters_not_installed")
+    if MultiServerMCPClient is None:
+        logger.exception("langchain_mcp_adapters_not_installed")
         return []
 
     # Create client - as of 0.1.0, no context manager needed
@@ -187,11 +198,11 @@ async def _load_tools_from_servers(
             tool_names=[t.name for t in tools],
         )
 
-        return tools
-
-    except Exception as e:
+    except Exception:
         _active_clients.pop(context_key, None)
-        raise e
+        raise
+    else:
+        return tools
 
 
 def _build_server_config(server: MCPServer, org_id: str) -> dict[str, Any] | None:
@@ -222,7 +233,7 @@ def _build_server_config(server: MCPServer, org_id: str) -> dict[str, Any] | Non
     }
 
     # Add authentication headers if configured
-    if server.auth_type != MCPAuthType.NONE.value and server.auth_type != "none":
+    if server.auth_type not in (MCPAuthType.NONE.value, "none"):
         headers = _build_auth_headers(server, org_id)
         if headers:
             config["headers"] = headers
@@ -272,11 +283,11 @@ def _build_auth_headers(server: MCPServer, org_id: str) -> dict[str, str] | None
             return None
 
         # Build the header based on auth type
-        if server.auth_type == MCPAuthType.BEARER.value or server.auth_type == "bearer":
-            return {server.auth_header_name: f"Bearer {secret_value}"}
+        if server.auth_type in (MCPAuthType.BEARER.value, "bearer"):
+            header_value = {server.auth_header_name: f"Bearer {secret_value}"}
         else:
             # API key or other - use value directly
-            return {server.auth_header_name: secret_value}
+            header_value = {server.auth_header_name: secret_value}
 
     except Exception as e:
         logger.warning(
@@ -285,6 +296,8 @@ def _build_auth_headers(server: MCPServer, org_id: str) -> dict[str, str] | None
             error=str(e),
         )
         return None
+    else:
+        return header_value
 
 
 def _sanitize_server_name(name: str) -> str:
@@ -293,8 +306,6 @@ def _sanitize_server_name(name: str) -> str:
     Converts to lowercase, replaces spaces with underscores,
     removes special characters.
     """
-    import re
-
     # Lowercase and replace spaces
     sanitized = name.lower().replace(" ", "_").replace("-", "_")
     # Keep only alphanumeric and underscores
@@ -327,13 +338,10 @@ async def test_mcp_server_connection(server: MCPServer, org_id: str) -> dict[str
         has_auth_secret=bool(server.auth_secret_ref),
     )
 
-    try:
-        from langchain_mcp_adapters.client import MultiServerMCPClient
-    except ImportError as e:
-        logger.error(
+    if MultiServerMCPClient is None:
+        logger.exception(
             "mcp_test_connection_import_error",
             error="langchain-mcp-adapters not installed",
-            import_error=str(e),
         )
         return {
             "success": False,
@@ -387,7 +395,7 @@ async def test_mcp_server_connection(server: MCPServer, org_id: str) -> dict[str
         }
     except ConnectionError as e:
         error_msg = f"Connection failed: {e}. Check if the server URL is correct and the server is running."
-        logger.error(
+        logger.exception(
             "mcp_test_connection_network_error",
             server_id=str(server.id),
             server_name=server_name,
@@ -402,7 +410,7 @@ async def test_mcp_server_connection(server: MCPServer, org_id: str) -> dict[str
         }
     except TimeoutError as e:
         error_msg = f"Connection timed out: {e}. The server may be slow or unreachable."
-        logger.error(
+        logger.exception(
             "mcp_test_connection_timeout",
             server_id=str(server.id),
             server_name=server_name,
@@ -421,15 +429,14 @@ async def test_mcp_server_connection(server: MCPServer, org_id: str) -> dict[str
 
         # Unwrap ExceptionGroup to get the actual underlying error
         actual_error = e
-        if isinstance(e, ExceptionGroup):
+        if isinstance(e, ExceptionGroup) and e.exceptions:
             # Get the first sub-exception for a more useful error message
-            if e.exceptions:
-                actual_error = e.exceptions[0]
-                # Recursively unwrap nested ExceptionGroups
-                while isinstance(actual_error, ExceptionGroup) and actual_error.exceptions:
-                    actual_error = actual_error.exceptions[0]
-                error_type = type(actual_error).__name__
-                error_str = str(actual_error)
+            actual_error = e.exceptions[0]
+            # Recursively unwrap nested ExceptionGroups
+            while isinstance(actual_error, ExceptionGroup) and actual_error.exceptions:
+                actual_error = actual_error.exceptions[0]
+            error_type = type(actual_error).__name__
+            error_str = str(actual_error)
 
         logger.info(
             "mcp_test_connection_unwrapped_error",
@@ -445,23 +452,32 @@ async def test_mcp_server_connection(server: MCPServer, org_id: str) -> dict[str
         elif "403" in error_str or "Forbidden" in error_str:
             error_msg = f"Access denied (403): {error_str}. Your credentials may lack required permissions."
         elif "404" in error_str or "Not Found" in error_str:
-            error_msg = f"Server not found (404): {error_str}. Check the URL path is correct."
+            error_msg = (
+                f"Server not found (404): {error_str}. Check the URL path is correct."
+            )
         elif "500" in error_str or "Internal Server Error" in error_str:
             error_msg = f"Server error (500): {error_str}. The MCP server encountered an internal error."
         elif "ssl" in error_str.lower() or "certificate" in error_str.lower():
-            error_msg = f"SSL/TLS error: {error_str}. Check the server's SSL certificate."
+            error_msg = (
+                f"SSL/TLS error: {error_str}. Check the server's SSL certificate."
+            )
         elif "dns" in error_str.lower() or "resolve" in error_str.lower():
-            error_msg = f"DNS resolution failed: {error_str}. Check the server hostname."
+            error_msg = (
+                f"DNS resolution failed: {error_str}. Check the server hostname."
+            )
         elif "connect" in error_str.lower() or "refused" in error_str.lower():
             error_msg = f"Connection refused: {error_str}. The server may not be running or is blocking connections."
         elif "timeout" in error_str.lower():
             error_msg = f"Connection timed out: {error_str}. The server may be slow or unreachable."
-        elif "name or service not known" in error_str.lower() or "getaddrinfo" in error_str.lower():
+        elif (
+            "name or service not known" in error_str.lower()
+            or "getaddrinfo" in error_str.lower()
+        ):
             error_msg = f"DNS resolution failed: {error_str}. Check the server hostname is correct."
         else:
             error_msg = f"{error_type}: {error_str}"
 
-        logger.error(
+        logger.exception(
             "mcp_test_connection_error",
             server_id=str(server.id),
             server_name=server_name,

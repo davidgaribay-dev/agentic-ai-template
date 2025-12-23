@@ -5,11 +5,12 @@ Provides caching for frequently accessed data:
 - TTL cache: Data cached with time-based expiration
 """
 
+from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from functools import wraps
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from backend.core.logging import get_logger
 
@@ -132,7 +133,7 @@ class TTLCache:
         if cached is None:
             return None
 
-        if datetime.now() > cached.expires_at:
+        if datetime.now(UTC) > cached.expires_at:
             # Expired, remove and return None
             del self._cache[key]
             logger.debug("ttl_cache_expired", key=key)
@@ -144,7 +145,7 @@ class TTLCache:
     def set(self, key: str, value: Any, ttl_seconds: int | None = None) -> None:
         """Set a value in the cache with optional custom TTL."""
         ttl = ttl_seconds if ttl_seconds is not None else self.ttl_seconds
-        expires_at = datetime.now() + timedelta(seconds=ttl)
+        expires_at = datetime.now(UTC) + timedelta(seconds=ttl)
         self._cache[key] = CachedValue(value=value, expires_at=expires_at)
         logger.debug("ttl_cache_set", key=key, ttl=ttl)
 
@@ -160,7 +161,7 @@ class TTLCache:
 
     def cleanup_expired(self) -> int:
         """Remove all expired entries. Returns count of removed entries."""
-        now = datetime.now()
+        now = datetime.now(UTC)
         expired_keys = [k for k, v in self._cache.items() if now > v.expires_at]
         for key in expired_keys:
             del self._cache[key]

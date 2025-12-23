@@ -1,7 +1,6 @@
-import uuid
-from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
+import uuid
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -121,8 +120,5 @@ class ActiveSystemPrompt(SQLModel):
 
 
 # Forward reference resolution
-from backend.auth.models import User  # noqa: E402, F401
-from backend.organizations.models import Organization  # noqa: E402, F401
-from backend.teams.models import Team  # noqa: E402, F401
 
 Prompt.model_rebuild()

@@ -1,7 +1,7 @@
-import uuid
 from datetime import UTC, datetime
+import uuid
 
-from sqlmodel import Session, select, func
+from sqlmodel import Session, func, select
 
 from backend.invitations.models import (
     Invitation,
@@ -102,11 +102,7 @@ def get_organization_invitations(
     if status_filter:
         base_condition = base_condition & (Invitation.status == status_filter)
 
-    count_statement = (
-        select(func.count())
-        .select_from(Invitation)
-        .where(base_condition)
-    )
+    count_statement = select(func.count()).select_from(Invitation).where(base_condition)
     count = session.exec(count_statement).one()
 
     statement = (

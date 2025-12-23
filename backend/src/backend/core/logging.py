@@ -26,11 +26,10 @@ def setup_logging() -> None:
     ]
 
     if settings.ENVIRONMENT == "local":
-        processors = shared_processors + [
-            structlog.dev.ConsoleRenderer(colors=True),
-        ]
+        processors = [*shared_processors, structlog.dev.ConsoleRenderer(colors=True)]
     else:
-        processors = shared_processors + [
+        processors = [
+            *shared_processors,
             structlog.processors.format_exc_info,
             structlog.processors.JSONRenderer(),
         ]

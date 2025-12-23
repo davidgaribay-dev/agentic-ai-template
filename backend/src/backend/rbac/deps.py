@@ -1,8 +1,8 @@
-import uuid
 from typing import Annotated
+import uuid
 
 from fastapi import Depends, HTTPException, Path, status
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from backend.auth.deps import CurrentUser, SessionDep
 from backend.auth.models import User

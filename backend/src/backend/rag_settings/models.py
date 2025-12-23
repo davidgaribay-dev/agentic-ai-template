@@ -3,13 +3,13 @@
 Follows the theme_settings pattern for consistent hierarchical settings management.
 """
 
-import uuid
 from typing import TYPE_CHECKING
+import uuid
 
 from sqlalchemy.dialects.postgresql import JSON
 from sqlmodel import Field, Relationship, SQLModel
 
-from backend.core.base_models import TimestampResponseMixin, TimestampedTable
+from backend.core.base_models import TimestampedTable, TimestampResponseMixin
 
 if TYPE_CHECKING:
     from backend.auth.models import User
@@ -272,9 +272,6 @@ class EffectiveRAGSettings(SQLModel):
 
 
 # Import at bottom to avoid circular imports
-from backend.auth.models import User  # noqa: E402, F401
-from backend.organizations.models import Organization  # noqa: E402, F401
-from backend.teams.models import Team  # noqa: E402, F401
 
 # Rebuild models to resolve relationships
 OrganizationRAGSettings.model_rebuild()

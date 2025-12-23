@@ -17,9 +17,9 @@ Usage:
 """
 
 import argparse
-import secrets
 import base64
 from pathlib import Path
+import secrets
 
 
 def generate_hex_secret(length: int = 32) -> str:

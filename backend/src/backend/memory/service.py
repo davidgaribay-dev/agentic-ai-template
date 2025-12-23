@@ -4,8 +4,8 @@ Provides high-level operations for storing, searching, and managing memories.
 All operations are scoped to a namespace (org/team/user) for isolation.
 """
 
-import uuid
 from datetime import UTC, datetime
+import uuid
 
 from langgraph.store.base import BaseStore
 
@@ -13,6 +13,9 @@ from backend.core.logging import get_logger
 from backend.memory.store import get_memory_namespace
 
 logger = get_logger(__name__)
+
+# Minimum number of search results to check for deduplication
+MIN_SEARCH_RESULTS = 3
 
 
 class MemoryService:
@@ -35,21 +38,110 @@ class MemoryService:
         Filters out common stop words and keeps meaningful content words.
         """
         stop_words = {
-            "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
-            "have", "has", "had", "do", "does", "did", "will", "would", "could",
-            "should", "may", "might", "must", "shall", "can", "need", "to", "of",
-            "in", "for", "on", "with", "at", "by", "from", "as", "into", "through",
-            "during", "before", "after", "above", "below", "between", "under",
-            "again", "further", "then", "once", "here", "there", "when", "where",
-            "why", "how", "all", "each", "few", "more", "most", "other", "some",
-            "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too",
-            "very", "just", "and", "but", "if", "or", "because", "until", "while",
-            "about", "against", "this", "that", "these", "those", "am", "it", "its",
-            "user", "prefers", "likes", "wants", "needs", "interested",
+            "a",
+            "an",
+            "the",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "can",
+            "need",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "as",
+            "into",
+            "through",
+            "during",
+            "before",
+            "after",
+            "above",
+            "below",
+            "between",
+            "under",
+            "again",
+            "further",
+            "then",
+            "once",
+            "here",
+            "there",
+            "when",
+            "where",
+            "why",
+            "how",
+            "all",
+            "each",
+            "few",
+            "more",
+            "most",
+            "other",
+            "some",
+            "such",
+            "no",
+            "nor",
+            "not",
+            "only",
+            "own",
+            "same",
+            "so",
+            "than",
+            "too",
+            "very",
+            "just",
+            "and",
+            "but",
+            "if",
+            "or",
+            "because",
+            "until",
+            "while",
+            "about",
+            "against",
+            "this",
+            "that",
+            "these",
+            "those",
+            "am",
+            "it",
+            "its",
+            "user",
+            "prefers",
+            "likes",
+            "wants",
+            "needs",
+            "interested",
         }
         words = set(text.lower().split())
         # Keep words that are not stop words and have 3+ characters
-        return {w.strip(".,!?;:'\"()[]{}") for w in words if w not in stop_words and len(w) >= 3}
+        return {
+            w.strip(".,!?;:'\"()[]{}")
+            for w in words
+            if w not in stop_words and len(w) >= MIN_SEARCH_RESULTS
+        }
 
     def _calculate_word_overlap(self, text1: str, text2: str) -> float:
         """Calculate word overlap ratio between two texts."""

@@ -1,7 +1,7 @@
-import uuid
 from datetime import UTC, datetime
+import uuid
 
-from sqlmodel import Session, and_, col, func, or_, select
+from sqlmodel import Session, col, func, select
 
 from backend.prompts.models import (
     ActiveSystemPrompt,
@@ -14,19 +14,19 @@ from backend.prompts.models import (
 )
 
 __all__ = [
+    "activate_prompt",
     "create_org_prompt",
     "create_team_prompt",
     "create_user_prompt",
+    "deactivate_prompts_in_scope",
+    "delete_prompt",
+    "get_active_system_prompt",
+    "get_available_prompts",
     "get_prompt",
     "get_prompts_by_org",
     "get_prompts_by_team",
     "get_prompts_by_user",
-    "get_available_prompts",
-    "get_active_system_prompt",
     "update_prompt",
-    "delete_prompt",
-    "activate_prompt",
-    "deactivate_prompts_in_scope",
 ]
 
 

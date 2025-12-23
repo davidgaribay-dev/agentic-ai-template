@@ -5,8 +5,8 @@ Follows DRY principles using base_models.py mixins:
 - DocumentChunk: Uses UUIDPrimaryKeyMixin + CreatedAtMixin
 """
 
-import uuid
 from typing import TYPE_CHECKING, Any
+import uuid
 
 from sqlalchemy import Column, Index, Text
 from sqlmodel import Field, Relationship, SQLModel

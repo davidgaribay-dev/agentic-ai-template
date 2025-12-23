@@ -1,18 +1,27 @@
-import secrets
-import warnings
-import os
 from functools import lru_cache
+import os
+import secrets
 from typing import Annotated, Any, Literal
+import warnings
 
-from pydantic import AnyUrl, BeforeValidator, PostgresDsn, computed_field, field_validator
+from pydantic import (
+    AnyUrl,
+    BeforeValidator,
+    PostgresDsn,
+    computed_field,
+    field_validator,
+)
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Minimum recommended length for SECRET_KEY in characters
+MIN_SECRET_KEY_LENGTH = 32
 
 
 def parse_cors(v: Any) -> list[str] | str:
     if isinstance(v, str) and not v.startswith("["):
         return [i.strip() for i in v.split(",")]
-    elif isinstance(v, list | str):
+    if isinstance(v, list | str):
         return v
     raise ValueError(v)
 
@@ -55,7 +64,11 @@ class Settings(BaseSettings):
     @classmethod
     def validate_postgres_password(cls, v: str, info) -> str:
         """Validate that POSTGRES_PASSWORD is changed in production."""
-        env = info.data.get("ENVIRONMENT") if info.data else os.getenv("ENVIRONMENT", "local")
+        env = (
+            info.data.get("ENVIRONMENT")
+            if info.data
+            else os.getenv("ENVIRONMENT", "local")
+        )
         if v == "changethis" and env == "production":
             raise ValueError(
                 "POSTGRES_PASSWORD must be changed from default value in production. "
@@ -102,7 +115,7 @@ class Settings(BaseSettings):
     def validate_secret_key(cls, v: str, info) -> str:
         """Validate and warn about SECRET_KEY configuration."""
         if not v:
-            generated_key = secrets.token_urlsafe(32)
+            generated_key = secrets.token_urlsafe(MIN_SECRET_KEY_LENGTH)
             warnings.warn(
                 "SECRET_KEY not set! Using a randomly generated key. "
                 "This is only suitable for development. "
@@ -111,9 +124,9 @@ class Settings(BaseSettings):
                 stacklevel=2,
             )
             return generated_key
-        if len(v) < 32:
+        if len(v) < MIN_SECRET_KEY_LENGTH:
             warnings.warn(
-                "SECRET_KEY is shorter than 32 characters. "
+                f"SECRET_KEY is shorter than {MIN_SECRET_KEY_LENGTH} characters. "
                 "Consider using a longer key for better security.",
                 UserWarning,
                 stacklevel=2,
@@ -170,11 +183,13 @@ class Settings(BaseSettings):
     @property
     def has_llm_api_key(self) -> bool:
         """Check if at least one LLM API key is configured via environment."""
-        return any([
-            self.ANTHROPIC_API_KEY,
-            self.OPENAI_API_KEY,
-            self.GOOGLE_API_KEY,
-        ])
+        return any(
+            [
+                self.ANTHROPIC_API_KEY,
+                self.OPENAI_API_KEY,
+                self.GOOGLE_API_KEY,
+            ]
+        )
 
     # Infisical Secrets Management
     INFISICAL_URL: str | None = None
@@ -187,12 +202,14 @@ class Settings(BaseSettings):
     @property
     def infisical_enabled(self) -> bool:
         """Check if Infisical is properly configured."""
-        return all([
-            self.INFISICAL_URL,
-            self.INFISICAL_CLIENT_ID,
-            self.INFISICAL_CLIENT_SECRET,
-            self.INFISICAL_PROJECT_ID,
-        ])
+        return all(
+            [
+                self.INFISICAL_URL,
+                self.INFISICAL_CLIENT_ID,
+                self.INFISICAL_CLIENT_SECRET,
+                self.INFISICAL_PROJECT_ID,
+            ]
+        )
 
     # OpenSearch Configuration
     OPENSEARCH_URL: str | None = None
@@ -210,7 +227,7 @@ class Settings(BaseSettings):
     LANGFUSE_PUBLIC_KEY: str | None = None
     LANGFUSE_SECRET_KEY: str | None = None
     LANGFUSE_HOST: str = "http://localhost:3001"
-    LANGFUSE_BASE_URL: str | None = None  
+    LANGFUSE_BASE_URL: str | None = None
 
     @computed_field
     @property

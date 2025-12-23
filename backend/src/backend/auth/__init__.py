@@ -29,30 +29,30 @@ from backend.auth.models import (
 )
 
 __all__ = [
+    "CurrentUser",
+    "Message",
+    "NewPassword",
+    "RefreshTokenRequest",
+    # Dependencies
+    "SessionDep",
+    "Token",
+    "TokenDep",
+    "TokenPayload",
+    "UpdatePassword",
     # Models
     "User",
     "UserCreate",
     "UserPublic",
     "UserRegister",
-    "UsersPublic",
     "UserUpdate",
     "UserUpdateMe",
-    "UpdatePassword",
-    "NewPassword",
-    "Token",
-    "TokenPayload",
-    "RefreshTokenRequest",
-    "Message",
+    "UsersPublic",
     # CRUD
     "authenticate",
     "create_user",
+    "get_current_user",
+    "get_db",
     "get_user_by_email",
     "get_user_by_id",
     "update_user",
-    # Dependencies
-    "SessionDep",
-    "TokenDep",
-    "CurrentUser",
-    "get_db",
-    "get_current_user",
 ]

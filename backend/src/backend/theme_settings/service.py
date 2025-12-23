@@ -1,5 +1,5 @@
-import uuid
 from datetime import UTC, datetime
+import uuid
 
 from sqlmodel import Session, select
 
@@ -12,7 +12,7 @@ from backend.theme_settings.models import (
     UserThemeSettings,
     UserThemeSettingsUpdate,
 )
-from backend.theme_settings.themes import PREDEFINED_THEMES, get_theme_colors
+from backend.theme_settings.themes import get_theme_colors
 
 
 def get_or_create_org_theme_settings(
@@ -203,18 +203,17 @@ def get_effective_theme_settings(
                     customization_disabled_by=None,
                     system_prefers_dark=system_prefers_dark,
                 )
-            else:
-                # User cannot customize - use org defaults
-                return _build_effective_settings(
-                    org_settings.default_theme_mode,
-                    org_settings.default_light_theme,
-                    org_settings.default_dark_theme,
-                    org_settings.custom_light_theme,
-                    org_settings.custom_dark_theme,
-                    customization_allowed=False,
-                    customization_disabled_by="org",
-                    system_prefers_dark=system_prefers_dark,
-                )
+            # User cannot customize - use org defaults
+            return _build_effective_settings(
+                org_settings.default_theme_mode,
+                org_settings.default_light_theme,
+                org_settings.default_dark_theme,
+                org_settings.custom_light_theme,
+                org_settings.custom_dark_theme,
+                customization_allowed=False,
+                customization_disabled_by="org",
+                system_prefers_dark=system_prefers_dark,
+            )
 
         # Org allows team customization - check if team is using it
         if not team_settings.theme_customization_enabled:
@@ -235,23 +234,18 @@ def get_effective_theme_settings(
                     customization_disabled_by=None,
                     system_prefers_dark=system_prefers_dark,
                 )
-            else:
-                # User cannot customize - use org defaults
-                disabled_by = (
-                    "org"
-                    if not org_settings.allow_user_customization
-                    else "team"
-                )
-                return _build_effective_settings(
-                    org_settings.default_theme_mode,
-                    org_settings.default_light_theme,
-                    org_settings.default_dark_theme,
-                    org_settings.custom_light_theme,
-                    org_settings.custom_dark_theme,
-                    customization_allowed=False,
-                    customization_disabled_by=disabled_by,
-                    system_prefers_dark=system_prefers_dark,
-                )
+            # User cannot customize - use org defaults
+            disabled_by = "org" if not org_settings.allow_user_customization else "team"
+            return _build_effective_settings(
+                org_settings.default_theme_mode,
+                org_settings.default_light_theme,
+                org_settings.default_dark_theme,
+                org_settings.custom_light_theme,
+                org_settings.custom_dark_theme,
+                customization_allowed=False,
+                customization_disabled_by=disabled_by,
+                system_prefers_dark=system_prefers_dark,
+            )
 
         # Team is using custom themes - check if user can override
         user_can_customize = (
@@ -270,21 +264,18 @@ def get_effective_theme_settings(
                 customization_disabled_by=None,
                 system_prefers_dark=system_prefers_dark,
             )
-        else:
-            # User cannot override - use team defaults
-            disabled_by = (
-                "org" if not org_settings.allow_user_customization else "team"
-            )
-            return _build_effective_settings(
-                team_settings.default_theme_mode,
-                team_settings.default_light_theme,
-                team_settings.default_dark_theme,
-                team_settings.custom_light_theme,
-                team_settings.custom_dark_theme,
-                customization_allowed=False,
-                customization_disabled_by=disabled_by,
-                system_prefers_dark=system_prefers_dark,
-            )
+        # User cannot override - use team defaults
+        disabled_by = "org" if not org_settings.allow_user_customization else "team"
+        return _build_effective_settings(
+            team_settings.default_theme_mode,
+            team_settings.default_light_theme,
+            team_settings.default_dark_theme,
+            team_settings.custom_light_theme,
+            team_settings.custom_dark_theme,
+            customization_allowed=False,
+            customization_disabled_by=disabled_by,
+            system_prefers_dark=system_prefers_dark,
+        )
 
     # Step 3: No team context - check if user can customize
     if org_settings.allow_user_customization:
@@ -299,18 +290,17 @@ def get_effective_theme_settings(
             customization_disabled_by=None,
             system_prefers_dark=system_prefers_dark,
         )
-    else:
-        # User cannot customize - use org defaults
-        return _build_effective_settings(
-            org_settings.default_theme_mode,
-            org_settings.default_light_theme,
-            org_settings.default_dark_theme,
-            org_settings.custom_light_theme,
-            org_settings.custom_dark_theme,
-            customization_allowed=False,
-            customization_disabled_by="org",
-            system_prefers_dark=system_prefers_dark,
-        )
+    # User cannot customize - use org defaults
+    return _build_effective_settings(
+        org_settings.default_theme_mode,
+        org_settings.default_light_theme,
+        org_settings.default_dark_theme,
+        org_settings.custom_light_theme,
+        org_settings.custom_dark_theme,
+        customization_allowed=False,
+        customization_disabled_by="org",
+        system_prefers_dark=system_prefers_dark,
+    )
 
 
 def _build_effective_settings(
@@ -353,10 +343,7 @@ def _build_effective_settings(
         custom_colors = custom_dark_theme
 
     # Resolve colors (custom takes precedence over predefined)
-    if custom_colors:
-        active_theme_colors = custom_colors
-    else:
-        active_theme_colors = get_theme_colors(theme_id)
+    active_theme_colors = custom_colors or get_theme_colors(theme_id)
 
     return EffectiveThemeSettings(
         theme_mode=theme_mode,

@@ -1,10 +1,10 @@
 """MCP Server CRUD operations and effective server resolution."""
 
-import uuid
 from datetime import UTC, datetime
+import uuid
 
-import structlog
 from sqlmodel import Session, or_, select
+import structlog
 
 from backend.core.secrets import get_secrets_service
 from backend.mcp.models import MCPServer, MCPServerCreate, MCPServerUpdate
@@ -113,9 +113,7 @@ def list_mcp_servers(
 
     if include_org_level:
         # Org-level: team_id IS NULL AND user_id IS NULL
-        conditions.append(
-            (MCPServer.team_id.is_(None)) & (MCPServer.user_id.is_(None))
-        )
+        conditions.append((MCPServer.team_id.is_(None)) & (MCPServer.user_id.is_(None)))
 
     if include_team_level and team_id:
         # Team-level: team_id matches AND user_id IS NULL
@@ -369,11 +367,17 @@ def check_server_limits(
         # User-level server
         current_count = count_user_servers(session, organization_id, team_id, user_id)
         if current_count >= org_settings.mcp_max_servers_per_user:
-            return False, f"Maximum of {org_settings.mcp_max_servers_per_user} personal MCP servers allowed"
+            return (
+                False,
+                f"Maximum of {org_settings.mcp_max_servers_per_user} personal MCP servers allowed",
+            )
     elif team_id:
         # Team-level server
         current_count = count_team_servers(session, organization_id, team_id)
         if current_count >= org_settings.mcp_max_servers_per_team:
-            return False, f"Maximum of {org_settings.mcp_max_servers_per_team} team MCP servers allowed"
+            return (
+                False,
+                f"Maximum of {org_settings.mcp_max_servers_per_team} team MCP servers allowed",
+            )
 
     return True, None

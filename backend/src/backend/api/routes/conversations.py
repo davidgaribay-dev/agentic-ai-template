@@ -1,5 +1,5 @@
-import uuid
 from typing import Annotated, Any
+import uuid
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
@@ -31,7 +31,9 @@ def read_conversations(
     skip: int = 0,
     limit: int = 100,
     team_id: Annotated[uuid.UUID | None, Query(description="Filter by team ID")] = None,
-    search: Annotated[str | None, Query(description="Search in conversation titles and messages")] = None,
+    search: Annotated[
+        str | None, Query(description="Search in conversation titles and messages")
+    ] = None,
 ) -> Any:
     """Retrieve conversations for chat history.
 
@@ -74,7 +76,9 @@ async def create_conversation_endpoint(
     session: SessionDep,
     current_user: CurrentUser,
     conversation_in: ConversationCreate,
-    organization_id: Annotated[uuid.UUID | None, Query(description="Organization ID")] = None,
+    organization_id: Annotated[
+        uuid.UUID | None, Query(description="Organization ID")
+    ] = None,
     team_id: Annotated[uuid.UUID | None, Query(description="Team ID")] = None,
 ) -> Any:
     """Create a new conversation."""
@@ -92,7 +96,11 @@ async def create_conversation_endpoint(
         request=request,
         organization_id=organization_id,
         team_id=team_id,
-        targets=[Target(type="conversation", id=str(conversation.id), name=conversation.title)],
+        targets=[
+            Target(
+                type="conversation", id=str(conversation.id), name=conversation.title
+            )
+        ],
         metadata={
             "has_organization": organization_id is not None,
             "has_team": team_id is not None,
@@ -115,7 +123,7 @@ def read_conversation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Conversation not found",
         )
-    is_owner = conversation.user_id == current_user.id or conversation.created_by_id == current_user.id
+    is_owner = current_user.id in (conversation.user_id, conversation.created_by_id)
     if not is_owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -139,7 +147,7 @@ async def update_conversation_endpoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Conversation not found",
         )
-    is_owner = conversation.user_id == current_user.id or conversation.created_by_id == current_user.id
+    is_owner = current_user.id in (conversation.user_id, conversation.created_by_id)
     if not is_owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -157,8 +165,15 @@ async def update_conversation_endpoint(
         request=request,
         organization_id=conversation.organization_id,
         team_id=conversation.team_id,
-        targets=[Target(type="conversation", id=str(conversation.id), name=conversation.title)],
-        changes={"before": {"title": old_title}, "after": {"title": conversation.title}},
+        targets=[
+            Target(
+                type="conversation", id=str(conversation.id), name=conversation.title
+            )
+        ],
+        changes={
+            "before": {"title": old_title},
+            "after": {"title": conversation.title},
+        },
     )
 
     return conversation
@@ -178,7 +193,7 @@ async def delete_conversation_endpoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Conversation not found",
         )
-    is_owner = conversation.user_id == current_user.id or conversation.created_by_id == current_user.id
+    is_owner = current_user.id in (conversation.user_id, conversation.created_by_id)
     if not is_owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -219,7 +234,7 @@ async def star_conversation_endpoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Conversation not found",
         )
-    is_owner = conversation.user_id == current_user.id or conversation.created_by_id == current_user.id
+    is_owner = current_user.id in (conversation.user_id, conversation.created_by_id)
     if not is_owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -229,14 +244,22 @@ async def star_conversation_endpoint(
         session=session, db_conversation=conversation, is_starred=is_starred
     )
 
-    action = AuditAction.CONVERSATION_STARRED if is_starred else AuditAction.CONVERSATION_UNSTARRED
+    action = (
+        AuditAction.CONVERSATION_STARRED
+        if is_starred
+        else AuditAction.CONVERSATION_UNSTARRED
+    )
     await audit_service.log(
         action,
         actor=current_user,
         request=request,
         organization_id=conversation.organization_id,
         team_id=conversation.team_id,
-        targets=[Target(type="conversation", id=str(conversation.id), name=conversation.title)],
+        targets=[
+            Target(
+                type="conversation", id=str(conversation.id), name=conversation.title
+            )
+        ],
     )
 
     return conversation

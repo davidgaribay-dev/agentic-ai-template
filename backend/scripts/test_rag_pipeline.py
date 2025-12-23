@@ -12,19 +12,20 @@ Usage:
 """
 
 import asyncio
-import os
+from pathlib import Path
+import shutil
 import sys
 import tempfile
+import traceback
 import uuid
-from pathlib import Path
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from datetime import UTC, datetime
 
 from sqlmodel import Session, select
 
+from backend.auth.models import User
 from backend.core.db import engine
 from backend.core.logging import get_logger
 from backend.core.tasks import process_document_task
@@ -32,8 +33,7 @@ from backend.documents.models import Document, DocumentChunk
 from backend.documents.service import DocumentService
 from backend.organizations.models import Organization, OrganizationMember
 from backend.rag_settings.models import OrganizationRAGSettings
-from backend.rag_settings.service import get_effective_rag_settings
-from backend.teams.models import Team
+from backend.rbac.enums import OrgRole
 
 logger = get_logger(__name__)
 
@@ -74,10 +74,8 @@ async def test_rag_pipeline():
         test_org_id = test_org.id
         print(f"   ✓ Created org: {test_org.name} (ID: {test_org_id})")
 
-        # Step 2: Create test user (import after org created)
+        # Step 2: Create test user
         print("\n2. Creating test user...")
-        from backend.auth.models import User
-
         test_user = User(
             email=f"rag-test-{uuid.uuid4().hex[:8]}@example.com",
             hashed_password="fake_hash",
@@ -91,8 +89,6 @@ async def test_rag_pipeline():
 
         # Step 3: Add user to organization
         print("\n3. Adding user to organization...")
-        from backend.rbac.enums import OrgRole
-
         org_member = OrganizationMember(
             organization_id=test_org_id,
             user_id=test_user_id,
@@ -172,7 +168,7 @@ async def test_rag_pipeline():
 
             # Refresh document
             session.refresh(doc)
-            print(f"   ✓ Processing completed")
+            print("   ✓ Processing completed")
             print(f"   Status: {doc.processing_status}")
             print(f"   Chunks created: {doc.chunk_count}")
 
@@ -182,8 +178,6 @@ async def test_rag_pipeline():
 
         except Exception as e:
             print(f"   ✗ Processing failed: {e}")
-            import traceback
-
             traceback.print_exc()
             return False
 
@@ -208,7 +202,7 @@ async def test_rag_pipeline():
         ]
 
         for query in test_queries:
-            print(f"\n   Query: \"{query}\"")
+            print(f'\n   Query: "{query}"')
             results = await doc_service.search_documents(
                 query=query,
                 org_id=test_org_id,
@@ -222,7 +216,7 @@ async def test_rag_pipeline():
                 print(f"   ✓ Found {len(results)} relevant chunks")
                 for i, result in enumerate(results[:2]):  # Show top 2
                     print(
-                        f"     #{i+1} (score: {result.get('relevance_score', 0):.3f}): {result['content'][:80]}..."
+                        f"     #{i + 1} (score: {result.get('relevance_score', 0):.3f}): {result['content'][:80]}..."
                     )
             else:
                 print("   No results found (threshold may be too high)")
@@ -231,14 +225,13 @@ async def test_rag_pipeline():
         print("\n" + "=" * 60)
         print("✓ ALL TESTS PASSED - RAG PIPELINE WORKING!")
         print("=" * 60 + "\n")
-        return True
 
     except Exception as e:
         print(f"\n✗ TEST FAILED: {e}")
-        import traceback
-
         traceback.print_exc()
-        return False
+        success = False
+    else:
+        success = True
 
     finally:
         # Cleanup
@@ -270,8 +263,6 @@ async def test_rag_pipeline():
             # Cleanup temp files
             temp_dir = Path(tempfile.gettempdir()) / "rag_test"
             if temp_dir.exists():
-                import shutil
-
                 shutil.rmtree(temp_dir)
                 print("   ✓ Temp files cleaned up")
 
@@ -280,7 +271,8 @@ async def test_rag_pipeline():
         finally:
             session.close()
 
-        print("\nTest complete.\n")
+    print("\nTest complete.\n")
+    return success
 
 
 if __name__ == "__main__":

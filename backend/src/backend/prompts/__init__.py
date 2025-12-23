@@ -14,8 +14,8 @@ __all__ = [
     "PromptBase",
     "PromptCreate",
     "PromptPublic",
-    "PromptsAvailable",
-    "PromptsPublic",
     "PromptType",
     "PromptUpdate",
+    "PromptsAvailable",
+    "PromptsPublic",
 ]

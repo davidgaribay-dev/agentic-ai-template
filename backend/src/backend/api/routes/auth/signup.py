@@ -74,7 +74,9 @@ async def register_user(
         organization_id=organization.id,
         targets=[
             Target(type="user", id=str(user.id), name=user.email),
-            Target(type="organization", id=str(organization.id), name=organization.name),
+            Target(
+                type="organization", id=str(organization.id), name=organization.name
+            ),
         ],
         metadata={
             "signup_method": "direct",
@@ -111,12 +113,12 @@ async def register_user_with_invitation(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invitation has expired",
             )
-        elif invitation.status == InvitationStatus.ACCEPTED:
+        if invitation.status == InvitationStatus.ACCEPTED:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invitation has already been accepted",
             )
-        elif invitation.status == InvitationStatus.REVOKED:
+        if invitation.status == InvitationStatus.REVOKED:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invitation has been revoked",
@@ -180,7 +182,9 @@ async def register_user_with_invitation(
             "invitation_id": str(invitation.id),
             "org_role": org_role.value,
             "team_role": invitation.team_role if team_joined else None,
-            "invited_by_id": str(invitation.invited_by_id) if invitation.invited_by_id else None,
+            "invited_by_id": str(invitation.invited_by_id)
+            if invitation.invited_by_id
+            else None,
         },
     )
 

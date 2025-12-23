@@ -1,5 +1,5 @@
-import uuid
 from datetime import UTC, datetime
+import uuid
 
 from sqlmodel import Session, col, delete, func, select
 
@@ -13,8 +13,8 @@ from backend.conversations.models import (
 # Re-export for backwards compatibility
 __all__ = [
     "create_conversation",
-    "create_conversation_with_id",
     "create_conversation_message",
+    "create_conversation_with_id",
     "delete_conversation_messages",
     "get_conversation",
     "get_conversations_by_team",
@@ -77,7 +77,9 @@ def create_conversation_with_id(
     return db_conversation
 
 
-def get_conversation(*, session: Session, conversation_id: uuid.UUID) -> Conversation | None:
+def get_conversation(
+    *, session: Session, conversation_id: uuid.UUID
+) -> Conversation | None:
     return session.get(Conversation, conversation_id)
 
 
@@ -172,7 +174,9 @@ def update_conversation(
     return db_conversation
 
 
-def touch_conversation(*, session: Session, conversation_id: uuid.UUID) -> Conversation | None:
+def touch_conversation(
+    *, session: Session, conversation_id: uuid.UUID
+) -> Conversation | None:
     """Update the updated_at timestamp for a conversation."""
     db_conversation = session.get(Conversation, conversation_id)
     if db_conversation:
@@ -205,7 +209,9 @@ def restore_conversation(
     return db_conversation
 
 
-def hard_delete_conversation(*, session: Session, db_conversation: Conversation) -> None:
+def hard_delete_conversation(
+    *, session: Session, db_conversation: Conversation
+) -> None:
     """Permanently delete a conversation from the database."""
     session.delete(db_conversation)
     session.commit()

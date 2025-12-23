@@ -1,13 +1,12 @@
-import uuid
-from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
+import uuid
 
 from sqlmodel import Field, Relationship, SQLModel
 
 from backend.core.base_models import (
-    OrgScopedMixin,
     OptionalAuditedTable,
+    OrgScopedMixin,
     PaginatedResponse,
     TimestampedTable,
     TimestampResponseMixin,
@@ -16,7 +15,10 @@ from backend.core.base_models import (
 if TYPE_CHECKING:
     from backend.conversations.models import Conversation
     from backend.invitations.models import Invitation
-    from backend.organizations.models import Organization, OrganizationMember
+    from backend.organizations.models import (
+        Organization,
+        OrganizationMember,
+    )
     from backend.rag_settings.models import TeamRAGSettings
     from backend.settings.models import TeamSettings
     from backend.theme_settings.models import TeamThemeSettings
@@ -121,7 +123,7 @@ class TeamMember(TeamMemberBase, TimestampedTable, table=True):
 
     class Config:
         # Unique constraint: org member can only be member of team once
-        table_args = {"unique_constraint": ["team_id", "org_member_id"]}
+        table_args: ClassVar = {"unique_constraint": ["team_id", "org_member_id"]}
 
 
 class TeamMemberCreate(SQLModel):
@@ -151,13 +153,6 @@ class TeamMemberWithUser(TeamMemberPublic):
 # TeamMembersPublic is now PaginatedResponse[TeamMemberWithUser]
 TeamMembersPublic = PaginatedResponse[TeamMemberWithUser]
 
-
-from backend.conversations.models import Conversation  # noqa: E402, F401
-from backend.invitations.models import Invitation  # noqa: E402, F401
-from backend.organizations.models import Organization, OrganizationMember  # noqa: E402, F401
-from backend.rag_settings.models import TeamRAGSettings  # noqa: E402, F401
-from backend.settings.models import TeamSettings  # noqa: E402, F401
-from backend.theme_settings.models import TeamThemeSettings  # noqa: E402, F401
 
 Team.model_rebuild()
 TeamMember.model_rebuild()

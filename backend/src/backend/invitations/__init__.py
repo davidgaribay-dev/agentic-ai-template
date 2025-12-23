@@ -10,6 +10,6 @@ __all__ = [
     "Invitation",
     "InvitationCreate",
     "InvitationPublic",
-    "InvitationsPublic",
     "InvitationStatus",
+    "InvitationsPublic",
 ]

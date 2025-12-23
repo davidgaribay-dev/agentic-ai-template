@@ -10,11 +10,8 @@ The memory store uses:
 - Namespace-based multi-tenant isolation
 """
 
-from contextlib import asynccontextmanager
-from typing import AsyncIterator
-
-from langgraph.store.postgres import AsyncPostgresStore
 from langchain_openai import OpenAIEmbeddings
+from langgraph.store.postgres import AsyncPostgresStore
 
 from backend.core.config import settings
 from backend.core.logging import get_logger

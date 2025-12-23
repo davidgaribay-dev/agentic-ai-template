@@ -1,7 +1,7 @@
-import uuid
 from typing import Annotated
+import uuid
 
-from fastapi import APIRouter, Depends, Path, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 
 from backend.audit import audit_service
 from backend.audit.schemas import AuditAction, Target
@@ -122,7 +122,9 @@ async def update_team_chat_settings(
     These settings can only enable features that the org has enabled.
     """
     # Get current settings for change tracking
-    current_settings = service.get_or_create_team_settings(session, team_context.team_id)
+    current_settings = service.get_or_create_team_settings(
+        session, team_context.team_id
+    )
     changes = {}
     update_data = settings_in.model_dump(exclude_unset=True)
     for field, new_value in update_data.items():

@@ -23,6 +23,9 @@ from backend.memory.store import get_memory_store
 
 logger = get_logger(__name__)
 
+# Minimum number of parts expected after splitting markdown code blocks
+MIN_EXTRACTION_MESSAGES = 2
+
 
 async def extract_and_store_memories(
     user_message: str,
@@ -60,9 +63,11 @@ async def extract_and_store_memories(
 
         if org_id and org_id != "default":
             try:
-                llm = get_chat_model_with_context(org_id, team_id if team_id != "default" else None)
+                llm = get_chat_model_with_context(
+                    org_id, team_id if team_id != "default" else None
+                )
             except Exception as e:
-                logger.error(
+                logger.exception(
                     "memory_extraction_llm_init_error",
                     error=str(e),
                     error_type=type(e).__name__,
@@ -114,9 +119,13 @@ JSON response:"""
         try:
             response = await llm.ainvoke(prompt)
             content = str(response.content).strip()
-            logger.info("memory_extraction_llm_response", response_length=len(content), raw_content=content[:500])
+            logger.info(
+                "memory_extraction_llm_response",
+                response_length=len(content),
+                raw_content=content[:500],
+            )
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "memory_extraction_llm_invoke_error",
                 error=str(e),
                 error_type=type(e).__name__,
@@ -128,14 +137,16 @@ JSON response:"""
         if content.startswith("```"):
             # Split and get the content between first ``` and second ```
             parts = content.split("```")
-            if len(parts) >= 2:
+            if len(parts) >= MIN_EXTRACTION_MESSAGES:
                 content = parts[1]
                 # Strip language identifier (json, JSON, etc.)
                 if content.lower().startswith("json"):
                     content = content[4:]
                 elif content.startswith("\n"):
                     pass  # No language identifier, just newline
-            logger.debug("memory_extraction_after_markdown_strip", content_preview=content[:200])
+            logger.debug(
+                "memory_extraction_after_markdown_strip", content_preview=content[:200]
+            )
         content = content.strip()
 
         logger.debug("memory_extraction_parsing_json", content_preview=content[:200])
@@ -180,8 +191,12 @@ JSON response:"""
             await audit_service.log(
                 "memory.extracted",
                 targets=[Target(type="memory", id=conversation_id or "unknown")],
-                organization_id=uuid.UUID(org_id) if org_id and org_id != "default" else None,
-                team_id=uuid.UUID(team_id) if team_id and team_id != "default" else None,
+                organization_id=uuid.UUID(org_id)
+                if org_id and org_id != "default"
+                else None,
+                team_id=uuid.UUID(team_id)
+                if team_id and team_id != "default"
+                else None,
                 severity=LogLevel.INFO,
                 metadata={
                     "stored_count": stored_count,
@@ -199,8 +214,6 @@ JSON response:"""
             conversation_id=conversation_id,
         )
 
-        return stored_count
-
     except json.JSONDecodeError as e:
         logger.warning(
             "memory_extraction_parse_error",
@@ -211,14 +224,16 @@ JSON response:"""
         return 0
 
     except Exception as e:
-        logger.error(
+        logger.exception(
             "memory_extraction_error",
             error=str(e),
             error_type=type(e).__name__,
             org_id=org_id,
             user_id=user_id,
         )
-        return 0
+        stored_count = 0
+
+    return stored_count
 
 
 def format_memories_for_context(memories: list[dict]) -> str:

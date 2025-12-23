@@ -9,6 +9,8 @@ import uuid
 
 from sqlmodel import Session, select
 
+from backend.core.logging import get_logger
+from backend.core.storage import delete_document as s3_delete_document
 from backend.documents.chunking import DocumentChunker
 from backend.documents.embeddings import EmbeddingsService
 from backend.documents.models import Document, DocumentChunk
@@ -144,7 +146,9 @@ class DocumentService:
             )
 
             # Store chunks with embeddings
-            for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+            for idx, (chunk, embedding) in enumerate(
+                zip(chunks, embeddings, strict=False)
+            ):
                 chunk_record = DocumentChunk(
                     document_id=doc.id,
                     organization_id=doc.organization_id,
@@ -221,9 +225,6 @@ class DocumentService:
         Raises:
             ValueError: If document not found
         """
-        from backend.core.logging import get_logger
-        from backend.core.storage import delete_document as s3_delete_document
-
         logger = get_logger(__name__)
 
         doc = self.session.get(Document, document_id)
@@ -310,13 +311,15 @@ class DocumentService:
                 except (json.JSONDecodeError, TypeError):
                     metadata = None
 
-            formatted_results.append({
-                "content": result.content,
-                "source": result.filename,
-                "file_type": result.file_type,
-                "metadata": metadata,
-                "relevance_score": round(result.similarity, 3),
-                "chunk_index": result.chunk_index,
-                "document_id": str(result.document_id),
-            })
+            formatted_results.append(
+                {
+                    "content": result.content,
+                    "source": result.filename,
+                    "file_type": result.file_type,
+                    "metadata": metadata,
+                    "relevance_score": round(result.similarity, 3),
+                    "chunk_index": result.chunk_index,
+                    "document_id": str(result.document_id),
+                }
+            )
         return formatted_results

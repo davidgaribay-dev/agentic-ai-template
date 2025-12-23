@@ -1,5 +1,7 @@
-import structlog
 from typing import Literal
+
+from infisical_sdk import InfisicalSDKClient
+import structlog
 
 from backend.core.config import settings
 
@@ -40,8 +42,6 @@ class SecretsService:
             return False
 
         try:
-            from infisical_sdk import InfisicalSDKClient
-
             self._client = InfisicalSDKClient(host=settings.INFISICAL_URL)
             self._client.auth.universal_auth.login(
                 settings.INFISICAL_CLIENT_ID,
@@ -52,15 +52,16 @@ class SecretsService:
                 url=settings.INFISICAL_URL,
                 project_id=settings.INFISICAL_PROJECT_ID,
             )
-            return True
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "infisical_init_failed",
                 error=str(e),
                 message="Falling back to environment variables",
             )
             self._client = None
             return False
+        else:
+            return True
 
     def _get_secret_path(self, org_id: str, team_id: str | None = None) -> str:
         if team_id:
@@ -125,7 +126,7 @@ class SecretsService:
                         parent_path=parent_path,
                     )
                     continue
-                logger.error(
+                logger.exception(
                     "infisical_folder_create_failed",
                     folder_name=folder_name,
                     parent_path=parent_path,
@@ -148,7 +149,6 @@ class SecretsService:
                 environment_slug=settings.INFISICAL_ENVIRONMENT,
                 secret_path=path,
             )
-            return secret.secretValue if secret else None
         except Exception as e:
             # Secret not found is expected for unconfigured keys
             logger.debug(
@@ -158,6 +158,8 @@ class SecretsService:
                 error=str(e),
             )
             return None
+        else:
+            return secret.secretValue if secret else None
 
     def _set_secret(self, secret_name: str, secret_value: str, path: str) -> bool:
         """Create or update a secret in Infisical."""
@@ -188,7 +190,6 @@ class SecretsService:
                 secret_name=secret_name,
                 path=path,
             )
-            return True
         except Exception:
             # Secret might already exist, try update
             try:
@@ -204,15 +205,18 @@ class SecretsService:
                     secret_name=secret_name,
                     path=path,
                 )
-                return True
             except Exception as e:
-                logger.error(
+                logger.exception(
                     "infisical_set_secret_failed",
                     secret_name=secret_name,
                     path=path,
                     error=str(e),
                 )
                 return False
+            else:
+                return True
+        else:
+            return True
 
     def _delete_secret(self, secret_name: str, path: str) -> bool:
         """Delete a secret from Infisical."""
@@ -232,15 +236,16 @@ class SecretsService:
                 secret_name=secret_name,
                 path=path,
             )
-            return True
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "infisical_delete_secret_failed",
                 secret_name=secret_name,
                 path=path,
                 error=str(e),
             )
             return False
+        else:
+            return True
 
     def _get_env_fallback(self, provider: LLMProvider) -> str | None:
         """Get API key from environment variables (backward compatibility)."""

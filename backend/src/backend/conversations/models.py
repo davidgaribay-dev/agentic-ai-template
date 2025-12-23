@@ -1,6 +1,6 @@
-import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Optional
+import uuid
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -124,7 +124,5 @@ class ConversationMessage(SQLModel, table=True):
 
 
 # Forward reference resolution
-from backend.auth.models import User  # noqa: E402, F401
-from backend.teams.models import Team  # noqa: E402, F401
 
 Conversation.model_rebuild()

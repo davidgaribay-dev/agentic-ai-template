@@ -1,12 +1,11 @@
-import uuid
 from typing import Annotated, Any
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 
 from backend.audit.schemas import AuditAction, Target
 from backend.audit.service import audit_service
 from backend.auth import CurrentUser, Message, SessionDep
-from backend.auth.models import User
 from backend.items import (
     Item,
     ItemCreate,
@@ -137,7 +136,9 @@ async def update_item_endpoint(
             AuditAction.ITEM_UPDATED,
             actor=current_user,
             request=request,
-            targets=[Target(type="item", id=str(updated_item.id), name=updated_item.title)],
+            targets=[
+                Target(type="item", id=str(updated_item.id), name=updated_item.title)
+            ],
             changes={"before": old_values, "after": new_values},
             metadata={"fields_updated": list(new_values.keys())},
         )

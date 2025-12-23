@@ -1,15 +1,14 @@
-import uuid
 from typing import Annotated, Any
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 
 from backend.audit.schemas import AuditAction, Target
 from backend.audit.service import audit_service
-from backend.auth import CurrentUser, Message, SessionDep
+from backend.auth import CurrentUser, SessionDep
 from backend.prompts import crud
 from backend.prompts.models import (
     ActiveSystemPrompt,
-    Prompt,
     PromptCreate,
     PromptPublic,
     PromptsAvailable,

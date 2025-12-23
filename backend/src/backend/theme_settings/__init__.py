@@ -15,15 +15,15 @@ from backend.theme_settings.models import (
 )
 
 __all__ = [
-    "ThemeColors",
-    "OrganizationThemeSettings",
-    "OrganizationThemeSettingsUpdate",
-    "OrganizationThemeSettingsPublic",
-    "TeamThemeSettings",
-    "TeamThemeSettingsUpdate",
-    "TeamThemeSettingsPublic",
-    "UserThemeSettings",
-    "UserThemeSettingsUpdate",
-    "UserThemeSettingsPublic",
     "EffectiveThemeSettings",
+    "OrganizationThemeSettings",
+    "OrganizationThemeSettingsPublic",
+    "OrganizationThemeSettingsUpdate",
+    "TeamThemeSettings",
+    "TeamThemeSettingsPublic",
+    "TeamThemeSettingsUpdate",
+    "ThemeColors",
+    "UserThemeSettings",
+    "UserThemeSettingsPublic",
+    "UserThemeSettingsUpdate",
 ]

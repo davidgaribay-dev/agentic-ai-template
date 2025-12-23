@@ -1,15 +1,14 @@
 import csv
-import io
 from datetime import datetime
-from typing import Any
+import io
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 
-from backend.audit.schemas import AuditLogQuery, AuditLogResponse
+from backend.audit.schemas import AuditAction, AuditLogQuery, AuditLogResponse
 from backend.audit.service import audit_service
-from backend.auth.deps import CurrentUser, get_current_user
+from backend.auth.deps import CurrentUser
 from backend.core.logging import get_logger
 from backend.organizations.models import OrganizationMember
 from backend.rbac.deps import require_org_permission
@@ -18,13 +17,15 @@ from backend.rbac.permissions import OrgPermission
 router = APIRouter()
 logger = get_logger(__name__)
 
+# Maximum number of days allowed in audit log export time range
+MAX_AUDIT_EXPORT_DAYS = 90
+
 
 async def _get_org_membership(
     organization_id: UUID,
     current_user: CurrentUser,
 ) -> OrganizationMember:
     """Get and validate org membership with audit permission."""
-    pass
 
 
 @router.get(
@@ -36,8 +37,12 @@ async def list_audit_logs(
     current_user: CurrentUser,
     _: None = Depends(require_org_permission(OrgPermission.ORG_READ)),
     # Time filters
-    start_time: datetime | None = Query(None, description="Filter events after this time"),
-    end_time: datetime | None = Query(None, description="Filter events before this time"),
+    start_time: datetime | None = Query(
+        None, description="Filter events after this time"
+    ),
+    end_time: datetime | None = Query(
+        None, description="Filter events before this time"
+    ),
     # Action filters
     actions: list[str] | None = Query(None, description="Filter by action types"),
     # Actor filters
@@ -47,7 +52,9 @@ async def list_audit_logs(
     team_id: UUID | None = Query(None, description="Filter by team ID"),
     target_type: str | None = Query(None, description="Filter by target type"),
     target_id: str | None = Query(None, description="Filter by target ID"),
-    outcome: str | None = Query(None, description="Filter by outcome (success/failure)"),
+    outcome: str | None = Query(
+        None, description="Filter by outcome (success/failure)"
+    ),
     # Full-text search
     query: str | None = Query(None, description="Full-text search query"),
     # Pagination
@@ -112,10 +119,10 @@ async def export_audit_logs(
 
     # Validate time range (max 90 days)
     time_diff = end_time - start_time
-    if time_diff.days > 90:
+    if time_diff.days > MAX_AUDIT_EXPORT_DAYS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Export time range cannot exceed 90 days",
+            detail=f"Export time range cannot exceed {MAX_AUDIT_EXPORT_DAYS} days",
         )
 
     query_params = AuditLogQuery(
@@ -136,45 +143,49 @@ async def export_audit_logs(
     output = io.StringIO()
     writer = csv.writer(output)
 
-    writer.writerow([
-        "timestamp",
-        "action",
-        "outcome",
-        "severity",
-        "actor_id",
-        "actor_email",
-        "actor_ip",
-        "target_type",
-        "target_id",
-        "target_name",
-        "organization_id",
-        "team_id",
-        "request_id",
-        "error_code",
-        "error_message",
-    ])
+    writer.writerow(
+        [
+            "timestamp",
+            "action",
+            "outcome",
+            "severity",
+            "actor_id",
+            "actor_email",
+            "actor_ip",
+            "target_type",
+            "target_id",
+            "target_name",
+            "organization_id",
+            "team_id",
+            "request_id",
+            "error_code",
+            "error_message",
+        ]
+    )
 
     for event in result.events:
         # Get first target if any
         target = event.targets[0] if event.targets else None
 
-        writer.writerow([
-            event.timestamp.isoformat(),
-            event.action,
-            event.outcome,
-            event.severity.value,
-            str(event.actor.id) if event.actor.id else "",
-            event.actor.email or "",
-            event.actor.ip_address or "",
-            target.type if target else "",
-            target.id if target else "",
-            target.name if target else "",
-            str(event.organization_id) if event.organization_id else "",
-            str(event.team_id) if event.team_id else "",
-            event.request_id or "",
-            event.error_code or "",
-            event.error_message or "",
-        ])
+        writer.writerow(
+            [
+                event.timestamp.isoformat(),
+                event.action,
+                event.outcome,
+                event.severity.value,
+                str(event.actor.id) if event.actor.id else "",
+                event.actor.email or "",
+                event.actor.ip_address or "",
+                target.type if target else "",
+                target.id if target else "",
+                target.name if target else "",
+                str(event.organization_id) if event.organization_id else "",
+                str(event.team_id) if event.team_id else "",
+                event.request_id or "",
+                event.error_code or "",
+                event.error_message or "",
+            ]
+        )
 
     output.seek(0)
 
@@ -201,6 +212,4 @@ async def list_audit_actions(
 
     Returns the list of action types that can be used for filtering.
     """
-    from backend.audit.schemas import AuditAction
-
     return [action.value for action in AuditAction]

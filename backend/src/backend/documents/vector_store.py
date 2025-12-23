@@ -3,8 +3,8 @@
 Uses pgvector HNSW index for fast, accurate vector search with tenant isolation.
 """
 
-import uuid
 from typing import Any
+import uuid
 
 from sqlalchemy import text
 from sqlmodel import Session
@@ -118,11 +118,7 @@ class VectorStoreService:
         rows = result.fetchall()
 
         # Filter by score threshold and convert to SearchResult objects
-        filtered = [
-            SearchResult(row) for row in rows if row.similarity >= score_threshold
-        ]
-
-        return filtered
+        return [SearchResult(row) for row in rows if row.similarity >= score_threshold]
 
     async def hybrid_search(
         self,

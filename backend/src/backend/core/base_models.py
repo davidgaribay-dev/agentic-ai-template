@@ -16,9 +16,9 @@ Example:
         ...
 """
 
-import uuid
 from datetime import UTC, datetime
 from typing import Generic, TypeVar
+import uuid
 
 from sqlmodel import Field, SQLModel
 
@@ -145,16 +145,12 @@ class BaseTable(UUIDPrimaryKeyMixin):
     Use for: User, Item (models without timestamps)
     """
 
-    pass
-
 
 class TimestampedTable(UUIDPrimaryKeyMixin, TimestampMixin):
     """Base for tables with timestamps.
 
     Use for: Organization, OrganizationMember, TeamMember, all Settings models
     """
-
-    pass
 
 
 class AuditedTable(UUIDPrimaryKeyMixin, TimestampMixin, AuditMixin):
@@ -163,16 +159,12 @@ class AuditedTable(UUIDPrimaryKeyMixin, TimestampMixin, AuditMixin):
     Use for: MCPServer (where created_by is always required)
     """
 
-    pass
-
 
 class OptionalAuditedTable(UUIDPrimaryKeyMixin, TimestampMixin, OptionalAuditMixin):
     """Base for tables with optional audit trail.
 
     Use for: Team, Prompt, Conversation (where created_by can be null)
     """
-
-    pass
 
 
 class TimestampResponseMixin(SQLModel):

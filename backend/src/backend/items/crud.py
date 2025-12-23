@@ -77,9 +77,7 @@ def get_items_by_owner(
     )
     count = session.exec(count_statement).one()
 
-    statement = (
-        select(Item).where(Item.owner_id == owner_id).offset(skip).limit(limit)
-    )
+    statement = select(Item).where(Item.owner_id == owner_id).offset(skip).limit(limit)
     items = session.exec(statement).all()
 
     return list(items), count

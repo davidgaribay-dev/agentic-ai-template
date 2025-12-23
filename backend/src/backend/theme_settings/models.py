@@ -1,5 +1,5 @@
-import uuid
 from typing import TYPE_CHECKING
+import uuid
 
 from sqlalchemy.dialects.postgresql import JSON
 from sqlmodel import Field, Relationship, SQLModel
@@ -237,10 +237,6 @@ class EffectiveThemeSettings(SQLModel):
     # Resolved theme colors (based on current mode + system preference)
     active_theme_colors: dict  # Full OKLch color map
 
-
-from backend.auth.models import User  # noqa: E402, F401
-from backend.organizations.models import Organization  # noqa: E402, F401
-from backend.teams.models import Team  # noqa: E402, F401
 
 OrganizationThemeSettings.model_rebuild()
 TeamThemeSettings.model_rebuild()

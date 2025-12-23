@@ -9,7 +9,9 @@ class MessageSource(BaseModel):
     file_type: str = Field(..., description="File type (e.g., 'pdf', 'txt')")
     metadata: dict | None = Field(default=None, description="Additional metadata")
     relevance_score: float = Field(..., description="Similarity score 0-1")
-    chunk_index: int = Field(default=0, description="Index of the chunk in the document")
+    chunk_index: int = Field(
+        default=0, description="Index of the chunk in the document"
+    )
     document_id: str = Field(..., description="Document UUID")
 
 
@@ -97,6 +99,12 @@ class ToolApprovalInfo(BaseModel):
 
     conversation_id: str = Field(..., description="Conversation ID")
     tool_name: str = Field(..., description="Name of the tool being called")
-    tool_args: dict = Field(default_factory=dict, description="Arguments passed to the tool")
-    tool_call_id: str | None = Field(default=None, description="Unique ID for this tool call")
-    tool_description: str = Field(default="", description="Description of what the tool does")
+    tool_args: dict = Field(
+        default_factory=dict, description="Arguments passed to the tool"
+    )
+    tool_call_id: str | None = Field(
+        default=None, description="Unique ID for this tool call"
+    )
+    tool_description: str = Field(
+        default="", description="Description of what the tool does"
+    )

@@ -1,6 +1,6 @@
-import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
+import uuid
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
@@ -141,13 +141,5 @@ class NewPassword(SQLModel):
 class Message(SQLModel):
     message: str
 
-
-from backend.conversations.models import Conversation  # noqa: E402, F401
-from backend.invitations.models import Invitation  # noqa: E402, F401
-from backend.items.models import Item  # noqa: E402, F401
-from backend.organizations.models import OrganizationMember  # noqa: E402, F401
-from backend.rag_settings.models import UserRAGSettings  # noqa: E402, F401
-from backend.settings.models import UserSettings  # noqa: E402, F401
-from backend.theme_settings.models import UserThemeSettings  # noqa: E402, F401
 
 User.model_rebuild()

@@ -541,6 +541,41 @@ PREDEFINED_THEMES = {
         "sidebar_border": "oklch(0.88 0 0)",
         "sidebar_ring": "oklch(0.45 0 0)",
     },
+    "notebook-light": {
+        "background": "oklch(0.995 0 0)",  # Clean white background
+        "foreground": "oklch(0.22 0 0)",  # Near-black text for readability
+        "chat_input_bg": "oklch(0.98 0.002 136)",  # Very subtle green tint
+        "card": "oklch(0.99 0 0)",
+        "card_foreground": "oklch(0.22 0 0)",
+        "popover": "oklch(0.99 0 0)",
+        "popover_foreground": "oklch(0.22 0 0)",
+        "primary": "oklch(0.55 0.17 145)",  # Evernote green #00A82D
+        "primary_foreground": "oklch(1 0 0)",
+        "secondary": "oklch(0.96 0.005 136)",  # Light gray with green tint
+        "secondary_foreground": "oklch(0.28 0 0)",
+        "muted": "oklch(0.95 0 0)",  # Neutral muted
+        "muted_foreground": "oklch(0.5 0 0)",
+        "accent": "oklch(0.92 0.02 145)",  # Light green accent
+        "accent_foreground": "oklch(0.22 0 0)",
+        "destructive": "oklch(0.52 0.2 25)",
+        "destructive_foreground": "oklch(1 0 0)",
+        "border": "oklch(0.9 0 0)",  # Clean gray border
+        "input": "oklch(0.9 0 0)",
+        "ring": "oklch(0.55 0.17 145)",  # Green ring
+        "chart_1": "oklch(0.55 0.17 145)",  # Green
+        "chart_2": "oklch(0.58 0.14 200)",  # Teal
+        "chart_3": "oklch(0.56 0.16 280)",  # Purple
+        "chart_4": "oklch(0.6 0.15 50)",   # Orange
+        "chart_5": "oklch(0.54 0.13 320)",  # Pink
+        "sidebar": "oklch(0.98 0.003 136)",  # Very light green-tinted sidebar
+        "sidebar_foreground": "oklch(0.22 0 0)",
+        "sidebar_primary": "oklch(0.55 0.17 145)",
+        "sidebar_primary_foreground": "oklch(1 0 0)",
+        "sidebar_accent": "oklch(0.94 0.01 145)",
+        "sidebar_accent_foreground": "oklch(0.25 0 0)",
+        "sidebar_border": "oklch(0.9 0 0)",
+        "sidebar_ring": "oklch(0.55 0.17 145)",
+    },
     # ============================================================================
     # ADDITIONAL DARK THEMES
     # ============================================================================
@@ -719,6 +754,41 @@ PREDEFINED_THEMES = {
         "sidebar_border": "oklch(0.88 0 0 / 15%)",
         "sidebar_ring": "oklch(0.65 0.2 310)",
     },
+    "notebook-dark": {
+        "background": "oklch(0.18 0.005 145)",  # Dark with subtle green undertone
+        "foreground": "oklch(0.92 0 0)",  # Clean white text
+        "chat_input_bg": "oklch(0.2 0.008 145)",  # Slightly lighter with green tint
+        "card": "oklch(0.22 0.008 145)",
+        "card_foreground": "oklch(0.92 0 0)",
+        "popover": "oklch(0.22 0.008 145)",
+        "popover_foreground": "oklch(0.92 0 0)",
+        "primary": "oklch(0.62 0.18 145)",  # Evernote green, slightly brighter for dark mode
+        "primary_foreground": "oklch(0.15 0 0)",
+        "secondary": "oklch(0.26 0.01 145)",  # Dark green-gray
+        "secondary_foreground": "oklch(0.88 0 0)",
+        "muted": "oklch(0.24 0.008 145)",
+        "muted_foreground": "oklch(0.58 0 0)",
+        "accent": "oklch(0.28 0.02 145)",  # Green-tinted accent
+        "accent_foreground": "oklch(0.9 0 0)",
+        "destructive": "oklch(0.58 0.2 25)",
+        "destructive_foreground": "oklch(0.95 0 0)",
+        "border": "oklch(1 0 0 / 12%)",  # Subtle white border
+        "input": "oklch(1 0 0 / 15%)",
+        "ring": "oklch(0.62 0.18 145)",  # Green ring
+        "chart_1": "oklch(0.62 0.18 145)",  # Green
+        "chart_2": "oklch(0.65 0.15 200)",  # Teal
+        "chart_3": "oklch(0.6 0.16 280)",  # Purple
+        "chart_4": "oklch(0.68 0.16 50)",   # Orange
+        "chart_5": "oklch(0.62 0.14 320)",  # Pink
+        "sidebar": "oklch(0.15 0.006 145)",  # Darker sidebar with green tint
+        "sidebar_foreground": "oklch(0.92 0 0)",
+        "sidebar_primary": "oklch(0.62 0.18 145)",
+        "sidebar_primary_foreground": "oklch(0.15 0 0)",
+        "sidebar_accent": "oklch(0.26 0.015 145)",
+        "sidebar_accent_foreground": "oklch(0.88 0 0)",
+        "sidebar_border": "oklch(1 0 0 / 10%)",
+        "sidebar_ring": "oklch(0.62 0.18 145)",
+    },
 }
 
 
@@ -734,6 +804,7 @@ LIGHT_THEMES = [
     "solarized-light",
     "everforest-light",
     "min-light",
+    "notebook-light",
 ]
 
 DARK_THEMES = [
@@ -747,6 +818,7 @@ DARK_THEMES = [
     "synthwave-84",
     "palenight",
     "shades-of-purple",
+    "notebook-dark",
 ]
 
 

@@ -100,7 +100,9 @@ async def run_react_agent(
 
     result = await agent.ainvoke(
         {"messages": [HumanMessage(content=message)]},
-        config=config if config.get("configurable") or config.get("callbacks") else None,
+        config=config
+        if config.get("configurable") or config.get("callbacks")
+        else None,
     )
 
     for msg in reversed(result["messages"]):
@@ -150,7 +152,9 @@ async def stream_react_agent(
 
     async for event in agent.astream_events(
         {"messages": [HumanMessage(content=message)]},
-        config=config if config.get("configurable") or config.get("callbacks") else None,
+        config=config
+        if config.get("configurable") or config.get("callbacks")
+        else None,
         version="v2",
     ):
         event_type = event.get("event", "")

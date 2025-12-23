@@ -1,9 +1,9 @@
-import hashlib
-import secrets
-import uuid
 from datetime import UTC, datetime, timedelta
 from enum import Enum
+import hashlib
+import secrets
 from typing import TYPE_CHECKING, Optional
+import uuid
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -15,8 +15,8 @@ from backend.core.base_models import (
 
 if TYPE_CHECKING:
     from backend.auth.models import User
-    from backend.organizations.models import Organization, OrgRole
-    from backend.teams.models import Team, TeamRole
+    from backend.organizations.models import Organization
+    from backend.teams.models import Team
 
 
 class InvitationStatus(str, Enum):
@@ -175,9 +175,5 @@ class InvitationInfo(SQLModel):
     expires_at: datetime
     inviter_name: str | None
 
-
-from backend.auth.models import User  # noqa: E402, F401
-from backend.organizations.models import Organization  # noqa: E402, F401
-from backend.teams.models import Team  # noqa: E402, F401
 
 Invitation.model_rebuild()

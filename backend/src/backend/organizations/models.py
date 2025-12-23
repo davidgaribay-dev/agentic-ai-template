@@ -1,7 +1,6 @@
-import uuid
-from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
+import uuid
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -126,7 +125,7 @@ class OrganizationMember(OrganizationMemberBase, TimestampedTable, table=True):
     class Config:
         """SQLModel config."""
 
-        table_args = {"unique_constraint": ["organization_id", "user_id"]}
+        table_args: ClassVar = {"unique_constraint": ["organization_id", "user_id"]}
 
 
 class OrganizationMemberCreate(SQLModel):
@@ -154,12 +153,6 @@ class OrganizationMemberWithUser(OrganizationMemberPublic):
 # OrganizationMembersPublic is now PaginatedResponse[OrganizationMemberWithUser]
 OrganizationMembersPublic = PaginatedResponse[OrganizationMemberWithUser]
 
-
-from backend.invitations.models import Invitation  # noqa: E402, F401
-from backend.rag_settings.models import OrganizationRAGSettings  # noqa: E402, F401
-from backend.settings.models import OrganizationSettings  # noqa: E402, F401
-from backend.teams.models import Team, TeamMember  # noqa: E402, F401
-from backend.theme_settings.models import OrganizationThemeSettings  # noqa: E402, F401
 
 Organization.model_rebuild()
 OrganizationMember.model_rebuild()

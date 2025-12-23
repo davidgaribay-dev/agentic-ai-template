@@ -9,24 +9,24 @@ Comprehensive file type support using LangChain loaders:
 
 import asyncio
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
-from langchain_core.documents import Document as LangChainDocument
 from langchain_community.document_loaders import (
+    CSVLoader,
+    Docx2txtLoader,
+    # Structured data
+    JSONLoader,
     # Documents
     PyPDFLoader,
     TextLoader,
-    UnstructuredMarkdownLoader,
-    Docx2txtLoader,
-    UnstructuredRTFLoader,
-    # Structured data
-    JSONLoader,
-    CSVLoader,
     UnstructuredExcelLoader,
-    UnstructuredXMLLoader,
     # Web
     UnstructuredHTMLLoader,
+    UnstructuredMarkdownLoader,
+    UnstructuredRTFLoader,
+    UnstructuredXMLLoader,
 )
+from langchain_core.documents import Document as LangChainDocument
 
 
 class DocumentParser:
@@ -40,7 +40,7 @@ class DocumentParser:
     """
 
     # File type to loader mapping
-    LOADERS: dict[str, type] = {
+    LOADERS: ClassVar[dict[str, type]] = {
         # === DOCUMENTS ===
         "pdf": PyPDFLoader,
         "txt": TextLoader,
@@ -77,7 +77,7 @@ class DocumentParser:
     }
 
     # MIME type mapping (for validation)
-    MIME_TYPES: dict[str, str] = {
+    MIME_TYPES: ClassVar[dict[str, str]] = {
         "pdf": "application/pdf",
         "txt": "text/plain",
         "md": "text/markdown",

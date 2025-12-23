@@ -3,8 +3,8 @@
 Follows the theme_settings API pattern for consistency.
 """
 
-import uuid
 from typing import Annotated
+import uuid
 
 from fastapi import APIRouter, Depends, Query, Request
 
@@ -79,9 +79,7 @@ async def update_org_rag_settings(
         if old_value != new_value:
             changes[field] = {"before": old_value, "after": new_value}
 
-    settings = service.update_org_rag_settings(
-        session, org_context.org_id, settings_in
-    )
+    settings = service.update_org_rag_settings(session, org_context.org_id, settings_in)
 
     if changes:
         await audit_service.log(
@@ -89,7 +87,9 @@ async def update_org_rag_settings(
             actor=current_user,
             request=request,
             organization_id=org_context.org_id,
-            targets=[Target(type="organization_rag_settings", id=str(org_context.org_id))],
+            targets=[
+                Target(type="organization_rag_settings", id=str(org_context.org_id))
+            ],
             changes=changes,
         )
 
@@ -190,9 +190,7 @@ async def update_user_rag_settings(
     Personal RAG preferences that apply when both org and team allow customization.
     """
     # Get current settings for change tracking
-    current_settings = service.get_or_create_user_rag_settings(
-        session, current_user.id
-    )
+    current_settings = service.get_or_create_user_rag_settings(session, current_user.id)
     changes = {}
     update_data = settings_in.model_dump(exclude_unset=True)
     for field, new_value in update_data.items():

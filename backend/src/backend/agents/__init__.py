@@ -37,37 +37,37 @@ from backend.agents.tracing import (
 )
 
 __all__ = [
-    # Base agent
-    "get_agent",
-    "run_agent",
-    "stream_agent",
-    "get_conversation_history",
     # Agent factory (preferred for new code)
     "AgentConfig",
     "AgentFactory",
     "AgentInstance",
-    "get_agent_factory",
-    "init_agent_factory",
-    "reset_agent_factory",
     # Context management
     "LLMContext",
     "RequestContext",
-    "llm_context",
-    "request_context",
-    "get_llm_context",
-    "get_llm_context_dict",
-    "get_request_context",
-    # ReAct agent with tools
-    "get_react_agent",
-    "run_react_agent",
-    "stream_react_agent",
+    "build_langfuse_config",
+    "check_langfuse_connection",
+    "flush_langfuse",
+    # Base agent
+    "get_agent",
+    "get_agent_factory",
     # Tools
     "get_available_tools",
+    "get_conversation_history",
+    "get_langfuse_handler",
+    "get_llm_context",
+    "get_llm_context_dict",
+    # ReAct agent with tools
+    "get_react_agent",
+    "get_request_context",
+    "init_agent_factory",
     # Tracing (Langfuse v3)
     "init_langfuse",
-    "get_langfuse_handler",
-    "build_langfuse_config",
-    "flush_langfuse",
+    "llm_context",
+    "request_context",
+    "reset_agent_factory",
+    "run_agent",
+    "run_react_agent",
     "shutdown_langfuse",
-    "check_langfuse_connection",
+    "stream_agent",
+    "stream_react_agent",
 ]

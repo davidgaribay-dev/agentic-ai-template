@@ -1,11 +1,9 @@
-from typing import Literal
-
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from backend.audit.schemas import AuditAction, Target
 from backend.audit.service import audit_service
-from backend.core.secrets import LLMProvider, SUPPORTED_PROVIDERS, get_secrets_service
+from backend.core.secrets import SUPPORTED_PROVIDERS, LLMProvider, get_secrets_service
 from backend.rbac.deps import (
     OrgContextDep,
     TeamContextDep,
@@ -14,6 +12,9 @@ from backend.rbac.deps import (
 )
 
 router = APIRouter(tags=["api-keys"])
+
+# Minimum number of characters to display from API key prefix
+MIN_API_KEY_DISPLAY_LENGTH = 8
 
 
 class APIKeyCreate(BaseModel):
@@ -126,11 +127,17 @@ async def set_org_api_key(
         actor=org_context.user,
         request=http_request,
         organization_id=org_context.org_id,
-        targets=[Target(type="api_key", id=request.provider, name=f"{request.provider} API Key")],
+        targets=[
+            Target(
+                type="api_key", id=request.provider, name=f"{request.provider} API Key"
+            )
+        ],
         metadata={
             "provider": request.provider,
             "level": "organization",
-            "key_prefix": request.api_key[:8] + "..." if len(request.api_key) > 8 else "***",
+            "key_prefix": request.api_key[:MIN_API_KEY_DISPLAY_LENGTH] + "..."
+            if len(request.api_key) > MIN_API_KEY_DISPLAY_LENGTH
+            else "***",
         },
     )
 
@@ -245,8 +252,15 @@ async def set_org_default_provider(
         actor=org_context.user,
         request=http_request,
         organization_id=org_context.org_id,
-        targets=[Target(type="configuration", id="default_provider", name="Default LLM Provider")],
-        changes={"before": {"provider": previous_provider}, "after": {"provider": request.provider}},
+        targets=[
+            Target(
+                type="configuration", id="default_provider", name="Default LLM Provider"
+            )
+        ],
+        changes={
+            "before": {"provider": previous_provider},
+            "after": {"provider": request.provider},
+        },
         metadata={"level": "organization"},
     )
 
@@ -322,12 +336,18 @@ async def set_team_api_key(
         request=http_request,
         organization_id=team_context.org_id,
         team_id=team_context.team_id,
-        targets=[Target(type="api_key", id=request.provider, name=f"{request.provider} API Key")],
+        targets=[
+            Target(
+                type="api_key", id=request.provider, name=f"{request.provider} API Key"
+            )
+        ],
         metadata={
             "provider": request.provider,
             "level": "team",
             "team_id": str(team_context.team_id),
-            "key_prefix": request.api_key[:8] + "..." if len(request.api_key) > 8 else "***",
+            "key_prefix": request.api_key[:MIN_API_KEY_DISPLAY_LENGTH] + "..."
+            if len(request.api_key) > MIN_API_KEY_DISPLAY_LENGTH
+            else "***",
         },
     )
 
@@ -450,8 +470,15 @@ async def set_team_default_provider(
         request=http_request,
         organization_id=team_context.org_id,
         team_id=team_context.team_id,
-        targets=[Target(type="configuration", id="default_provider", name="Default LLM Provider")],
-        changes={"before": {"provider": previous_provider}, "after": {"provider": request.provider}},
+        targets=[
+            Target(
+                type="configuration", id="default_provider", name="Default LLM Provider"
+            )
+        ],
+        changes={
+            "before": {"provider": previous_provider},
+            "after": {"provider": request.provider},
+        },
         metadata={"level": "team", "team_id": str(team_context.team_id)},
     )
 

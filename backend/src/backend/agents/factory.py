@@ -13,15 +13,23 @@ Key principles:
 
 from dataclasses import dataclass, field
 from typing import Any
+import uuid
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from sqlmodel import Session
 
-from backend.agents.context import LLMContext, get_llm_context
-from backend.agents.llm import get_chat_model, get_chat_model_with_context
+from backend.agents.base import (
+    create_agent_graph,
+    create_agent_graph_with_tool_approval,
+    create_agent_graph_with_tools,
+)
+from backend.agents.context import LLMContext
 from backend.agents.tools import get_available_tools, get_context_aware_tools
 from backend.agents.tracing import build_langfuse_config
-from backend.core.config import settings
+from backend.core.db import engine
 from backend.core.logging import get_logger
+from backend.mcp.client import get_mcp_tools_for_context
+from backend.settings.service import get_effective_settings
 
 logger = get_logger(__name__)
 
@@ -229,14 +237,10 @@ class AgentFactory:
 
     def _create_base_graph(self) -> Any:
         """Create a simple chat graph without tools."""
-        from backend.agents.base import create_agent_graph
-
         return create_agent_graph(checkpointer=self._checkpointer)
 
     def _create_tools_graph(self, tools: list) -> Any:
         """Create a graph with tools but no approval required."""
-        from backend.agents.base import create_agent_graph_with_tools
-
         return create_agent_graph_with_tools(
             tools=tools,
             checkpointer=self._checkpointer,
@@ -244,8 +248,6 @@ class AgentFactory:
 
     def _create_approval_graph(self, tools: list, mcp_tool_names: set[str]) -> Any:
         """Create a graph with tool approval for MCP tools."""
-        from backend.agents.base import create_agent_graph_with_tool_approval
-
         return create_agent_graph_with_tool_approval(
             tools=tools,
             mcp_tool_names=mcp_tool_names,
@@ -255,18 +257,13 @@ class AgentFactory:
     async def _load_mcp_tools(self, config: AgentConfig) -> list:
         """Load MCP tools for the given context."""
         try:
-            from backend.core.db import engine
-            from backend.mcp.client import get_mcp_tools_for_context
-            from sqlmodel import Session
-
             with Session(engine) as session:
-                tools = await get_mcp_tools_for_context(
+                return await get_mcp_tools_for_context(
                     org_id=config.org_id,
                     team_id=config.team_id,
                     user_id=config.user_id,
                     session=session,
                 )
-                return tools
         except Exception as e:
             logger.warning("mcp_tools_load_failed", error=str(e))
             return []
@@ -282,12 +279,6 @@ class AgentFactory:
             return tools, mcp_tool_names
 
         try:
-            import uuid
-
-            from backend.core.db import engine
-            from backend.settings.service import get_effective_settings
-            from sqlmodel import Session
-
             with Session(engine) as session:
                 effective = get_effective_settings(
                     session=session,
@@ -319,12 +310,6 @@ class AgentFactory:
             return True  # Default to requiring approval
 
         try:
-            import uuid
-
-            from backend.core.db import engine
-            from backend.settings.service import get_effective_settings
-            from sqlmodel import Session
-
             with Session(engine) as session:
                 effective = get_effective_settings(
                     session=session,
@@ -351,7 +336,9 @@ def get_agent_factory() -> AgentFactory:
         RuntimeError: If factory not initialized
     """
     if _factory is None:
-        raise RuntimeError("Agent factory not initialized. Call init_agent_factory() first.")
+        raise RuntimeError(
+            "Agent factory not initialized. Call init_agent_factory() first."
+        )
     return _factory
 
 

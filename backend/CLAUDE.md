@@ -491,7 +491,18 @@ uv run pre-commit run --all-files
 - `PLR0913` - Too many function arguments
 - `TRY003/EM101/EM102` - Exception message patterns
 
-**Per-file ignores**: Tests skip `ARG`, `PLR2004`, `S101`
+**Per-file ignores** (see `pyproject.toml` for full list):
+| Pattern | Ignores | Reason |
+|---------|---------|--------|
+| `tests/**/*.py` | ARG, PLR2004, S101 | Fixtures, magic values, assert |
+| `scripts/**/*.py` | ERA001, PLR0912/0915, PTH, TRY401 | Complex scripts |
+| `src/backend/api/routes/*.py` | ARG001, B008, PLR0912/0915 | FastAPI patterns |
+| `src/backend/agents/*.py` | PLW0603, PLR0912/0915 | Singletons, complex logic |
+| `src/backend/audit/*.py` | PLR0912, PLW0602/0603 | Query building, singletons |
+| `src/backend/memory/*.py` | PLR0912/0915, PLW0602/0603 | Extraction, singletons |
+| `src/backend/core/secrets.py` | PLW0603 | Singleton pattern |
+| `src/backend/mcp/client.py` | ARG001, PLR0912/0915, PLW0602 | Future args, complexity |
+| `**/settings/service.py` | PLR0911/0912/0915 | Hierarchy resolution |
 
 ### MyPy Configuration
 
@@ -549,6 +560,91 @@ Keep: Module/function docstrings (generates OpenAPI docs), "why" comments for no
 
 Avoid: Section separators, "what" comments that repeat code, inline value explanations
 
+### Critical Coding Standards (CI Enforced)
+
+**MUST follow these patterns** - CI will fail otherwise:
+
+1. **Imports at top of file** (PLC0415): Never use inline/lazy imports inside functions
+   ```python
+   # ✅ Correct - imports at module level
+   from backend.auth.models import User
+   def get_user(): ...
+
+   # ❌ Wrong - will fail CI
+   def get_user():
+       from backend.auth.models import User  # PLC0415
+   ```
+
+2. **Exception chaining** (B904): Always use `from err` or `from None`
+   ```python
+   # ✅ Correct
+   except ValueError as e:
+       raise HTTPException(status_code=400) from e
+
+   # ❌ Wrong
+   except ValueError as e:
+       raise HTTPException(status_code=400)  # B904
+   ```
+
+3. **Return in else after try-except** (TRY300):
+   ```python
+   # ✅ Correct
+   try:
+       result = operation()
+   except Error:
+       return None
+   else:
+       return result
+
+   # ❌ Wrong
+   try:
+       result = operation()
+   except Error:
+       return None
+   return result  # TRY300
+   ```
+
+4. **No magic numbers** (PLR2004): Use named constants
+   ```python
+   # ✅ Correct
+   MAX_RETRIES = 3
+   if attempts > MAX_RETRIES: ...
+
+   # ❌ Wrong
+   if attempts > 3: ...  # PLR2004
+   ```
+
+5. **Timezone-aware datetime** (DTZ): Use `datetime.now(UTC)`
+   ```python
+   # ✅ Correct
+   from datetime import UTC, datetime
+   now = datetime.now(UTC)
+
+   # ❌ Wrong
+   now = datetime.now()  # DTZ
+   ```
+
+6. **ClassVar for mutable class attributes** (RUF012):
+   ```python
+   # ✅ Correct
+   from typing import ClassVar
+   class Parser:
+       types: ClassVar[list[str]] = ["pdf"]
+
+   # ❌ Wrong
+   class Parser:
+       types: list[str] = ["pdf"]  # RUF012
+   ```
+
+### Pre-Commit/Push Checklist
+
+**Always run before committing**:
+```bash
+uv run ruff check . && uv run ruff format --check .
+```
+
+If CI fails: `uv run ruff check . --fix` auto-fixes most issues.
+
 ### Best Practices
 
 1. **Enable auto-format on save** - Reduces manual work
@@ -557,3 +653,4 @@ Avoid: Section separators, "what" comments that repeat code, inline value explan
 4. **Never commit secrets** - Gitleaks blocks commits with secrets
 5. **Use Ruff auto-fix** - Most issues fixable with `--fix`
 6. **Maintain coverage** - Write tests for new features
+7. **Run ruff before push** - CI will reject lint errors

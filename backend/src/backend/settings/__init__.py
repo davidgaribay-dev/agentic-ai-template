@@ -16,6 +16,7 @@ from backend.settings.models import (
 
 __all__ = [
     "ChatSettingsBase",
+    "EffectiveSettings",
     "OrganizationSettings",
     "OrganizationSettingsPublic",
     "OrganizationSettingsUpdate",
@@ -25,5 +26,4 @@ __all__ = [
     "UserSettings",
     "UserSettingsPublic",
     "UserSettingsUpdate",
-    "EffectiveSettings",
 ]

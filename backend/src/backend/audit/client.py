@@ -1,6 +1,5 @@
-import asyncio
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from opensearchpy import NotFoundError
@@ -85,7 +84,9 @@ def get_opensearch_client() -> AsyncOpenSearch:
     """Get the global OpenSearch client instance."""
     global _client
     if _client is None:
-        raise RuntimeError("OpenSearch client not initialized. Call opensearch_lifespan first.")
+        raise RuntimeError(
+            "OpenSearch client not initialized. Call opensearch_lifespan first."
+        )
     return _client
 
 
@@ -97,7 +98,7 @@ def _get_index_name(prefix: str, date: datetime | None = None) -> str:
     - app-logs-2025.01.15
     """
     if date is None:
-        date = datetime.utcnow()
+        date = datetime.now(UTC)
     return f"{prefix}-{date.strftime('%Y.%m.%d')}"
 
 
@@ -136,7 +137,7 @@ async def _create_index_template(client: AsyncOpenSearch) -> None:
         )
         logger.info("opensearch_template_created", template="app-logs-template")
     except Exception as e:
-        logger.error("opensearch_template_creation_failed", error=str(e))
+        logger.exception("opensearch_template_creation_failed", error=str(e))
         raise
 
 
@@ -157,7 +158,9 @@ async def _ensure_index_exists(
     except Exception as e:
         # Index might have been created by another process
         if "resource_already_exists_exception" not in str(e).lower():
-            logger.error("opensearch_index_creation_failed", index=index_name, error=str(e))
+            logger.exception(
+                "opensearch_index_creation_failed", index=index_name, error=str(e)
+            )
             raise
 
 
@@ -202,7 +205,7 @@ async def opensearch_lifespan():
 
         await _create_index_template(_client)
 
-        today = datetime.utcnow()
+        today = datetime.now(UTC)
         await _ensure_index_exists(
             _client,
             _get_index_name(AUDIT_INDEX_PREFIX, today),
@@ -217,7 +220,7 @@ async def opensearch_lifespan():
         yield
 
     except Exception as e:
-        logger.error("opensearch_connection_failed", error=str(e))
+        logger.exception("opensearch_connection_failed", error=str(e))
         yield
 
     finally:
@@ -255,14 +258,15 @@ async def index_document(
             body=document,
             refresh=False,
         )
-        return True
     except Exception as e:
-        logger.error(
+        logger.exception(
             "opensearch_index_failed",
             index_prefix=index_prefix,
             error=str(e),
         )
         return False
+    else:
+        return True
 
 
 async def search_logs(
@@ -306,18 +310,18 @@ async def search_logs(
         hits = response["hits"]
         total = hits["total"]["value"]
         results = [hit["_source"] for hit in hits["hits"]]
-
-        return results, total
     except NotFoundError:
         # No indices exist yet
         return [], 0
     except Exception as e:
-        logger.error(
+        logger.exception(
             "opensearch_search_failed",
             index_prefix=index_prefix,
             error=str(e),
         )
         return [], 0
+    else:
+        return results, total
 
 
 async def delete_old_indices(
@@ -341,13 +345,13 @@ async def delete_old_indices(
         indices = await _client.indices.get(index=f"{index_prefix}-*")
 
         deleted = []
-        cutoff = datetime.utcnow()
+        cutoff = datetime.now(UTC)
 
         for index_name in indices:
             try:
                 # Parse date from index name (prefix-YYYY.MM.DD)
                 date_str = index_name.split("-")[-1]
-                index_date = datetime.strptime(date_str, "%Y.%m.%d")
+                index_date = datetime.strptime(date_str, "%Y.%m.%d").replace(tzinfo=UTC)
 
                 age_days = (cutoff - index_date).days
                 if age_days > days_to_keep:
@@ -361,8 +365,8 @@ async def delete_old_indices(
             except (ValueError, IndexError):
                 # Skip indices with unexpected naming
                 continue
-
-        return deleted
     except Exception as e:
-        logger.error("opensearch_retention_cleanup_failed", error=str(e))
+        logger.exception("opensearch_retention_cleanup_failed", error=str(e))
         return []
+    else:
+        return deleted

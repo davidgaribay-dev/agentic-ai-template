@@ -1,8 +1,9 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
+import json
+import traceback
 from typing import Any
-
 import uuid
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -11,28 +12,33 @@ from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.types import Command, interrupt
 from psycopg_pool import AsyncConnectionPool
+from sqlmodel import Session
 
 from backend.agents.llm import get_chat_model, get_chat_model_with_context
 from backend.agents.tools import get_available_tools, get_context_aware_tools
-from backend.agents.tracing import build_langfuse_config, get_langfuse_handler
+from backend.agents.tracing import build_langfuse_config
 from backend.core.config import settings
+from backend.core.db import engine
 from backend.core.logging import get_logger
+from backend.mcp.client import get_mcp_tools_for_context
 from backend.memory.extraction import format_memories_for_context
 from backend.memory.service import MemoryService
 from backend.memory.store import get_memory_store
+from backend.prompts import crud as prompts_crud
+from backend.settings.service import get_effective_settings
 
 __all__ = [
+    "agent_lifespan",
     "get_agent",
     "get_agent_with_tools",
-    "run_agent",
-    "stream_agent",
-    "run_agent_with_context",
-    "stream_agent_with_context",
-    "resume_agent_with_context",
+    "get_checkpointer",
     "get_conversation_history",
     "get_interrupted_tool_call",
-    "agent_lifespan",
-    "get_checkpointer",
+    "resume_agent_with_context",
+    "run_agent",
+    "run_agent_with_context",
+    "stream_agent",
+    "stream_agent_with_context",
 ]
 
 logger = get_logger(__name__)
@@ -97,10 +103,6 @@ def _is_memory_enabled(
         return False
 
     try:
-        from backend.core.db import engine
-        from backend.settings.service import get_effective_settings
-        from sqlmodel import Session
-
         with Session(engine) as session:
             effective = get_effective_settings(
                 session=session,
@@ -125,14 +127,12 @@ def _is_mcp_enabled(
     Returns False if any level disables MCP.
     """
     if not org_id or not user_id:
-        logger.debug("mcp_check_skipped", reason="missing_ids", org_id=org_id, user_id=user_id)
+        logger.debug(
+            "mcp_check_skipped", reason="missing_ids", org_id=org_id, user_id=user_id
+        )
         return False
 
     try:
-        from backend.core.db import engine
-        from backend.settings.service import get_effective_settings
-        from sqlmodel import Session
-
         with Session(engine) as session:
             effective = get_effective_settings(
                 session=session,
@@ -166,10 +166,6 @@ def _is_tool_approval_required(
         return True  # Default to requiring approval if context is missing
 
     try:
-        from backend.core.db import engine
-        from backend.settings.service import get_effective_settings
-        from sqlmodel import Session
-
         with Session(engine) as session:
             effective = get_effective_settings(
                 session=session,
@@ -197,10 +193,6 @@ def _get_disabled_tools_config(
         return set(), set()
 
     try:
-        from backend.core.db import engine
-        from backend.settings.service import get_effective_settings
-        from sqlmodel import Session
-
         with Session(engine) as session:
             effective = get_effective_settings(
                 session=session,
@@ -226,7 +218,9 @@ async def _get_mcp_tools(
 
     Returns an empty list if MCP is disabled or no tools are configured.
     """
-    logger.info("_get_mcp_tools_called", org_id=org_id, team_id=team_id, user_id=user_id)
+    logger.info(
+        "_get_mcp_tools_called", org_id=org_id, team_id=team_id, user_id=user_id
+    )
 
     if not org_id or not user_id:
         logger.info("_get_mcp_tools_skipped", reason="missing_ids")
@@ -237,10 +231,6 @@ async def _get_mcp_tools(
         return []
 
     try:
-        from backend.core.db import engine
-        from backend.mcp.client import get_mcp_tools_for_context
-        from sqlmodel import Session
-
         logger.info("_get_mcp_tools_loading", org_id=org_id, team_id=team_id)
         with Session(engine) as session:
             tools = await get_mcp_tools_for_context(
@@ -249,12 +239,19 @@ async def _get_mcp_tools(
                 user_id=user_id,
                 session=session,
             )
-            logger.info("_get_mcp_tools_loaded", tool_count=len(tools), tool_names=[t.name for t in tools])
+            logger.info(
+                "_get_mcp_tools_loaded",
+                tool_count=len(tools),
+                tool_names=[t.name for t in tools],
+            )
             return tools
     except Exception as e:
-        logger.warning("failed_to_get_mcp_tools", error=str(e), error_type=type(e).__name__)
-        import traceback
-        logger.warning("failed_to_get_mcp_tools_traceback", traceback=traceback.format_exc())
+        logger.warning(
+            "failed_to_get_mcp_tools", error=str(e), error_type=type(e).__name__
+        )
+        logger.warning(
+            "failed_to_get_mcp_tools_traceback", traceback=traceback.format_exc()
+        )
         return []
 
 
@@ -275,12 +272,8 @@ def _get_system_prompt_content(
         return None
 
     try:
-        from backend.core.db import engine
-        from backend.prompts import crud
-        from sqlmodel import Session
-
         with Session(engine) as session:
-            result = crud.get_active_system_prompt(
+            result = prompts_crud.get_active_system_prompt(
                 session=session,
                 organization_id=uuid.UUID(org_id),
                 team_id=uuid.UUID(team_id),
@@ -293,7 +286,6 @@ def _get_system_prompt_content(
 
 
 def create_agent_graph(checkpointer: AsyncPostgresSaver | None = None) -> Any:
-
     async def chat_node(state: MessagesState) -> dict:
         """Process messages and generate a response.
 
@@ -321,11 +313,12 @@ def create_agent_graph(checkpointer: AsyncPostgresSaver | None = None) -> Any:
                 team_id=ctx.get("team_id"),
                 user_id=ctx.get("user_id"),
             )
-            if system_prompt:
+            if system_prompt and (
+                not messages or not isinstance(messages[0], SystemMessage)
+            ):
                 # Prepend system message if not already present
-                if not messages or not isinstance(messages[0], SystemMessage):
-                    messages = [SystemMessage(content=system_prompt)] + messages
-                    logger.debug("system_prompt_added", length=len(system_prompt))
+                messages = [SystemMessage(content=system_prompt), *messages]
+                logger.debug("system_prompt_added", length=len(system_prompt))
 
         # Inject relevant memories if enabled
         if ctx and ctx.get("org_id") and ctx.get("user_id"):
@@ -362,9 +355,9 @@ def create_agent_graph(checkpointer: AsyncPostgresSaver | None = None) -> Any:
                                 memory_msg = SystemMessage(content=memory_context)
                                 if messages and isinstance(messages[0], SystemMessage):
                                     # Insert after existing system prompt
-                                    messages = [messages[0], memory_msg] + messages[1:]
+                                    messages = [messages[0], memory_msg, *messages[1:]]
                                 else:
-                                    messages = [memory_msg] + messages
+                                    messages = [memory_msg, *messages]
                                 logger.debug(
                                     "memories_injected",
                                     count=len(memories),
@@ -455,11 +448,13 @@ def _get_orphaned_tool_calls(messages: list) -> list[dict]:
             # Add from content blocks if not already present
             for block in tool_use_in_content:
                 if block.get("id") and block.get("id") not in existing_ids:
-                    all_tool_calls.append({
-                        "id": block.get("id"),
-                        "name": block.get("name"),
-                        "args": block.get("input", {}),
-                    })
+                    all_tool_calls.append(
+                        {
+                            "id": block.get("id"),
+                            "name": block.get("name"),
+                            "args": block.get("input", {}),
+                        }
+                    )
                     existing_ids.add(block.get("id"))
 
             if all_tool_calls:
@@ -528,14 +523,20 @@ def _get_all_tool_calls_from_message(msg: AIMessage) -> list[dict]:
     # Check content for tool_use blocks (Anthropic format)
     if isinstance(msg.content, list):
         for block in msg.content:
-            if isinstance(block, dict) and block.get("type") == "tool_use":
-                if block.get("id") and block.get("id") not in existing_ids:
-                    all_tool_calls.append({
+            if (
+                isinstance(block, dict)
+                and block.get("type") == "tool_use"
+                and block.get("id")
+                and block.get("id") not in existing_ids
+            ):
+                all_tool_calls.append(
+                    {
                         "id": block.get("id"),
                         "name": block.get("name"),
                         "args": block.get("input", {}),
-                    })
-                    existing_ids.add(block.get("id"))
+                    }
+                )
+                existing_ids.add(block.get("id"))
 
     return all_tool_calls
 
@@ -568,7 +569,8 @@ def _fix_orphaned_tool_calls_in_messages(messages: list) -> list:
         if isinstance(msg, AIMessage):
             all_tool_calls = _get_all_tool_calls_from_message(msg)
             orphaned_in_msg = [
-                tc for tc in all_tool_calls
+                tc
+                for tc in all_tool_calls
                 if tc.get("id") and tc.get("id") not in responded_ids
             ]
             if orphaned_in_msg:
@@ -689,10 +691,11 @@ def create_agent_graph_with_tools(
                 team_id=ctx.get("team_id"),
                 user_id=ctx.get("user_id"),
             )
-            if system_prompt:
-                if not messages or not isinstance(messages[0], SystemMessage):
-                    messages = [SystemMessage(content=system_prompt)] + messages
-                    logger.debug("system_prompt_added", length=len(system_prompt))
+            if system_prompt and (
+                not messages or not isinstance(messages[0], SystemMessage)
+            ):
+                messages = [SystemMessage(content=system_prompt), *messages]
+                logger.debug("system_prompt_added", length=len(system_prompt))
 
         # Inject relevant memories if enabled
         if ctx and ctx.get("org_id") and ctx.get("user_id"):
@@ -726,9 +729,9 @@ def create_agent_graph_with_tools(
                             if memory_context:
                                 memory_msg = SystemMessage(content=memory_context)
                                 if messages and isinstance(messages[0], SystemMessage):
-                                    messages = [messages[0], memory_msg] + messages[1:]
+                                    messages = [messages[0], memory_msg, *messages[1:]]
                                 else:
-                                    messages = [memory_msg] + messages
+                                    messages = [memory_msg, *messages]
                                 logger.debug(
                                     "memories_injected",
                                     count=len(memories),
@@ -744,15 +747,18 @@ def create_agent_graph_with_tools(
             message_types=[type(m).__name__ for m in messages],
             # Log tool_calls for each AIMessage to verify orphan fix
             ai_message_tool_calls=[
-                {"idx": i, "tool_calls": m.tool_calls if hasattr(m, "tool_calls") and m.tool_calls else []}
+                {
+                    "idx": i,
+                    "tool_calls": m.tool_calls
+                    if hasattr(m, "tool_calls") and m.tool_calls
+                    else [],
+                }
                 for i, m in enumerate(messages)
                 if isinstance(m, AIMessage)
             ],
             # Log ToolMessage ids to verify they're present
             tool_message_ids=[
-                m.tool_call_id
-                for m in messages
-                if isinstance(m, ToolMessage)
+                m.tool_call_id for m in messages if isinstance(m, ToolMessage)
             ],
         )
 
@@ -886,10 +892,11 @@ def create_agent_graph_with_tool_approval(
                 team_id=ctx.get("team_id"),
                 user_id=ctx.get("user_id"),
             )
-            if system_prompt:
-                if not messages or not isinstance(messages[0], SystemMessage):
-                    messages = [SystemMessage(content=system_prompt)] + messages
-                    logger.debug("system_prompt_added", length=len(system_prompt))
+            if system_prompt and (
+                not messages or not isinstance(messages[0], SystemMessage)
+            ):
+                messages = [SystemMessage(content=system_prompt), *messages]
+                logger.debug("system_prompt_added", length=len(system_prompt))
 
         # Inject relevant memories if enabled
         if ctx and ctx.get("org_id") and ctx.get("user_id"):
@@ -923,9 +930,9 @@ def create_agent_graph_with_tool_approval(
                             if memory_context:
                                 memory_msg = SystemMessage(content=memory_context)
                                 if messages and isinstance(messages[0], SystemMessage):
-                                    messages = [messages[0], memory_msg] + messages[1:]
+                                    messages = [messages[0], memory_msg, *messages[1:]]
                                 else:
-                                    messages = [memory_msg] + messages
+                                    messages = [memory_msg, *messages]
                                 logger.debug(
                                     "memories_injected",
                                     count=len(memories),
@@ -941,15 +948,18 @@ def create_agent_graph_with_tool_approval(
             message_types=[type(m).__name__ for m in messages],
             # Log tool_calls for each AIMessage to verify orphan fix
             ai_message_tool_calls=[
-                {"idx": i, "tool_calls": m.tool_calls if hasattr(m, "tool_calls") and m.tool_calls else []}
+                {
+                    "idx": i,
+                    "tool_calls": m.tool_calls
+                    if hasattr(m, "tool_calls") and m.tool_calls
+                    else [],
+                }
                 for i, m in enumerate(messages)
                 if isinstance(m, AIMessage)
             ],
             # Log ToolMessage ids to verify they're present
             tool_message_ids=[
-                m.tool_call_id
-                for m in messages
-                if isinstance(m, ToolMessage)
+                m.tool_call_id for m in messages if isinstance(m, ToolMessage)
             ],
         )
 
@@ -980,16 +990,18 @@ def create_agent_graph_with_tool_approval(
 
                 # Interrupt and wait for user approval
                 # The interrupt payload will be sent to the frontend
-                approval = interrupt({
-                    "type": "tool_approval",
-                    "tool_name": tool_name,
-                    "tool_args": tool_call.get("args", {}),
-                    "tool_call_id": tool_call.get("id"),
-                    "tool_description": next(
-                        (t.description for t in tools if t.name == tool_name),
-                        "No description available"
-                    ),
-                })
+                approval = interrupt(
+                    {
+                        "type": "tool_approval",
+                        "tool_name": tool_name,
+                        "tool_args": tool_call.get("args", {}),
+                        "tool_call_id": tool_call.get("id"),
+                        "tool_description": next(
+                            (t.description for t in tools if t.name == tool_name),
+                            "No description available",
+                        ),
+                    }
+                )
 
                 # Check user's decision
                 if not approval or not approval.get("approved", False):
@@ -1051,7 +1063,7 @@ def create_agent_graph_with_tool_approval(
         {
             "tools": "tool_approval",  # Go to approval first
             END: END,
-        }
+        },
     )
 
     # After approval, either execute tools or go back to chat (if rejected)
@@ -1061,7 +1073,7 @@ def create_agent_graph_with_tool_approval(
         {
             "tools": "tools",
             "chat": "cleanup_orphans",  # Route through cleanup in case of rejection
-        }
+        },
     )
 
     # After tools execute, go back to chat
@@ -1099,8 +1111,12 @@ async def get_agent_with_tools(
 
     # Collect all tools - start with built-in tools
     all_tools = list(get_available_tools())
-    builtin_tool_names = {t.name for t in all_tools}
-    logger.info("builtin_tools_loaded", tool_count=len(all_tools), tool_names=[t.name for t in all_tools])
+    {t.name for t in all_tools}
+    logger.info(
+        "builtin_tools_loaded",
+        tool_count=len(all_tools),
+        tool_names=[t.name for t in all_tools],
+    )
 
     # Add context-aware tools (like search_documents) if we have context
     if org_id and user_id:
@@ -1122,7 +1138,9 @@ async def get_agent_with_tools(
 
     # Add MCP tools if context is available and MCP is enabled
     if org_id and user_id:
-        logger.info("loading_mcp_tools", org_id=org_id, team_id=team_id, user_id=user_id)
+        logger.info(
+            "loading_mcp_tools", org_id=org_id, team_id=team_id, user_id=user_id
+        )
         mcp_tools = await _get_mcp_tools(org_id, team_id, user_id)
         if mcp_tools:
             mcp_tool_names = {t.name for t in mcp_tools}
@@ -1140,7 +1158,7 @@ async def get_agent_with_tools(
 
     # Filter out disabled tools based on user settings
     if org_id and user_id:
-        disabled_servers, disabled_tools = _get_disabled_tools_config(
+        _disabled_servers, disabled_tools = _get_disabled_tools_config(
             org_id, team_id, user_id
         )
         if disabled_tools:
@@ -1178,9 +1196,8 @@ async def get_agent_with_tools(
             mcp_tool_names=mcp_tool_names,
             checkpointer=checkpointer,
         )
-    else:
-        logger.info("using_standard_tools_graph")
-        return create_agent_graph_with_tools(tools=all_tools, checkpointer=checkpointer)
+    logger.info("using_standard_tools_graph")
+    return create_agent_graph_with_tools(tools=all_tools, checkpointer=checkpointer)
 
 
 _pool: AsyncConnectionPool | None = None
@@ -1319,7 +1336,7 @@ async def stream_agent(
 
         logger.info("streaming_complete", thread_id=thread_id)
     except Exception as e:
-        logger.error("streaming_error", error=str(e), thread_id=thread_id)
+        logger.exception("streaming_error", error=str(e), thread_id=thread_id)
         raise
 
 
@@ -1357,12 +1374,14 @@ async def run_agent_with_context(
         provider=provider,
     )
 
-    token = _llm_context.set({
-        "org_id": org_id,
-        "team_id": team_id,
-        "provider": provider,
-        "user_id": user_id,
-    })
+    token = _llm_context.set(
+        {
+            "org_id": org_id,
+            "team_id": team_id,
+            "provider": provider,
+            "user_id": user_id,
+        }
+    )
 
     try:
         logger.info(
@@ -1416,12 +1435,14 @@ async def stream_agent_with_context(
     Yields:
         Response tokens as strings, or a dict with interrupt info for tool approval
     """
-    token = _llm_context.set({
-        "org_id": org_id,
-        "team_id": team_id,
-        "provider": provider,
-        "user_id": user_id,
-    })
+    token = _llm_context.set(
+        {
+            "org_id": org_id,
+            "team_id": team_id,
+            "provider": provider,
+            "user_id": user_id,
+        }
+    )
 
     try:
         # Use agent with tools (includes MCP tools if enabled)
@@ -1457,7 +1478,9 @@ async def stream_agent_with_context(
                         thread_id=thread_id,
                         message_count=len(existing_messages),
                         message_types=[type(m).__name__ for m in existing_messages],
-                        next_nodes=list(existing_state.next) if existing_state.next else [],
+                        next_nodes=list(existing_state.next)
+                        if existing_state.next
+                        else [],
                     )
                     # Check for orphaned tool calls in the checkpoint
                     existing_orphans = _get_orphaned_tool_calls(existing_messages)
@@ -1469,7 +1492,9 @@ async def stream_agent_with_context(
                             orphan_ids=[tc.get("id") for tc in existing_orphans],
                         )
                         # Fix the checkpoint by updating state with rejection messages
-                        rejection_messages = _create_rejection_messages(existing_orphans)
+                        rejection_messages = _create_rejection_messages(
+                            existing_orphans
+                        )
                         await agent.aupdate_state(
                             config,
                             {"messages": rejection_messages},
@@ -1517,8 +1542,7 @@ async def stream_agent_with_context(
                     if hasattr(tool_output, "content"):
                         tool_output = tool_output.content
                     try:
-                        import json as json_module
-                        result_data = json_module.loads(tool_output)
+                        result_data = json.loads(tool_output)
                         sources = result_data.get("results", [])
                         if sources:
                             logger.info(
@@ -1571,7 +1595,11 @@ async def stream_agent_with_context(
         error_str = str(e)
 
         # Check if this is an orphaned tool_use error from Anthropic
-        if "tool_use" in error_str and "tool_result" in error_str and "immediately after" in error_str:
+        if (
+            "tool_use" in error_str
+            and "tool_result" in error_str
+            and "immediately after" in error_str
+        ):
             logger.warning(
                 "orphaned_tool_use_error_detected",
                 error=error_str,
@@ -1595,7 +1623,9 @@ async def stream_agent_with_context(
                             )
 
                             # Add rejection messages for each orphan
-                            rejection_messages = _create_rejection_messages(existing_orphans)
+                            rejection_messages = _create_rejection_messages(
+                                existing_orphans
+                            )
                             await agent.aupdate_state(
                                 config,
                                 {"messages": rejection_messages},
@@ -1623,14 +1653,14 @@ async def stream_agent_with_context(
                             return  # Success on retry, return early
 
                 except Exception as retry_error:
-                    logger.error(
+                    logger.exception(
                         "orphan_fix_retry_failed",
                         original_error=error_str,
                         retry_error=str(retry_error),
                         thread_id=thread_id,
                     )
 
-        logger.error(
+        logger.exception(
             "streaming_error_with_context",
             error=error_str,
             thread_id=thread_id,
@@ -1665,10 +1695,12 @@ async def get_conversation_history(thread_id: str) -> list[dict]:
             # Skip empty messages (e.g., tool invocation responses)
             if not content:
                 continue
-            messages.append({
-                "role": "user" if isinstance(m, HumanMessage) else "assistant",
-                "content": content,
-            })
+            messages.append(
+                {
+                    "role": "user" if isinstance(m, HumanMessage) else "assistant",
+                    "content": content,
+                }
+            )
         return messages
 
     return []
@@ -1701,6 +1733,7 @@ async def get_interrupted_tool_call(
         state = await agent.aget_state(config)
 
         # Check if the conversation is in an interrupted state
+        result = None
         if state.next and "tool_approval" in state.next:
             # The interrupt payload is stored in the state's tasks
             # LangGraph stores interrupt data in a specific way
@@ -1709,12 +1742,19 @@ async def get_interrupted_tool_call(
                     if hasattr(task, "interrupts") and task.interrupts:
                         for interrupt_data in task.interrupts:
                             if hasattr(interrupt_data, "value"):
-                                return interrupt_data.value
-            logger.warning("interrupted_state_no_data", thread_id=thread_id)
-        return None
+                                result = interrupt_data.value
+                                break
+                        if result is not None:
+                            break
+            if result is None:
+                logger.warning("interrupted_state_no_data", thread_id=thread_id)
     except Exception as e:
-        logger.error("get_interrupted_tool_call_error", error=str(e), thread_id=thread_id)
-        return None
+        logger.exception(
+            "get_interrupted_tool_call_error", error=str(e), thread_id=thread_id
+        )
+        result = None
+
+    return result
 
 
 async def resume_agent_with_context(
@@ -1744,12 +1784,14 @@ async def resume_agent_with_context(
     Yields:
         Response tokens as strings, or a dict with interrupt info for additional tool approvals
     """
-    token = _llm_context.set({
-        "org_id": org_id,
-        "team_id": team_id,
-        "provider": provider,
-        "user_id": user_id,
-    })
+    token = _llm_context.set(
+        {
+            "org_id": org_id,
+            "team_id": team_id,
+            "provider": provider,
+            "user_id": user_id,
+        }
+    )
 
     try:
         agent = await get_agent_with_tools(org_id, team_id, user_id)
@@ -1824,7 +1866,7 @@ async def resume_agent_with_context(
 
         logger.info("resume_streaming_complete", thread_id=thread_id, approved=approved)
     except Exception as e:
-        logger.error(
+        logger.exception(
             "resume_streaming_error",
             error=str(e),
             thread_id=thread_id,

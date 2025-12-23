@@ -11,18 +11,18 @@ Memory is separate from conversation history (checkpointer):
 - Memory Store: Long-term facts, preferences, entities across conversations
 """
 
-from backend.memory.store import (
-    get_memory_store,
-    get_memory_namespace,
-    init_memory_store,
-    cleanup_memory_store,
-)
 from backend.memory.service import MemoryService
+from backend.memory.store import (
+    cleanup_memory_store,
+    get_memory_namespace,
+    get_memory_store,
+    init_memory_store,
+)
 
 __all__ = [
-    "get_memory_store",
-    "get_memory_namespace",
-    "init_memory_store",
-    "cleanup_memory_store",
     "MemoryService",
+    "cleanup_memory_store",
+    "get_memory_namespace",
+    "get_memory_store",
+    "init_memory_store",
 ]

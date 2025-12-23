@@ -1,10 +1,11 @@
 import asyncio
 import json
-import uuid
 from typing import Annotated
+import uuid
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.params import Depends
+from sqlmodel import Session, select
 from sse_starlette.sse import EventSourceResponse
 
 from backend.agents.base import (
@@ -29,41 +30,43 @@ from backend.audit import audit_service
 from backend.audit.schemas import AuditAction, Target
 from backend.auth import CurrentUser, SessionDep
 from backend.conversations import (
-    Conversation,
     ConversationUpdate,
     create_conversation_message,
     create_conversation_with_id,
     get_conversation,
+    get_conversation_messages,
     touch_conversation,
     update_conversation,
 )
 from backend.core.config import Settings, get_settings
+from backend.core.db import engine
 from backend.core.logging import get_logger
 from backend.core.secrets import get_secrets_service
 from backend.memory.extraction import extract_and_store_memories
 from backend.organizations.models import OrganizationMember
-from sqlmodel import select
+from backend.settings.service import get_effective_settings
 
 
 class AgentError(Exception):
     """Base exception for agent-related errors."""
 
-    pass
-
 
 class LLMError(AgentError):
     """Exception for LLM/model errors."""
-
-    pass
 
 
 class StreamError(AgentError):
     """Exception for streaming errors."""
 
-    pass
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 logger = get_logger(__name__)
+
+# Maximum number of messages to return in conversation history
+MAX_MESSAGE_HISTORY = 100
+
+# Set to track background tasks and prevent garbage collection
+_background_tasks: set[asyncio.Task] = set()
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -143,19 +146,25 @@ async def chat(
     conversation_id = request.conversation_id or str(uuid.uuid4())
 
     if is_new_conversation:
-        title = request.message[:100] + ("..." if len(request.message) > 100 else "")
+        title = request.message[:MAX_MESSAGE_HISTORY] + (
+            "..." if len(request.message) > MAX_MESSAGE_HISTORY else ""
+        )
         create_conversation_with_id(
             session=session,
             conversation_id=uuid.UUID(conversation_id),
             title=title,
             user_id=current_user.id,
-            organization_id=uuid.UUID(request.organization_id) if request.organization_id else None,
+            organization_id=uuid.UUID(request.organization_id)
+            if request.organization_id
+            else None,
             team_id=uuid.UUID(request.team_id) if request.team_id else None,
         )
     else:
-        existing = get_conversation(session=session, conversation_id=uuid.UUID(conversation_id))
+        existing = get_conversation(
+            session=session, conversation_id=uuid.UUID(conversation_id)
+        )
         if existing:
-            is_owner = existing.user_id == current_user.id or existing.created_by_id == current_user.id
+            is_owner = current_user.id in (existing.user_id, existing.created_by_id)
             team_matches = True
             if existing.team_id and request.team_id:
                 team_matches = str(existing.team_id) == request.team_id
@@ -164,7 +173,9 @@ async def chat(
                     status_code=403,
                     detail="Not authorized to access this conversation",
                 )
-            touch_conversation(session=session, conversation_id=uuid.UUID(conversation_id))
+            touch_conversation(
+                session=session, conversation_id=uuid.UUID(conversation_id)
+            )
 
     logger.info(
         "chat_request",
@@ -182,12 +193,18 @@ async def chat(
             conversation_id=uuid.UUID(conversation_id),
             role="user",
             content=request.message,
-            organization_id=uuid.UUID(request.organization_id) if request.organization_id else None,
+            organization_id=uuid.UUID(request.organization_id)
+            if request.organization_id
+            else None,
             team_id=uuid.UUID(request.team_id) if request.team_id else None,
             created_by_id=current_user.id,
         )
     except Exception as e:
-        logger.warning("failed_to_index_user_message", error=str(e), conversation_id=conversation_id)
+        logger.warning(
+            "failed_to_index_user_message",
+            error=str(e),
+            conversation_id=conversation_id,
+        )
 
     if request.stream:
         return EventSourceResponse(
@@ -236,29 +253,39 @@ async def chat(
                 conversation_id=uuid.UUID(conversation_id),
                 role="assistant",
                 content=response,
-                organization_id=uuid.UUID(request.organization_id) if request.organization_id else None,
+                organization_id=uuid.UUID(request.organization_id)
+                if request.organization_id
+                else None,
                 team_id=uuid.UUID(request.team_id) if request.team_id else None,
                 created_by_id=current_user.id,
             )
         except Exception as e:
-            logger.warning("failed_to_index_assistant_message", error=str(e), conversation_id=conversation_id)
+            logger.warning(
+                "failed_to_index_assistant_message",
+                error=str(e),
+                conversation_id=conversation_id,
+            )
 
         return ChatResponse(
             message=response,
             conversation_id=conversation_id,
         )
     except (AgentError, LLMError) as e:
-        logger.error("agent_error", error=str(e), error_type=type(e).__name__)
+        logger.exception("agent_error", error=str(e), error_type=type(e).__name__)
         raise HTTPException(status_code=500, detail="Agent processing failed") from e
     except ValueError as e:
-        logger.error("agent_validation_error", error=str(e))
+        logger.exception("agent_validation_error", error=str(e))
         raise HTTPException(status_code=400, detail=str(e)) from e
     except ConnectionError as e:
-        logger.error("agent_connection_error", error=str(e))
+        logger.exception("agent_connection_error", error=str(e))
         raise HTTPException(status_code=503, detail="LLM service unavailable") from e
     except Exception as e:
-        logger.exception("agent_unexpected_error", error=str(e), error_type=type(e).__name__)
-        raise HTTPException(status_code=500, detail="An unexpected error occurred") from e
+        logger.exception(
+            "agent_unexpected_error", error=str(e), error_type=type(e).__name__
+        )
+        raise HTTPException(
+            status_code=500, detail="An unexpected error occurred"
+        ) from e
 
 
 async def _update_conversation_title(
@@ -284,9 +311,10 @@ async def _update_conversation_title(
             conversation_id=conversation_id,
             title=title,
         )
-        return title
     except (LLMError, ConnectionError) as e:
-        logger.warning("title_generation_error", error=str(e), error_type=type(e).__name__)
+        logger.warning(
+            "title_generation_error", error=str(e), error_type=type(e).__name__
+        )
         return None
     except Exception as e:
         logger.warning(
@@ -294,7 +322,11 @@ async def _update_conversation_title(
             error=str(e),
             error_type=type(e).__name__,
         )
-        return None
+        title = None
+    else:
+        return title
+
+    return title
 
 
 async def _extract_memories_background(
@@ -312,10 +344,6 @@ async def _extract_memories_background(
     """
     try:
         # Check if memory is enabled via settings hierarchy
-        from backend.core.db import engine
-        from backend.settings.service import get_effective_settings
-        from sqlmodel import Session
-
         with Session(engine) as session:
             effective = get_effective_settings(
                 session=session,
@@ -394,7 +422,9 @@ async def stream_response(
                 user_id=user_id,
             )
         else:
-            stream_gen = stream_agent(message, thread_id=conversation_id, user_id=user_id)
+            stream_gen = stream_agent(
+                message, thread_id=conversation_id, user_id=user_id
+            )
 
         async for chunk in stream_gen:
             # Check if this is a special event (dict) or a token (str)
@@ -410,13 +440,17 @@ async def stream_response(
 
                     yield {
                         "event": "tool_approval",
-                        "data": json.dumps({
-                            "conversation_id": conversation_id,
-                            "tool_name": tool_name,
-                            "tool_args": tool_args,
-                            "tool_call_id": tool_call_id,
-                            "tool_description": chunk["data"].get("tool_description", ""),
-                        }),
+                        "data": json.dumps(
+                            {
+                                "conversation_id": conversation_id,
+                                "tool_name": tool_name,
+                                "tool_args": tool_args,
+                                "tool_call_id": tool_call_id,
+                                "tool_description": chunk["data"].get(
+                                    "tool_description", ""
+                                ),
+                            }
+                        ),
                     }
                     logger.info(
                         "tool_approval_event_sent",
@@ -446,10 +480,12 @@ async def stream_response(
                     collected_sources.extend(sources)  # Track for persistence
                     yield {
                         "event": "sources",
-                        "data": json.dumps({
-                            "conversation_id": conversation_id,
-                            "sources": sources,
-                        }),
+                        "data": json.dumps(
+                            {
+                                "conversation_id": conversation_id,
+                                "sources": sources,
+                            }
+                        ),
                     }
                     logger.info(
                         "sources_event_sent",
@@ -461,7 +497,9 @@ async def stream_response(
                 full_response += chunk
                 yield {
                     "event": "message",
-                    "data": json.dumps({"token": chunk, "conversation_id": conversation_id}),
+                    "data": json.dumps(
+                        {"token": chunk, "conversation_id": conversation_id}
+                    ),
                 }
 
         # Only do post-processing if we weren't interrupted
@@ -477,13 +515,17 @@ async def stream_response(
                 if title:
                     yield {
                         "event": "title",
-                        "data": json.dumps({"title": title, "conversation_id": conversation_id}),
+                        "data": json.dumps(
+                            {"title": title, "conversation_id": conversation_id}
+                        ),
                     }
 
             # Index assistant response for search (with sources for citation display)
             if full_response and session:
                 try:
-                    sources_json = json.dumps(collected_sources) if collected_sources else None
+                    sources_json = (
+                        json.dumps(collected_sources) if collected_sources else None
+                    )
                     create_conversation_message(
                         session=session,
                         conversation_id=uuid.UUID(conversation_id),
@@ -501,7 +543,11 @@ async def stream_response(
                             source_count=len(collected_sources),
                         )
                 except Exception as e:
-                    logger.warning("failed_to_index_assistant_message_stream", error=str(e), conversation_id=conversation_id)
+                    logger.warning(
+                        "failed_to_index_assistant_message_stream",
+                        error=str(e),
+                        conversation_id=conversation_id,
+                    )
 
             # Extract and store memories in background (don't block response)
             if full_response and org_id and user_id:
@@ -513,7 +559,8 @@ async def stream_response(
                     conversation_id=conversation_id,
                     response_length=len(full_response),
                 )
-                asyncio.create_task(
+                # Store task reference to prevent garbage collection
+                task = asyncio.create_task(
                     _extract_memories_background(
                         user_message=message,
                         assistant_response=full_response,
@@ -523,6 +570,8 @@ async def stream_response(
                         conversation_id=conversation_id,
                     )
                 )
+                _background_tasks.add(task)
+                task.add_done_callback(_background_tasks.discard)
             else:
                 logger.info(
                     "memory_extraction_skipped_no_context",
@@ -537,22 +586,32 @@ async def stream_response(
             }
 
     except (AgentError, LLMError) as e:
-        logger.error("stream_agent_error", error=str(e), error_type=type(e).__name__)
+        logger.exception(
+            "stream_agent_error", error=str(e), error_type=type(e).__name__
+        )
         yield {
             "event": "error",
-            "data": json.dumps({"error": "Agent processing failed", "type": "agent_error"}),
+            "data": json.dumps(
+                {"error": "Agent processing failed", "type": "agent_error"}
+            ),
         }
     except ConnectionError as e:
-        logger.error("stream_connection_error", error=str(e))
+        logger.exception("stream_connection_error", error=str(e))
         yield {
             "event": "error",
-            "data": json.dumps({"error": "LLM service unavailable", "type": "connection_error"}),
+            "data": json.dumps(
+                {"error": "LLM service unavailable", "type": "connection_error"}
+            ),
         }
     except Exception as e:
-        logger.exception("stream_unexpected_error", error=str(e), error_type=type(e).__name__)
+        logger.exception(
+            "stream_unexpected_error", error=str(e), error_type=type(e).__name__
+        )
         yield {
             "event": "error",
-            "data": json.dumps({"error": "An unexpected error occurred", "type": "unexpected_error"}),
+            "data": json.dumps(
+                {"error": "An unexpected error occurred", "type": "unexpected_error"}
+            ),
         }
 
 
@@ -567,10 +626,12 @@ async def update_title(
 
     Used after the first message to set a generated summary title.
     """
-    existing = get_conversation(session=session, conversation_id=uuid.UUID(conversation_id))
+    existing = get_conversation(
+        session=session, conversation_id=uuid.UUID(conversation_id)
+    )
     if not existing:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    is_owner = existing.user_id == current_user.id or existing.created_by_id == current_user.id
+    is_owner = current_user.id in (existing.user_id, existing.created_by_id)
     if not is_owner:
         raise HTTPException(
             status_code=403,
@@ -592,7 +653,9 @@ async def update_title(
     return {"success": True, "title": title}
 
 
-@router.get("/conversations/{conversation_id}/history", response_model=list[ChatMessage])
+@router.get(
+    "/conversations/{conversation_id}/history", response_model=list[ChatMessage]
+)
 async def get_history(
     conversation_id: str,
     session: SessionDep,
@@ -607,11 +670,11 @@ async def get_history(
     Primary source is our conversation_message index table (has sources).
     Falls back to LangGraph checkpointer if index is empty.
     """
-    from backend.conversations import get_conversation_messages
-
-    existing = get_conversation(session=session, conversation_id=uuid.UUID(conversation_id))
+    existing = get_conversation(
+        session=session, conversation_id=uuid.UUID(conversation_id)
+    )
     if existing:
-        is_owner = existing.user_id == current_user.id or existing.created_by_id == current_user.id
+        is_owner = current_user.id in (existing.user_id, existing.created_by_id)
         if not is_owner:
             raise HTTPException(
                 status_code=403,
@@ -647,7 +710,9 @@ async def get_history(
                         conversation_id=conversation_id,
                         message_id=str(msg.id),
                     )
-            result.append(ChatMessage(role=msg.role, content=msg.content, sources=sources))
+            result.append(
+                ChatMessage(role=msg.role, content=msg.content, sources=sources)
+            )
         return result
 
     # Fallback to LangGraph checkpointer (no sources)
@@ -655,7 +720,10 @@ async def get_history(
     return [ChatMessage(**msg) for msg in history]
 
 
-@router.get("/conversations/{conversation_id}/pending-approval", response_model=ToolApprovalInfo | None)
+@router.get(
+    "/conversations/{conversation_id}/pending-approval",
+    response_model=ToolApprovalInfo | None,
+)
 async def get_pending_approval(
     conversation_id: str,
     session: SessionDep,
@@ -668,9 +736,11 @@ async def get_pending_approval(
     Returns the tool call details if the conversation is waiting for user approval,
     or null if no approval is pending.
     """
-    existing = get_conversation(session=session, conversation_id=uuid.UUID(conversation_id))
+    existing = get_conversation(
+        session=session, conversation_id=uuid.UUID(conversation_id)
+    )
     if existing:
-        is_owner = existing.user_id == current_user.id or existing.created_by_id == current_user.id
+        is_owner = current_user.id in (existing.user_id, existing.created_by_id)
         if not is_owner:
             raise HTTPException(
                 status_code=403,
@@ -711,11 +781,13 @@ async def resume_conversation(
     Supports both streaming (SSE) and non-streaming responses.
     """
     # Verify conversation exists and user owns it
-    existing = get_conversation(session=session, conversation_id=uuid.UUID(approval_request.conversation_id))
+    existing = get_conversation(
+        session=session, conversation_id=uuid.UUID(approval_request.conversation_id)
+    )
     if not existing:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    is_owner = existing.user_id == current_user.id or existing.created_by_id == current_user.id
+    is_owner = current_user.id in (existing.user_id, existing.created_by_id)
     if not is_owner:
         raise HTTPException(
             status_code=403,
@@ -752,12 +824,18 @@ async def resume_conversation(
     )
 
     # Audit log the approval/denial decision
-    audit_action = AuditAction.TOOL_APPROVAL_GRANTED if approval_request.approved else AuditAction.TOOL_APPROVAL_DENIED
+    audit_action = (
+        AuditAction.TOOL_APPROVAL_GRANTED
+        if approval_request.approved
+        else AuditAction.TOOL_APPROVAL_DENIED
+    )
     await audit_service.log(
         audit_action,
         actor=current_user,
         organization_id=org_id,
-        team_id=uuid.UUID(approval_request.team_id) if approval_request.team_id else None,
+        team_id=uuid.UUID(approval_request.team_id)
+        if approval_request.team_id
+        else None,
         targets=[
             Target(type="conversation", id=approval_request.conversation_id),
             Target(
@@ -805,7 +883,9 @@ async def resume_conversation(
         )
     except Exception as e:
         logger.exception("resume_error", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to resume conversation") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to resume conversation"
+        ) from e
 
 
 async def stream_resume_response(
@@ -843,13 +923,17 @@ async def stream_resume_response(
 
                 yield {
                     "event": "tool_approval",
-                    "data": json.dumps({
-                        "conversation_id": conversation_id,
-                        "tool_name": tool_name,
-                        "tool_args": tool_args,
-                        "tool_call_id": tool_call_id,
-                        "tool_description": chunk["data"].get("tool_description", ""),
-                    }),
+                    "data": json.dumps(
+                        {
+                            "conversation_id": conversation_id,
+                            "tool_name": tool_name,
+                            "tool_args": tool_args,
+                            "tool_call_id": tool_call_id,
+                            "tool_description": chunk["data"].get(
+                                "tool_description", ""
+                            ),
+                        }
+                    ),
                 }
                 logger.info(
                     "tool_approval_event_sent_on_resume",
@@ -876,7 +960,9 @@ async def stream_resume_response(
                 full_response += chunk
                 yield {
                     "event": "message",
-                    "data": json.dumps({"token": chunk, "conversation_id": conversation_id}),
+                    "data": json.dumps(
+                        {"token": chunk, "conversation_id": conversation_id}
+                    ),
                 }
 
         if not is_interrupted:
@@ -892,8 +978,12 @@ async def stream_resume_response(
             }
 
     except Exception as e:
-        logger.exception("stream_resume_error", error=str(e), conversation_id=conversation_id)
+        logger.exception(
+            "stream_resume_error", error=str(e), conversation_id=conversation_id
+        )
         yield {
             "event": "error",
-            "data": json.dumps({"error": "Failed to resume conversation", "type": "resume_error"}),
+            "data": json.dumps(
+                {"error": "Failed to resume conversation", "type": "resume_error"}
+            ),
         }

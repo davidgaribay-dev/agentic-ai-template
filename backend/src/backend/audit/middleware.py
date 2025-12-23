@@ -1,7 +1,8 @@
+from collections.abc import Callable
+from http import HTTPStatus
 import time
 import traceback
 import uuid
-from typing import Callable
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -68,8 +69,7 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
         exception_info: dict | None = None
 
         try:
-            response = await call_next(request)
-            return response
+            return await call_next(request)
 
         except Exception as e:
             exception_info = {
@@ -85,13 +85,9 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
             status_code = response.status_code if response else 500
 
             # Determine log level based on outcome
-            if exception_info:
+            if exception_info or status_code >= HTTPStatus.INTERNAL_SERVER_ERROR:
                 level = LogLevel.ERROR
-            elif status_code >= 500:
-                level = LogLevel.ERROR
-            elif status_code >= 400:
-                level = LogLevel.WARNING
-            elif duration_ms > self.slow_request_threshold_ms:
+            elif status_code >= HTTPStatus.BAD_REQUEST or duration_ms > self.slow_request_threshold_ms:
                 level = LogLevel.WARNING
             else:
                 level = LogLevel.INFO

@@ -3,8 +3,8 @@
 Mirrors the theme_settings/service.py pattern for consistency.
 """
 
-import uuid
 from datetime import UTC, datetime
+import uuid
 
 from sqlmodel import Session, select
 
@@ -230,24 +230,23 @@ def get_effective_rag_settings(
                     max_document_size_mb=org_settings.max_document_size_mb,
                     allowed_file_types=org_settings.allowed_file_types,
                 )
-            else:
-                # User cannot customize - use org defaults
-                return EffectiveRAGSettings(
-                    rag_enabled=org_settings.rag_enabled,
-                    rag_disabled_by="org" if not org_settings.rag_enabled else None,
-                    chunk_size=org_settings.chunk_size,
-                    chunk_overlap=org_settings.chunk_overlap,
-                    chunks_per_query=org_settings.chunks_per_query,
-                    similarity_threshold=org_settings.similarity_threshold,
-                    use_hybrid_search=org_settings.use_hybrid_search,
-                    reranking_enabled=org_settings.reranking_enabled,
-                    query_rewriting_enabled=org_settings.query_rewriting_enabled,
-                    customization_allowed=False,
-                    customization_disabled_by="org",
-                    max_documents_per_user=org_settings.max_documents_per_user,
-                    max_document_size_mb=org_settings.max_document_size_mb,
-                    allowed_file_types=org_settings.allowed_file_types,
-                )
+            # User cannot customize - use org defaults
+            return EffectiveRAGSettings(
+                rag_enabled=org_settings.rag_enabled,
+                rag_disabled_by="org" if not org_settings.rag_enabled else None,
+                chunk_size=org_settings.chunk_size,
+                chunk_overlap=org_settings.chunk_overlap,
+                chunks_per_query=org_settings.chunks_per_query,
+                similarity_threshold=org_settings.similarity_threshold,
+                use_hybrid_search=org_settings.use_hybrid_search,
+                reranking_enabled=org_settings.reranking_enabled,
+                query_rewriting_enabled=org_settings.query_rewriting_enabled,
+                customization_allowed=False,
+                customization_disabled_by="org",
+                max_documents_per_user=org_settings.max_documents_per_user,
+                max_document_size_mb=org_settings.max_document_size_mb,
+                allowed_file_types=org_settings.allowed_file_types,
+            )
 
         # Org allows team customization - check if team is using it
         if not team_settings.rag_customization_enabled:
@@ -274,27 +273,24 @@ def get_effective_rag_settings(
                     max_document_size_mb=org_settings.max_document_size_mb,
                     allowed_file_types=org_settings.allowed_file_types,
                 )
-            else:
-                # User cannot customize - use org defaults
-                disabled_by = (
-                    "org" if not org_settings.allow_user_customization else "team"
-                )
-                return EffectiveRAGSettings(
-                    rag_enabled=org_settings.rag_enabled,
-                    rag_disabled_by="org" if not org_settings.rag_enabled else None,
-                    chunk_size=org_settings.chunk_size,
-                    chunk_overlap=org_settings.chunk_overlap,
-                    chunks_per_query=org_settings.chunks_per_query,
-                    similarity_threshold=org_settings.similarity_threshold,
-                    use_hybrid_search=org_settings.use_hybrid_search,
-                    reranking_enabled=org_settings.reranking_enabled,
-                    query_rewriting_enabled=org_settings.query_rewriting_enabled,
-                    customization_allowed=False,
-                    customization_disabled_by=disabled_by,
-                    max_documents_per_user=org_settings.max_documents_per_user,
-                    max_document_size_mb=org_settings.max_document_size_mb,
-                    allowed_file_types=org_settings.allowed_file_types,
-                )
+            # User cannot customize - use org defaults
+            disabled_by = "org" if not org_settings.allow_user_customization else "team"
+            return EffectiveRAGSettings(
+                rag_enabled=org_settings.rag_enabled,
+                rag_disabled_by="org" if not org_settings.rag_enabled else None,
+                chunk_size=org_settings.chunk_size,
+                chunk_overlap=org_settings.chunk_overlap,
+                chunks_per_query=org_settings.chunks_per_query,
+                similarity_threshold=org_settings.similarity_threshold,
+                use_hybrid_search=org_settings.use_hybrid_search,
+                reranking_enabled=org_settings.reranking_enabled,
+                query_rewriting_enabled=org_settings.query_rewriting_enabled,
+                customization_allowed=False,
+                customization_disabled_by=disabled_by,
+                max_documents_per_user=org_settings.max_documents_per_user,
+                max_document_size_mb=org_settings.max_document_size_mb,
+                allowed_file_types=org_settings.allowed_file_types,
+            )
 
         # Team is using custom settings - check if user can override
         user_can_customize = (
@@ -323,25 +319,24 @@ def get_effective_rag_settings(
                 max_document_size_mb=org_settings.max_document_size_mb,
                 allowed_file_types=org_settings.allowed_file_types,
             )
-        else:
-            # User cannot override - use team defaults
-            disabled_by = "org" if not org_settings.allow_user_customization else "team"
-            return EffectiveRAGSettings(
-                rag_enabled=team_settings.rag_enabled,
-                rag_disabled_by="team" if not team_settings.rag_enabled else None,
-                chunk_size=team_settings.chunk_size,
-                chunk_overlap=team_settings.chunk_overlap,
-                chunks_per_query=team_settings.chunks_per_query,
-                similarity_threshold=team_settings.similarity_threshold,
-                use_hybrid_search=team_settings.use_hybrid_search,
-                reranking_enabled=team_settings.reranking_enabled,
-                query_rewriting_enabled=team_settings.query_rewriting_enabled,
-                customization_allowed=False,
-                customization_disabled_by=disabled_by,
-                max_documents_per_user=org_settings.max_documents_per_user,
-                max_document_size_mb=org_settings.max_document_size_mb,
-                allowed_file_types=org_settings.allowed_file_types,
-            )
+        # User cannot override - use team defaults
+        disabled_by = "org" if not org_settings.allow_user_customization else "team"
+        return EffectiveRAGSettings(
+            rag_enabled=team_settings.rag_enabled,
+            rag_disabled_by="team" if not team_settings.rag_enabled else None,
+            chunk_size=team_settings.chunk_size,
+            chunk_overlap=team_settings.chunk_overlap,
+            chunks_per_query=team_settings.chunks_per_query,
+            similarity_threshold=team_settings.similarity_threshold,
+            use_hybrid_search=team_settings.use_hybrid_search,
+            reranking_enabled=team_settings.reranking_enabled,
+            query_rewriting_enabled=team_settings.query_rewriting_enabled,
+            customization_allowed=False,
+            customization_disabled_by=disabled_by,
+            max_documents_per_user=org_settings.max_documents_per_user,
+            max_document_size_mb=org_settings.max_document_size_mb,
+            allowed_file_types=org_settings.allowed_file_types,
+        )
 
     # Step 3: No team context - check if user can customize
     if org_settings.allow_user_customization:
@@ -362,21 +357,20 @@ def get_effective_rag_settings(
             max_document_size_mb=org_settings.max_document_size_mb,
             allowed_file_types=org_settings.allowed_file_types,
         )
-    else:
-        # User cannot customize - use org defaults
-        return EffectiveRAGSettings(
-            rag_enabled=org_settings.rag_enabled,
-            rag_disabled_by="org" if not org_settings.rag_enabled else None,
-            chunk_size=org_settings.chunk_size,
-            chunk_overlap=org_settings.chunk_overlap,
-            chunks_per_query=org_settings.chunks_per_query,
-            similarity_threshold=org_settings.similarity_threshold,
-            use_hybrid_search=org_settings.use_hybrid_search,
-            reranking_enabled=org_settings.reranking_enabled,
-            query_rewriting_enabled=org_settings.query_rewriting_enabled,
-            customization_allowed=False,
-            customization_disabled_by="org",
-            max_documents_per_user=org_settings.max_documents_per_user,
-            max_document_size_mb=org_settings.max_document_size_mb,
-            allowed_file_types=org_settings.allowed_file_types,
-        )
+    # User cannot customize - use org defaults
+    return EffectiveRAGSettings(
+        rag_enabled=org_settings.rag_enabled,
+        rag_disabled_by="org" if not org_settings.rag_enabled else None,
+        chunk_size=org_settings.chunk_size,
+        chunk_overlap=org_settings.chunk_overlap,
+        chunks_per_query=org_settings.chunks_per_query,
+        similarity_threshold=org_settings.similarity_threshold,
+        use_hybrid_search=org_settings.use_hybrid_search,
+        reranking_enabled=org_settings.reranking_enabled,
+        query_rewriting_enabled=org_settings.query_rewriting_enabled,
+        customization_allowed=False,
+        customization_disabled_by="org",
+        max_documents_per_user=org_settings.max_documents_per_user,
+        max_document_size_mb=org_settings.max_document_size_mb,
+        allowed_file_types=org_settings.allowed_file_types,
+    )

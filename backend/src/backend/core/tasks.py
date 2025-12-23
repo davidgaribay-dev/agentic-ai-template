@@ -10,6 +10,8 @@ Also includes application-specific background tasks like document processing.
 
 import asyncio
 from collections.abc import Awaitable, Callable, Coroutine
+import contextlib
+from datetime import UTC, datetime
 import json
 import os
 from pathlib import Path
@@ -17,7 +19,17 @@ import tempfile
 from typing import Any, TypeVar
 import uuid
 
+from sqlmodel import Session
+
+from backend.core.db import engine
+from backend.core.exceptions import TimeoutError as AppTimeoutError
 from backend.core.logging import get_logger
+from backend.core.storage import StorageError, get_document_content
+from backend.documents.chunking import DocumentChunker
+from backend.documents.embeddings import EmbeddingsService
+from backend.documents.models import Document, DocumentChunk
+from backend.documents.parsers import DocumentParser
+from backend.rag_settings.service import get_effective_rag_settings
 
 logger = get_logger(__name__)
 
@@ -68,7 +80,6 @@ def create_safe_task(
                         error=str(callback_error),
                     )
             logger.debug("background_task_completed", task=task_name)
-            return result
         except asyncio.CancelledError:
             logger.info("background_task_cancelled", task=task_name)
             raise
@@ -89,7 +100,11 @@ def create_safe_task(
                         original_error=str(e),
                         callback_error=str(callback_error),
                     )
-            return None
+            result = None
+        else:
+            return result
+
+        return result
 
     task = asyncio.create_task(wrapped(), name=task_name)
     logger.debug("background_task_created", task=task_name)
@@ -114,12 +129,12 @@ async def run_with_timeout(
     Raises:
         TimeoutError: If the operation times out (from core.exceptions)
     """
-    from backend.core.exceptions import TimeoutError as AppTimeoutError
-
     try:
-        return await asyncio.wait_for(coro, timeout=timeout_seconds)
-    except TimeoutError:
-        raise AppTimeoutError(operation_name, timeout_seconds)
+        result = await asyncio.wait_for(coro, timeout=timeout_seconds)
+    except TimeoutError as err:
+        raise AppTimeoutError(operation_name, timeout_seconds) from err
+    else:
+        return result
 
 
 async def gather_with_errors(
@@ -241,26 +256,15 @@ async def process_document_task(
     Raises:
         Exception: Any processing errors (caught and logged by create_safe_task)
     """
-    from datetime import UTC, datetime
-
-    from sqlmodel import Session
-
-    from backend.core.db import engine
-    from backend.core.storage import StorageError, get_document_content
-    from backend.documents.chunking import DocumentChunker
-    from backend.documents.embeddings import EmbeddingsService
-    from backend.documents.models import Document, DocumentChunk
-    from backend.documents.parsers import DocumentParser
-    from backend.rag_settings.service import get_effective_rag_settings
-
     session = Session(engine)
     local_file_path = None
 
+    # Get document record
+    doc = session.get(Document, document_id)
+    if not doc:
+        raise ValueError(f"Document {document_id} not found")
+
     try:
-        # Get document record
-        doc = session.get(Document, document_id)
-        if not doc:
-            raise ValueError(f"Document {document_id} not found")
 
         # Update status to processing
         doc.processing_status = "processing"
@@ -291,7 +295,7 @@ async def process_document_task(
                 size=len(file_content),
             )
         except StorageError as e:
-            raise ValueError(f"Failed to download document from storage: {e}")
+            raise ValueError(f"Failed to download document from storage: {e}") from e
 
         # Get effective RAG settings
         rag_settings = get_effective_rag_settings(session, user_id, org_id, team_id)
@@ -338,7 +342,7 @@ async def process_document_task(
 
         # Store chunks with embeddings
         logger.debug("storing_chunks_started", document_id=str(document_id))
-        for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+        for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=False)):
             chunk_record = DocumentChunk(
                 document_id=document_id,
                 organization_id=org_id,
@@ -396,10 +400,8 @@ async def process_document_task(
 
         # Cleanup temp file even on error
         if local_file_path and os.path.exists(local_file_path):
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(local_file_path)
-            except OSError:
-                pass
 
         raise
     finally:

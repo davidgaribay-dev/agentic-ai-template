@@ -37,7 +37,6 @@ class OrgPermission(str, Enum):
     DOCUMENTS_MANAGE_ORG = "documents:manage_org"
     DOCUMENTS_DELETE_ANY = "documents:delete_any"
 
-    # Billing (future)
     BILLING_READ = "billing:read"
     BILLING_UPDATE = "billing:update"
 

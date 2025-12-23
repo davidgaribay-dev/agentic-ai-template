@@ -1,9 +1,10 @@
-import re
-import uuid
 from datetime import UTC, datetime
+import re
+import secrets
+import uuid
 
 from sqlalchemy.orm import selectinload
-from sqlmodel import Session, select, func
+from sqlmodel import Session, func, select
 
 from backend.auth.models import User
 from backend.organizations.models import (
@@ -43,8 +44,6 @@ def make_slug_unique(session: Session, base_slug: str, max_attempts: int = 100) 
     Returns:
         A unique slug
     """
-    import secrets
-
     slug = base_slug
 
     statement = select(Organization).where(Organization.slug == slug)
@@ -191,7 +190,7 @@ def update_organization(
     """
     update_data = organization_in.model_dump(exclude_unset=True)
 
-    if "slug" in update_data and update_data["slug"]:
+    if update_data.get("slug"):
         new_slug = update_data["slug"]
         if new_slug != organization.slug:
             update_data["slug"] = make_slug_unique(session, new_slug)

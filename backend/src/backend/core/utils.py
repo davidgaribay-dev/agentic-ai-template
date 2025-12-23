@@ -1,12 +1,12 @@
-import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+import logging
 from pathlib import Path
 from typing import Any
 
-import emails  
-import jwt
+import emails
 from jinja2 import Template
+import jwt
 
 from backend.core.config import settings
 
@@ -30,15 +30,14 @@ def render_email_template(*, template_name: str, context: dict[str, Any]) -> str
 
     if template_path.exists():
         template_str = template_path.read_text()
-        html_content = Template(template_str).render(context)
-        return html_content
+        return Template(template_str).render(context)
 
     # Generate simple HTML if template not found
     return f"""
     <html>
     <body>
-        <h1>{context.get('subject', 'Email')}</h1>
-        <p>Link: <a href="{context.get('link', '#')}">{context.get('link', 'Click here')}</a></p>
+        <h1>{context.get("subject", "Email")}</h1>
+        <p>Link: <a href="{context.get("link", "#")}">{context.get("link", "Click here")}</a></p>
     </body>
     </html>
     """
@@ -66,7 +65,10 @@ def send_email(
         html=html_content,
         mail_from=(settings.EMAILS_FROM_NAME, settings.EMAILS_FROM_EMAIL),
     )
-    smtp_options: dict[str, Any] = {"host": settings.SMTP_HOST, "port": settings.SMTP_PORT}
+    smtp_options: dict[str, Any] = {
+        "host": settings.SMTP_HOST,
+        "port": settings.SMTP_PORT,
+    }
     if settings.SMTP_TLS:
         smtp_options["tls"] = True
     elif settings.SMTP_SSL:
@@ -97,7 +99,7 @@ def generate_password_reset_token(email: str, password_changed_at: datetime) -> 
     now = datetime.now(UTC)
     expires = now + delta
     exp = expires.timestamp()
-    encoded_jwt = jwt.encode(
+    return jwt.encode(
         {
             "exp": exp,
             "nbf": now.timestamp(),
@@ -107,7 +109,6 @@ def generate_password_reset_token(email: str, password_changed_at: datetime) -> 
         settings.SECRET_KEY,
         algorithm=settings.ALGORITHM,
     )
-    return encoded_jwt
 
 
 def verify_password_reset_token(token: str) -> tuple[str, float] | None:
@@ -125,12 +126,15 @@ def verify_password_reset_token(token: str) -> tuple[str, float] | None:
         )
         email = str(decoded_token["sub"])
         pca = float(decoded_token.get("pca", 0))
-        return (email, pca)
     except jwt.InvalidTokenError:
         return None
+    else:
+        return (email, pca)
 
 
-def generate_password_recovery_email(email_to: str, email: str, token: str) -> EmailData:
+def generate_password_recovery_email(
+    email_to: str, email: str, token: str
+) -> EmailData:
     """Generate password recovery email data.
 
     Args:
@@ -159,7 +163,9 @@ def generate_password_recovery_email(email_to: str, email: str, token: str) -> E
     return EmailData(html_content=html_content, subject=subject)
 
 
-def generate_new_account_email(email_to: str, username: str, password: str) -> EmailData:
+def generate_new_account_email(
+    email_to: str, username: str, password: str
+) -> EmailData:
     """Generate new account welcome email data.
 
     Args:

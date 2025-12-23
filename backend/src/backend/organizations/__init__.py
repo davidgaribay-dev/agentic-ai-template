@@ -12,6 +12,7 @@ from backend.organizations.models import (
 )
 
 __all__ = [
+    "OrgRole",
     "Organization",
     "OrganizationCreate",
     "OrganizationMember",
@@ -19,7 +20,6 @@ __all__ = [
     "OrganizationMemberPublic",
     "OrganizationMemberUpdate",
     "OrganizationPublic",
-    "OrganizationsPublic",
     "OrganizationUpdate",
-    "OrgRole",
+    "OrganizationsPublic",
 ]

@@ -5,6 +5,7 @@ ensuring consistent timeout and error handling across the application.
 """
 
 import asyncio
+import builtins
 from typing import Any, TypeVar
 
 import httpx
@@ -90,17 +91,16 @@ async def fetch_with_timeout(
     """
     try:
         async with create_http_client() as client:
-            response = await asyncio.wait_for(
+            return await asyncio.wait_for(
                 client.request(method, url, **kwargs),
                 timeout=timeout_seconds,
             )
-            return response
-    except asyncio.TimeoutError:
+    except builtins.TimeoutError as err:
         logger.warning("http_request_timeout", url=url, timeout=timeout_seconds)
-        raise TimeoutError(f"Request to {service_name}", timeout_seconds)
+        raise TimeoutError(f"Request to {service_name}", timeout_seconds) from err
     except httpx.RequestError as e:
         logger.warning("http_request_failed", url=url, error=str(e))
-        raise ExternalServiceError(service_name, str(e))
+        raise ExternalServiceError(service_name, str(e)) from e
 
 
 async def fetch_json(
@@ -139,10 +139,10 @@ async def fetch_json(
             url=url,
             status=e.response.status_code,
         )
-        raise ExternalServiceError(service_name, f"HTTP {e.response.status_code}")
+        raise ExternalServiceError(service_name, f"HTTP {e.response.status_code}") from e
     except ValueError as e:
         logger.warning("http_invalid_json", url=url, error=str(e))
-        raise ExternalServiceError(service_name, "Invalid JSON response")
+        raise ExternalServiceError(service_name, "Invalid JSON response") from e
 
 
 class RetryConfig:
@@ -194,25 +194,27 @@ async def fetch_with_retry(
                 response = await client.request(method, url, **kwargs)
 
                 # Check if we should retry on this status
-                if response.status_code in config.retry_on_status:
-                    if attempt < config.max_attempts - 1:
-                        delay = min(
-                            config.initial_delay * (config.exponential_base**attempt),
-                            config.max_delay,
-                        )
-                        logger.info(
-                            "http_retry",
-                            url=url,
-                            attempt=attempt + 1,
-                            status=response.status_code,
-                            delay=delay,
-                        )
-                        await asyncio.sleep(delay)
-                        continue
+                if (
+                    response.status_code in config.retry_on_status
+                    and attempt < config.max_attempts - 1
+                ):
+                    delay = min(
+                        config.initial_delay * (config.exponential_base**attempt),
+                        config.max_delay,
+                    )
+                    logger.info(
+                        "http_retry",
+                        url=url,
+                        attempt=attempt + 1,
+                        status=response.status_code,
+                        delay=delay,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
 
                 return response
 
-        except (httpx.RequestError, asyncio.TimeoutError) as e:
+        except (httpx.RequestError, TimeoutError) as e:
             last_error = e
             if attempt < config.max_attempts - 1:
                 delay = min(

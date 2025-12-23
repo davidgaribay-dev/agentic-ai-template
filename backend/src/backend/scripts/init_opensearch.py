@@ -13,10 +13,11 @@ This script:
 4. Verifies the import was successful
 """
 
+from http import HTTPStatus
 import json
 import logging
-import sys
 from pathlib import Path
+import sys
 
 import httpx
 from tenacity import (
@@ -30,7 +31,9 @@ from tenacity import (
 
 from backend.core.config import settings
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # Configuration
@@ -64,30 +67,56 @@ DEFAULT_SAVED_OBJECTS = [
         "id": "log-level-distribution",
         "attributes": {
             "title": "Log Level Distribution",
-            "visState": json.dumps({
-                "title": "Log Level Distribution",
-                "type": "pie",
-                "aggs": [
-                    {"id": "1", "enabled": True, "type": "count", "params": {}, "schema": "metric"},
-                    {
-                        "id": "2",
-                        "enabled": True,
-                        "type": "terms",
-                        "params": {"field": "level", "size": 10, "order": "desc", "orderBy": "1"},
-                        "schema": "segment",
+            "visState": json.dumps(
+                {
+                    "title": "Log Level Distribution",
+                    "type": "pie",
+                    "aggs": [
+                        {
+                            "id": "1",
+                            "enabled": True,
+                            "type": "count",
+                            "params": {},
+                            "schema": "metric",
+                        },
+                        {
+                            "id": "2",
+                            "enabled": True,
+                            "type": "terms",
+                            "params": {
+                                "field": "level",
+                                "size": 10,
+                                "order": "desc",
+                                "orderBy": "1",
+                            },
+                            "schema": "segment",
+                        },
+                    ],
+                    "params": {
+                        "type": "pie",
+                        "addTooltip": True,
+                        "addLegend": True,
+                        "legendPosition": "right",
                     },
-                ],
-                "params": {"type": "pie", "addTooltip": True, "addLegend": True, "legendPosition": "right"},
-            }),
+                }
+            ),
             "kibanaSavedObjectMeta": {
-                "searchSourceJSON": json.dumps({
-                    "index": "app-logs",
-                    "query": {"query": "", "language": "kuery"},
-                    "filter": [],
-                })
+                "searchSourceJSON": json.dumps(
+                    {
+                        "index": "app-logs",
+                        "query": {"query": "", "language": "kuery"},
+                        "filter": [],
+                    }
+                )
             },
         },
-        "references": [{"id": "app-logs", "name": "kibanaSavedObjectMeta.searchSourceJSON.index", "type": "index-pattern"}],
+        "references": [
+            {
+                "id": "app-logs",
+                "name": "kibanaSavedObjectMeta.searchSourceJSON.index",
+                "type": "index-pattern",
+            }
+        ],
     },
     # Logs over time visualization
     {
@@ -95,37 +124,67 @@ DEFAULT_SAVED_OBJECTS = [
         "id": "logs-over-time",
         "attributes": {
             "title": "Logs Over Time",
-            "visState": json.dumps({
-                "title": "Logs Over Time",
-                "type": "histogram",
-                "aggs": [
-                    {"id": "1", "enabled": True, "type": "count", "params": {}, "schema": "metric"},
-                    {
-                        "id": "2",
-                        "enabled": True,
-                        "type": "date_histogram",
-                        "params": {"field": "timestamp", "interval": "auto", "min_doc_count": 1},
-                        "schema": "segment",
+            "visState": json.dumps(
+                {
+                    "title": "Logs Over Time",
+                    "type": "histogram",
+                    "aggs": [
+                        {
+                            "id": "1",
+                            "enabled": True,
+                            "type": "count",
+                            "params": {},
+                            "schema": "metric",
+                        },
+                        {
+                            "id": "2",
+                            "enabled": True,
+                            "type": "date_histogram",
+                            "params": {
+                                "field": "timestamp",
+                                "interval": "auto",
+                                "min_doc_count": 1,
+                            },
+                            "schema": "segment",
+                        },
+                        {
+                            "id": "3",
+                            "enabled": True,
+                            "type": "terms",
+                            "params": {
+                                "field": "level",
+                                "size": 5,
+                                "order": "desc",
+                                "orderBy": "1",
+                            },
+                            "schema": "group",
+                        },
+                    ],
+                    "params": {
+                        "type": "histogram",
+                        "addTooltip": True,
+                        "addLegend": True,
+                        "legendPosition": "right",
                     },
-                    {
-                        "id": "3",
-                        "enabled": True,
-                        "type": "terms",
-                        "params": {"field": "level", "size": 5, "order": "desc", "orderBy": "1"},
-                        "schema": "group",
-                    },
-                ],
-                "params": {"type": "histogram", "addTooltip": True, "addLegend": True, "legendPosition": "right"},
-            }),
+                }
+            ),
             "kibanaSavedObjectMeta": {
-                "searchSourceJSON": json.dumps({
-                    "index": "app-logs",
-                    "query": {"query": "", "language": "kuery"},
-                    "filter": [],
-                })
+                "searchSourceJSON": json.dumps(
+                    {
+                        "index": "app-logs",
+                        "query": {"query": "", "language": "kuery"},
+                        "filter": [],
+                    }
+                )
             },
         },
-        "references": [{"id": "app-logs", "name": "kibanaSavedObjectMeta.searchSourceJSON.index", "type": "index-pattern"}],
+        "references": [
+            {
+                "id": "app-logs",
+                "name": "kibanaSavedObjectMeta.searchSourceJSON.index",
+                "type": "index-pattern",
+            }
+        ],
     },
     # Error logs visualization
     {
@@ -133,30 +192,58 @@ DEFAULT_SAVED_OBJECTS = [
         "id": "error-logs",
         "attributes": {
             "title": "Recent Errors",
-            "visState": json.dumps({
-                "title": "Recent Errors",
-                "type": "table",
-                "aggs": [
-                    {"id": "1", "enabled": True, "type": "count", "params": {}, "schema": "metric"},
-                    {
-                        "id": "2",
-                        "enabled": True,
-                        "type": "terms",
-                        "params": {"field": "message.keyword", "size": 20, "order": "desc", "orderBy": "1"},
-                        "schema": "bucket",
+            "visState": json.dumps(
+                {
+                    "title": "Recent Errors",
+                    "type": "table",
+                    "aggs": [
+                        {
+                            "id": "1",
+                            "enabled": True,
+                            "type": "count",
+                            "params": {},
+                            "schema": "metric",
+                        },
+                        {
+                            "id": "2",
+                            "enabled": True,
+                            "type": "terms",
+                            "params": {
+                                "field": "message.keyword",
+                                "size": 20,
+                                "order": "desc",
+                                "orderBy": "1",
+                            },
+                            "schema": "bucket",
+                        },
+                    ],
+                    "params": {
+                        "perPage": 10,
+                        "showPartialRows": False,
+                        "showTotal": False,
                     },
-                ],
-                "params": {"perPage": 10, "showPartialRows": False, "showTotal": False},
-            }),
+                }
+            ),
             "kibanaSavedObjectMeta": {
-                "searchSourceJSON": json.dumps({
-                    "index": "app-logs",
-                    "query": {"query": "level:ERROR OR level:error", "language": "kuery"},
-                    "filter": [],
-                })
+                "searchSourceJSON": json.dumps(
+                    {
+                        "index": "app-logs",
+                        "query": {
+                            "query": "level:ERROR OR level:error",
+                            "language": "kuery",
+                        },
+                        "filter": [],
+                    }
+                )
             },
         },
-        "references": [{"id": "app-logs", "name": "kibanaSavedObjectMeta.searchSourceJSON.index", "type": "index-pattern"}],
+        "references": [
+            {
+                "id": "app-logs",
+                "name": "kibanaSavedObjectMeta.searchSourceJSON.index",
+                "type": "index-pattern",
+            }
+        ],
     },
     # Audit actions visualization
     {
@@ -164,30 +251,56 @@ DEFAULT_SAVED_OBJECTS = [
         "id": "audit-actions",
         "attributes": {
             "title": "Audit Actions",
-            "visState": json.dumps({
-                "title": "Audit Actions",
-                "type": "pie",
-                "aggs": [
-                    {"id": "1", "enabled": True, "type": "count", "params": {}, "schema": "metric"},
-                    {
-                        "id": "2",
-                        "enabled": True,
-                        "type": "terms",
-                        "params": {"field": "action", "size": 20, "order": "desc", "orderBy": "1"},
-                        "schema": "segment",
+            "visState": json.dumps(
+                {
+                    "title": "Audit Actions",
+                    "type": "pie",
+                    "aggs": [
+                        {
+                            "id": "1",
+                            "enabled": True,
+                            "type": "count",
+                            "params": {},
+                            "schema": "metric",
+                        },
+                        {
+                            "id": "2",
+                            "enabled": True,
+                            "type": "terms",
+                            "params": {
+                                "field": "action",
+                                "size": 20,
+                                "order": "desc",
+                                "orderBy": "1",
+                            },
+                            "schema": "segment",
+                        },
+                    ],
+                    "params": {
+                        "type": "pie",
+                        "addTooltip": True,
+                        "addLegend": True,
+                        "legendPosition": "right",
                     },
-                ],
-                "params": {"type": "pie", "addTooltip": True, "addLegend": True, "legendPosition": "right"},
-            }),
+                }
+            ),
             "kibanaSavedObjectMeta": {
-                "searchSourceJSON": json.dumps({
-                    "index": "audit-logs",
-                    "query": {"query": "", "language": "kuery"},
-                    "filter": [],
-                })
+                "searchSourceJSON": json.dumps(
+                    {
+                        "index": "audit-logs",
+                        "query": {"query": "", "language": "kuery"},
+                        "filter": [],
+                    }
+                )
             },
         },
-        "references": [{"id": "audit-logs", "name": "kibanaSavedObjectMeta.searchSourceJSON.index", "type": "index-pattern"}],
+        "references": [
+            {
+                "id": "audit-logs",
+                "name": "kibanaSavedObjectMeta.searchSourceJSON.index",
+                "type": "index-pattern",
+            }
+        ],
     },
     # Application Logs Dashboard
     {
@@ -196,36 +309,44 @@ DEFAULT_SAVED_OBJECTS = [
         "attributes": {
             "title": "Application Logs",
             "description": "Overview of application logs including log levels, errors, and trends",
-            "panelsJSON": json.dumps([
-                {
-                    "version": "2.18.0",
-                    "gridData": {"x": 0, "y": 0, "w": 24, "h": 12, "i": "1"},
-                    "panelIndex": "1",
-                    "embeddableConfig": {},
-                    "panelRefName": "panel_0",
-                },
-                {
-                    "version": "2.18.0",
-                    "gridData": {"x": 24, "y": 0, "w": 24, "h": 12, "i": "2"},
-                    "panelIndex": "2",
-                    "embeddableConfig": {},
-                    "panelRefName": "panel_1",
-                },
-                {
-                    "version": "2.18.0",
-                    "gridData": {"x": 0, "y": 12, "w": 48, "h": 15, "i": "3"},
-                    "panelIndex": "3",
-                    "embeddableConfig": {},
-                    "panelRefName": "panel_2",
-                },
-            ]),
+            "panelsJSON": json.dumps(
+                [
+                    {
+                        "version": "2.18.0",
+                        "gridData": {"x": 0, "y": 0, "w": 24, "h": 12, "i": "1"},
+                        "panelIndex": "1",
+                        "embeddableConfig": {},
+                        "panelRefName": "panel_0",
+                    },
+                    {
+                        "version": "2.18.0",
+                        "gridData": {"x": 24, "y": 0, "w": 24, "h": 12, "i": "2"},
+                        "panelIndex": "2",
+                        "embeddableConfig": {},
+                        "panelRefName": "panel_1",
+                    },
+                    {
+                        "version": "2.18.0",
+                        "gridData": {"x": 0, "y": 12, "w": 48, "h": 15, "i": "3"},
+                        "panelIndex": "3",
+                        "embeddableConfig": {},
+                        "panelRefName": "panel_2",
+                    },
+                ]
+            ),
             "timeRestore": False,
             "kibanaSavedObjectMeta": {
-                "searchSourceJSON": json.dumps({"query": {"query": "", "language": "kuery"}, "filter": []})
+                "searchSourceJSON": json.dumps(
+                    {"query": {"query": "", "language": "kuery"}, "filter": []}
+                )
             },
         },
         "references": [
-            {"id": "log-level-distribution", "name": "panel_0", "type": "visualization"},
+            {
+                "id": "log-level-distribution",
+                "name": "panel_0",
+                "type": "visualization",
+            },
             {"id": "logs-over-time", "name": "panel_1", "type": "visualization"},
             {"id": "error-logs", "name": "panel_2", "type": "visualization"},
         ],
@@ -237,18 +358,22 @@ DEFAULT_SAVED_OBJECTS = [
         "attributes": {
             "title": "Audit Logs",
             "description": "Security and compliance audit trail",
-            "panelsJSON": json.dumps([
-                {
-                    "version": "2.18.0",
-                    "gridData": {"x": 0, "y": 0, "w": 48, "h": 15, "i": "1"},
-                    "panelIndex": "1",
-                    "embeddableConfig": {},
-                    "panelRefName": "panel_0",
-                },
-            ]),
+            "panelsJSON": json.dumps(
+                [
+                    {
+                        "version": "2.18.0",
+                        "gridData": {"x": 0, "y": 0, "w": 48, "h": 15, "i": "1"},
+                        "panelIndex": "1",
+                        "embeddableConfig": {},
+                        "panelRefName": "panel_0",
+                    },
+                ]
+            ),
             "timeRestore": False,
             "kibanaSavedObjectMeta": {
-                "searchSourceJSON": json.dumps({"query": {"query": "", "language": "kuery"}, "filter": []})
+                "searchSourceJSON": json.dumps(
+                    {"query": {"query": "", "language": "kuery"}, "filter": []}
+                )
             },
         },
         "references": [
@@ -311,7 +436,9 @@ def generate_ndjson(saved_objects: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def import_saved_objects(client: httpx.Client, dashboards_url: str, ndjson_content: str) -> bool:
+def import_saved_objects(
+    client: httpx.Client, dashboards_url: str, ndjson_content: str
+) -> bool:
     """Import saved objects to OpenSearch Dashboards."""
     try:
         response = client.post(
@@ -321,20 +448,26 @@ def import_saved_objects(client: httpx.Client, dashboards_url: str, ndjson_conte
             files={"file": ("dashboards.ndjson", ndjson_content, "application/ndjson")},
         )
 
-        if response.status_code == 200:
+        if response.status_code == HTTPStatus.OK:
             result = response.json()
-            logger.info(f"Import successful: {result.get('successCount', 0)} objects imported")
+            logger.info(
+                f"Import successful: {result.get('successCount', 0)} objects imported"
+            )
             if result.get("errors"):
                 for error in result["errors"]:
                     logger.warning(f"Import error: {error}")
-            return True
+            success = True
         else:
-            logger.error(f"Import failed with status {response.status_code}: {response.text}")
-            return False
+            logger.error(
+                f"Import failed with status {response.status_code}: {response.text}"
+            )
+            success = False
 
     except Exception as e:
-        logger.error(f"Import failed: {e}")
-        return False
+        logger.exception(f"Import failed: {e}")
+        success = False
+
+    return success
 
 
 def verify_index_patterns(client: httpx.Client, dashboards_url: str) -> None:
@@ -347,10 +480,12 @@ def verify_index_patterns(client: httpx.Client, dashboards_url: str) -> None:
                 f"{dashboards_url}/api/saved_objects/index-pattern/{pattern_id}",
                 headers={"osd-xsrf": "true"},
             )
-            if response.status_code == 200:
+            if response.status_code == HTTPStatus.OK:
                 logger.info(f"Index pattern '{pattern_id}' verified")
             else:
-                logger.warning(f"Index pattern '{pattern_id}' not found (may be created on first data)")
+                logger.warning(
+                    f"Index pattern '{pattern_id}' not found (may be created on first data)"
+                )
         except Exception as e:
             logger.warning(f"Could not verify index pattern '{pattern_id}': {e}")
 
@@ -359,7 +494,9 @@ def load_ndjson_file() -> str | None:
     """Load NDJSON from file if it exists."""
     # Check multiple possible locations
     possible_paths = [
-        Path(__file__).parent.parent.parent.parent / "opensearch" / "default-dashboards.ndjson",
+        Path(__file__).parent.parent.parent.parent
+        / "opensearch"
+        / "default-dashboards.ndjson",
         Path("/config/default-dashboards.ndjson"),
         Path("backend/opensearch/default-dashboards.ndjson"),
     ]
@@ -394,14 +531,14 @@ def main() -> int:
             logger.info("Waiting for OpenSearch cluster...")
             wait_for_opensearch(client, opensearch_url)
         except RetryError:
-            logger.error("OpenSearch cluster did not become ready in time")
+            logger.exception("OpenSearch cluster did not become ready in time")
             return 1
 
         try:
             logger.info("Waiting for OpenSearch Dashboards...")
             wait_for_dashboards(client, dashboards_url)
         except RetryError:
-            logger.error("OpenSearch Dashboards did not become ready in time")
+            logger.exception("OpenSearch Dashboards did not become ready in time")
             return 1
 
         # Load or generate NDJSON content

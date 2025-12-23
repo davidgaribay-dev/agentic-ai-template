@@ -27,8 +27,8 @@ def init(engine) -> None:
             # Try to execute a simple query
             session.exec(select(1))
     except Exception as e:
-        logger.error(f"Database not ready: {e}")
-        raise e
+        logger.exception(f"Database not ready: {e}")
+        raise
 
 
 def main() -> None:

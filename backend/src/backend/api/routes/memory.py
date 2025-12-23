@@ -8,8 +8,8 @@ Provides endpoints for:
 All operations are scoped to the current user with optional org/team context.
 """
 
-import uuid
 from typing import Annotated
+import uuid
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel

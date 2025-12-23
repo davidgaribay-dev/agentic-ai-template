@@ -1,7 +1,7 @@
 """FastAPI application entry point."""
 
-import uuid
 from contextlib import asynccontextmanager
+import uuid
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -69,7 +69,11 @@ async def lifespan(app: FastAPI):
                 await init_memory_store()
                 logger.info("memory_store_initialized")
             except Exception as e:
-                logger.warning("memory_store_init_failed", error=str(e), error_type=type(e).__name__)
+                logger.warning(
+                    "memory_store_init_failed",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
 
         async with agent_lifespan():
             yield
@@ -101,7 +105,9 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     @app.exception_handler(AppException)
-    async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+    async def app_exception_handler(
+        request: Request, exc: AppException
+    ) -> JSONResponse:
         """Handle all AppException subclasses with consistent JSON format."""
         logger.warning(
             "app_exception",

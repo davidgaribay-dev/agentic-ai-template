@@ -1,7 +1,16 @@
-import uuid
 from typing import Annotated, Any
+import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Path,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 
 from backend.audit.schemas import AuditAction, Target
 from backend.audit.service import audit_service
@@ -15,7 +24,6 @@ from backend.core.storage import (
     delete_file,
     upload_file,
 )
-from backend.organizations.models import OrgRole
 from backend.rbac import (
     OrgContextDep,
     OrgPermission,
@@ -27,11 +35,10 @@ from backend.rbac import (
 )
 from backend.teams import crud
 from backend.teams.models import (
-    Team,
     TeamCreate,
     TeamMemberPublic,
-    TeamMemberUpdate,
     TeamMembersPublic,
+    TeamMemberUpdate,
     TeamPublic,
     TeamRole,
     TeamsPublic,
@@ -395,7 +402,11 @@ async def update_team_member(
             new_role=member_in.role,
         )
 
-        member_user_email = member.org_member.user.email if member.org_member and member.org_member.user else None
+        member_user_email = (
+            member.org_member.user.email
+            if member.org_member and member.org_member.user
+            else None
+        )
         member_user_id = member.org_member.user_id if member.org_member else None
 
         await audit_service.log(
@@ -404,8 +415,17 @@ async def update_team_member(
             request=request,
             organization_id=team_context.org_id,
             team_id=team_context.team_id,
-            targets=[Target(type="user", id=str(member_user_id) if member_user_id else str(member_id), name=member_user_email)],
-            changes={"before": {"role": old_role}, "after": {"role": member_in.role.value}},
+            targets=[
+                Target(
+                    type="user",
+                    id=str(member_user_id) if member_user_id else str(member_id),
+                    name=member_user_email,
+                )
+            ],
+            changes={
+                "before": {"role": old_role},
+                "after": {"role": member_in.role.value},
+            },
             metadata={
                 "member_id": str(member_id),
                 "member_email": member_user_email,
@@ -443,7 +463,11 @@ async def remove_team_member(
             detail="Use the leave endpoint to remove yourself",
         )
 
-    removed_user_email = member.org_member.user.email if member.org_member and member.org_member.user else None
+    removed_user_email = (
+        member.org_member.user.email
+        if member.org_member and member.org_member.user
+        else None
+    )
     removed_user_id = member.org_member.user_id if member.org_member else None
 
     crud.remove_team_member(session=session, member=member)
@@ -454,7 +478,13 @@ async def remove_team_member(
         request=request,
         organization_id=team_context.org_id,
         team_id=team_context.team_id,
-        targets=[Target(type="user", id=str(removed_user_id) if removed_user_id else str(member_id), name=removed_user_email)],
+        targets=[
+            Target(
+                type="user",
+                id=str(removed_user_id) if removed_user_id else str(member_id),
+                name=removed_user_email,
+            )
+        ],
         metadata={
             "removed_user_id": str(removed_user_id) if removed_user_id else None,
             "removed_user_email": removed_user_email,
@@ -475,7 +505,7 @@ async def leave_team(
 ) -> Message:
     """Leave the team."""
     if team_context.role == TeamRole.ADMIN:
-        members, count = crud.get_team_members(
+        members, _count = crud.get_team_members(
             session=session,
             team_id=team_context.team_id,
         )
@@ -494,7 +524,13 @@ async def leave_team(
         request=request,
         organization_id=team_context.org_id,
         team_id=team_context.team_id,
-        targets=[Target(type="user", id=str(team_context.org_context.user.id), name=team_context.org_context.user.email)],
+        targets=[
+            Target(
+                type="user",
+                id=str(team_context.org_context.user.id),
+                name=team_context.org_context.user.email,
+            )
+        ],
         metadata={
             "team_name": team_context.team.name,
             "previous_role": team_context.role.value if team_context.role else None,
@@ -562,7 +598,13 @@ async def upload_team_logo(
             request=request,
             organization_id=team_context.org_id,
             team_id=team_context.team_id,
-            targets=[Target(type="team", id=str(team_context.team_id), name=team_context.team.name)],
+            targets=[
+                Target(
+                    type="team",
+                    id=str(team_context.team_id),
+                    name=team_context.team.name,
+                )
+            ],
             metadata={
                 "content_type": file.content_type,
                 "filename": file.filename,
@@ -576,18 +618,18 @@ async def upload_team_logo(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
     except FileTooLargeError as e:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=str(e),
-        )
+        ) from e
     except StorageError as e:
-        logger.error("team_logo_upload_failed", error=str(e))
+        logger.exception("team_logo_upload_failed", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to upload logo",
-        )
+        ) from e
 
 
 @router.delete(
@@ -625,7 +667,11 @@ async def delete_team_logo(
         request=request,
         organization_id=team_context.org_id,
         team_id=team_context.team_id,
-        targets=[Target(type="team", id=str(team_context.team_id), name=team_context.team.name)],
+        targets=[
+            Target(
+                type="team", id=str(team_context.team_id), name=team_context.team.name
+            )
+        ],
     )
 
     return TeamPublic.model_validate(team_context.team)
