@@ -122,13 +122,19 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
     if (data.rag_enabled !== orgSettings?.rag_enabled) {
       updates.rag_enabled = data.rag_enabled;
     }
-    if (data.rag_customization_enabled !== orgSettings?.rag_customization_enabled) {
+    if (
+      data.rag_customization_enabled !== orgSettings?.rag_customization_enabled
+    ) {
       updates.rag_customization_enabled = data.rag_customization_enabled;
     }
-    if (data.allow_team_customization !== orgSettings?.allow_team_customization) {
+    if (
+      data.allow_team_customization !== orgSettings?.allow_team_customization
+    ) {
       updates.allow_team_customization = data.allow_team_customization;
     }
-    if (data.allow_user_customization !== orgSettings?.allow_user_customization) {
+    if (
+      data.allow_user_customization !== orgSettings?.allow_user_customization
+    ) {
       updates.allow_user_customization = data.allow_user_customization;
     }
     if (data.chunk_size !== orgSettings?.chunk_size) {
@@ -210,7 +216,9 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
             </div>
             <Switch
               checked={ragEnabled}
-              onCheckedChange={(checked) => setValue("rag_enabled", checked, { shouldDirty: true })}
+              onCheckedChange={(checked) =>
+                setValue("rag_enabled", checked, { shouldDirty: true })
+              }
               aria-label="Enable RAG"
             />
           </div>
@@ -233,7 +241,11 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                 <Switch
                   id="rag-customization-enabled"
                   checked={ragCustomizationEnabled}
-                  onCheckedChange={(checked) => setValue("rag_customization_enabled", checked, { shouldDirty: true })}
+                  onCheckedChange={(checked) =>
+                    setValue("rag_customization_enabled", checked, {
+                      shouldDirty: true,
+                    })
+                  }
                   disabled={!ragEnabled}
                 />
               </div>
@@ -250,7 +262,11 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                 <Switch
                   id="allow-team-customization"
                   checked={watch("allow_team_customization")}
-                  onCheckedChange={(checked) => setValue("allow_team_customization", checked, { shouldDirty: true })}
+                  onCheckedChange={(checked) =>
+                    setValue("allow_team_customization", checked, {
+                      shouldDirty: true,
+                    })
+                  }
                   disabled={!ragEnabled || !ragCustomizationEnabled}
                 />
               </div>
@@ -267,7 +283,11 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                 <Switch
                   id="allow-user-customization"
                   checked={watch("allow_user_customization")}
-                  onCheckedChange={(checked) => setValue("allow_user_customization", checked, { shouldDirty: true })}
+                  onCheckedChange={(checked) =>
+                    setValue("allow_user_customization", checked, {
+                      shouldDirty: true,
+                    })
+                  }
                   disabled={!ragEnabled || !ragCustomizationEnabled}
                 />
               </div>
@@ -429,7 +449,9 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                   type="number"
                   min={1}
                   max={10000}
-                  {...register("max_documents_per_user", { valueAsNumber: true })}
+                  {...register("max_documents_per_user", {
+                    valueAsNumber: true,
+                  })}
                   disabled={!ragEnabled}
                 />
                 <p className="text-xs text-muted-foreground">

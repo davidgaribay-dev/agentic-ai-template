@@ -7,10 +7,7 @@ import { MoreHorizontal, Star, Pencil, Trash2 } from "lucide-react";
 
 import { type Conversation } from "@/lib/api";
 import { useStarConversation } from "@/lib/queries";
-import {
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
+import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
