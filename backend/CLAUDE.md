@@ -35,7 +35,8 @@ src/backend/
 ├── auth/
 │   ├── models.py        # User model + schemas
 │   ├── crud.py          # Timing-safe authentication
-│   └── deps.py          # CurrentUser, SessionDep dependencies
+│   ├── deps.py          # CurrentUser, SessionDep dependencies
+│   └── token_revocation.py  # JWT blacklisting with TTL cache + DB persistence
 ├── rbac/
 │   ├── permissions.py   # OrgPermission, TeamPermission enums + role mappings
 │   └── deps.py          # OrgContextDep, TeamContextDep, require_*_permission
@@ -152,9 +153,25 @@ with atomic(session) as uow:
 **Agent Context** ([agents/context.py](src/backend/agents/context.py)):
 ```python
 # Safe scoping of org/team/user context for LLM calls
+# Uses typed LLMContext dataclass (not dict) for type safety
 with llm_context(org_id=str(org.id), team_id=str(team.id)):
     response = await agent.invoke(...)
 # Context auto-cleaned up, prevents bleeding between requests
+```
+
+**Thread-Safe Singletons** ([agents/tracing.py](src/backend/agents/tracing.py)):
+```python
+# Double-checked locking pattern for thread-safe initialization
+_langfuse_lock = threading.Lock()
+_langfuse_handler: CallbackHandler | None = None
+
+def get_langfuse_handler() -> CallbackHandler | None:
+    if _langfuse_handler is not None:  # Fast path
+        return _langfuse_handler
+    with _langfuse_lock:  # Thread-safe creation
+        if _langfuse_handler is not None:  # Re-check after lock
+            return _langfuse_handler
+        # Create and cache handler
 ```
 
 **Agent Factory** ([agents/factory.py](src/backend/agents/factory.py)):
@@ -208,6 +225,49 @@ Usage patterns:
 6. Platform admin bypass: `User.is_platform_admin` skips all RBAC checks. Use sparingly.
 
 7. Checkpointer initialization: `AsyncPostgresSaver` needs explicit `setup()` and connection pool management. See global singleton in `agents/base.py`.
+
+8. Token revocation: Use `is_token_revoked()` check in auth deps. Password changes trigger `revoke_all_user_tokens()` via `password_changed_at`.
+
+## Token Revocation
+
+JWT blacklisting with fast in-memory cache + durable database persistence.
+
+Architecture:
+```
+auth/
+├── token_revocation.py  # Core revocation logic
+└── models.py            # User.password_changed_at for bulk revocation
+```
+
+Key functions:
+- `revoke_token(session, jti, user_id, token_type, expires_at)` - Revoke single token
+- `revoke_all_user_tokens(session, user_id)` - Bulk revoke via `password_changed_at`
+- `is_token_revoked(session, jti)` - Check if token is blacklisted
+- `cleanup_expired_tokens(session)` - Remove naturally expired tokens from DB
+- `load_revoked_tokens_to_cache(session)` - Warm cache on startup
+
+Performance:
+- In-memory TTL cache for fast lookups (matches refresh token lifetime)
+- Database persistence for durability across restarts
+- Cache miss triggers DB lookup + cache population
+
+Integration points:
+- Auth deps check `is_token_revoked()` on every request
+- Logout endpoint calls `revoke_token()` for current tokens
+- Password change calls `revoke_all_user_tokens()` via `password_changed_at`
+- Startup loads active revocations via `load_revoked_tokens_to_cache()`
+
+Database model:
+```sql
+CREATE TABLE revoked_tokens (
+  id UUID PRIMARY KEY,
+  jti VARCHAR UNIQUE NOT NULL,  -- JWT ID (indexed)
+  user_id UUID NOT NULL,         -- Owner (indexed)
+  token_type VARCHAR NOT NULL,   -- "access" or "refresh"
+  revoked_at TIMESTAMP NOT NULL,
+  expires_at TIMESTAMP NOT NULL  -- For cleanup
+);
+```
 
 ## Multi-Tenant RBAC
 
@@ -568,9 +628,11 @@ INFISICAL_*                 # Secrets management
 ## Rate Limits
 
 Configured in `core/rate_limit.py`:
-- Default: 100/min (disabled in local)
+- Default: 100/min (disabled in local dev)
 - Auth: 5/min (brute force protection)
-- Agent: 20/min
+- Agent: 20/min (applied via `@limiter.limit(AGENT_RATE_LIMIT)` decorator)
+
+Note: Rate-limited endpoints require `Request` as first parameter for the limiter middleware.
 
 ## API Reference
 
@@ -653,6 +715,7 @@ uv run pre-commit run --all-files
 | `src/backend/audit/*.py` | PLR0912, PLW0602/0603 | Query building, singletons |
 | `src/backend/memory/*.py` | PLR0912/0915, PLW0602/0603 | Extraction, singletons |
 | `src/backend/core/secrets.py` | PLW0603 | Singleton pattern |
+| `src/backend/auth/token_revocation.py` | PLC0415 | Circular import avoidance |
 | `src/backend/mcp/client.py` | ARG001, PLR0912/0915, PLW0602 | Future args, complexity |
 | `**/settings/service.py` | PLR0911/0912/0915 | Hierarchy resolution |
 

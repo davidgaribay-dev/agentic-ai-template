@@ -56,6 +56,12 @@ Authentication flow:
 2. Store tokens: `auth_token`, `auth_refresh_token`, `auth_token_expiry` in localStorage
 3. Auto-refresh via `tryRefreshToken()` every 60s when expiring within 60s
 
+**Token Revocation**: Tokens can be revoked before natural expiration
+- `POST /v1/auth/logout` revokes current tokens
+- Password changes automatically revoke all user tokens via `password_changed_at` check
+- Revocation uses in-memory TTL cache (fast) + database persistence (durable)
+- Backend: `backend/auth/token_revocation.py` with `RevokedToken` model
+
 Key API groups: See `backend/api/main.py` for all routers. Frontend client at `frontend/src/lib/api/` (modular architecture).
 
 ## Chat/Agent System
@@ -182,7 +188,7 @@ OpenSearch indices: `audit-logs-YYYY.MM.DD` (90-day retention), `app-logs-YYYY.M
 │   │   ├── agents/         # LangGraph agent, tools, tracing, context, factory
 │   │   ├── mcp/            # MCP server registry, client, tool loading, types
 │   │   ├── api/routes/     # REST endpoints (/v1 prefix)
-│   │   ├── auth/           # User model, JWT, dependencies
+│   │   ├── auth/           # User model, JWT, dependencies, token revocation
 │   │   ├── rbac/           # Permissions, role mappings
 │   │   ├── organizations/  # Org + OrganizationMember
 │   │   ├── teams/          # Team + TeamMember
@@ -410,6 +416,7 @@ Both backend and frontend follow self-documenting code principles. Keep docstrin
 These patterns are intentionally allowed in specific contexts:
 - **FastAPI routes**: `Query()`, `Depends()` in default args (B008), unused `current_user`/`request` params (ARG001)
 - **Singleton modules**: Global statements for singleton patterns (PLW0603) in `agents/`, `audit/`, `memory/`, `core/secrets.py`
+- **Circular import avoidance**: Inline imports (PLC0415) allowed in `auth/token_revocation.py`
 - **Complex handlers**: High branch/statement counts (PLR0912/PLR0915) in routes, agents, settings resolution
 - **Tests**: Magic values, assert statements, unused fixtures
 
