@@ -788,14 +788,31 @@ Avoid: Section separators, "what" comments that repeat code, inline value explan
        types: list[str] = ["pdf"]  # RUF012
    ```
 
-### Pre-Commit/Push Checklist
+### Pre-Commit Hooks (Automated)
 
-**Always run before committing**:
+**Pre-commit hooks run automatically on `git commit`** - no manual checks needed.
+
+One-time setup:
 ```bash
-uv run ruff check . && uv run ruff format --check .
+uv run pre-commit install
 ```
 
-If CI fails: `uv run ruff check . --fix` auto-fixes most issues.
+What runs automatically:
+- ✅ Ruff lint (with auto-fix)
+- ✅ Ruff format (with auto-fix)
+- ✅ MyPy type checking
+- ✅ Gitleaks secret detection
+
+Skip hooks if needed:
+```bash
+SKIP=mypy git commit -m "quick fix"   # Skip specific hook
+git commit --no-verify -m "hotfix"    # Skip all hooks (emergency)
+```
+
+Run manually on all files:
+```bash
+uv run pre-commit run --all-files
+```
 
 ### Best Practices
 

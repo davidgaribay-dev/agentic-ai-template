@@ -640,13 +640,32 @@ Uses `typescript-eslint` v8 with recommended rules.
 - `noEmit` - Vite handles compilation
 - Path aliases: `@/*` → `./src/*`
 
-### Pre-commit Hooks
+### Pre-Commit Hooks (Automated)
 
-Frontend-specific hooks run automatically:
-- ✅ **Prettier** - Code formatting
-- ✅ **ESLint** - Linting with auto-fix
+**Pre-commit hooks run automatically on `git commit`** - no manual checks needed.
+
+One-time setup (from backend/):
+```bash
+cd ../backend && uv run pre-commit install
+```
+
+What runs automatically for frontend files:
+- ✅ ESLint linting
+- ✅ TypeScript type checking
+- ✅ Prettier formatting (with auto-fix)
 - ✅ Trailing whitespace, EOF fixes
 - ✅ JSON/YAML validation
+
+Skip hooks if needed:
+```bash
+SKIP=frontend-typecheck git commit -m "quick fix"  # Skip specific hook
+git commit --no-verify -m "hotfix"                 # Skip all hooks (emergency)
+```
+
+Run manually on all files:
+```bash
+cd ../backend && uv run pre-commit run --all-files
+```
 
 ### VS Code Integration
 

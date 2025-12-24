@@ -236,26 +236,47 @@ npm run format:check                       # Check formatting without changes
 npx shadcn@latest add <name>               # Add UI component
 ```
 
-## Pre-Commit/Push Checklist
+## Pre-Commit Hooks (Automated)
 
-**CRITICAL**: Always run these before committing to avoid CI failures:
+**Pre-commit hooks run automatically on every `git commit`**, catching issues before they reach CI.
 
+### One-Time Setup (per developer)
 ```bash
-# Backend (from backend/)
-uv run ruff check . && uv run ruff format --check . && uv run mypy src/backend
-
-# Frontend (from frontend/)
-npm run typecheck && npm run lint && npm run format:check
+cd backend && uv run pre-commit install
 ```
 
-Auto-fix commands if checks fail:
-```bash
-# Backend
-cd backend && uv run ruff check . --fix && uv run ruff format .
+### What Runs Automatically
 
-# Frontend
-cd frontend && npm run format
+| Hook | Backend | Frontend | Auto-fix |
+|------|---------|----------|----------|
+| Ruff lint | ✅ | - | ✅ |
+| Ruff format | ✅ | - | ✅ |
+| MyPy | ✅ | - | - |
+| ESLint | - | ✅ | - |
+| TypeScript | - | ✅ | - |
+| Prettier | - | ✅ | ✅ |
+| Gitleaks | ✅ | ✅ | - |
+
+### Usage
+```bash
+# Normal commit - hooks run automatically
+git commit -m "your message"
+
+# Skip specific slow hooks (e.g., mypy)
+SKIP=mypy git commit -m "quick fix"
+
+# Skip all hooks (emergency only)
+git commit --no-verify -m "hotfix"
+
+# Run manually on all files
+cd backend && uv run pre-commit run --all-files
 ```
+
+### CI Alignment
+Pre-commit hooks match GitHub Actions CI exactly:
+- Pre-commit auto-fixes issues before commit
+- CI validates in check-only mode
+- If pre-commit passes locally, CI will pass
 
 ## Critical Integration Points
 

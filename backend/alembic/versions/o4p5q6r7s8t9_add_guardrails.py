@@ -8,8 +8,8 @@ Create Date: 2025-12-23
 
 from collections.abc import Sequence
 
-import sqlalchemy as sa
 from alembic import op
+import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "o4p5q6r7s8t9"
@@ -44,9 +44,7 @@ def upgrade() -> None:
             server_default="redact",
         ),
         # PII detection
-        sa.Column(
-            "pii_detection_enabled", sa.Boolean(), nullable=False, default=False
-        ),
+        sa.Column("pii_detection_enabled", sa.Boolean(), nullable=False, default=False),
         sa.Column("pii_types", sa.JSON(), nullable=False, default=[]),
         sa.Column(
             "pii_action", sa.String(length=20), nullable=False, server_default="redact"
@@ -96,9 +94,7 @@ def upgrade() -> None:
             server_default="redact",
         ),
         # PII detection
-        sa.Column(
-            "pii_detection_enabled", sa.Boolean(), nullable=False, default=False
-        ),
+        sa.Column("pii_detection_enabled", sa.Boolean(), nullable=False, default=False),
         sa.Column("pii_types", sa.JSON(), nullable=False, default=[]),
         sa.Column(
             "pii_action", sa.String(length=20), nullable=False, server_default="redact"
@@ -145,9 +141,7 @@ def upgrade() -> None:
             server_default="redact",
         ),
         # PII detection
-        sa.Column(
-            "pii_detection_enabled", sa.Boolean(), nullable=False, default=False
-        ),
+        sa.Column("pii_detection_enabled", sa.Boolean(), nullable=False, default=False),
         sa.Column("pii_types", sa.JSON(), nullable=False, default=[]),
         sa.Column(
             "pii_action", sa.String(length=20), nullable=False, server_default="redact"
