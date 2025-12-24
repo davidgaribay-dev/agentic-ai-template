@@ -36,6 +36,10 @@ logger = get_logger(__name__)
 
 T = TypeVar("T")
 
+# Document processing timeout (5 minutes)
+# Large documents with many pages may take time for parsing and embedding
+DOCUMENT_PROCESSING_TIMEOUT_SECONDS = 300
+
 # Allowed file extensions for document processing (must match DocumentParser supported types)
 ALLOWED_EXTENSIONS: frozenset[str] = frozenset(
     {
@@ -289,8 +293,9 @@ async def process_document_task(
     org_id: uuid.UUID,
     team_id: uuid.UUID | None,
     user_id: uuid.UUID,
+    timeout_seconds: float = DOCUMENT_PROCESSING_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
-    """Background task for document processing.
+    """Background task for document processing with timeout.
 
     Steps:
     1. Download file from S3/SeaweedFS
@@ -307,35 +312,27 @@ async def process_document_task(
         org_id: Organization ID
         team_id: Optional team ID
         user_id: User ID who uploaded the document
+        timeout_seconds: Maximum processing time (default 5 minutes)
 
     Returns:
         Processing results with status and chunk count
 
     Raises:
+        TimeoutError: If processing exceeds timeout
         Exception: Any processing errors (caught and logged by create_safe_task)
     """
     session = Session(engine)
-    local_file_path = None
+    local_file_path: str | None = None
 
     # Get document record
     doc = session.get(Document, document_id)
     if not doc:
+        session.close()
         raise ValueError(f"Document {document_id} not found")
 
-    try:
-        # Update status to processing
-        doc.processing_status = "processing"
-        doc.processing_error = None
-        session.add(doc)
-        session.commit()
-
-        logger.info(
-            "document_processing_started",
-            document_id=str(document_id),
-            filename=doc.filename,
-            file_type=doc.file_type,
-            s3_key=s3_object_key,
-        )
+    async def _do_processing() -> dict[str, Any]:
+        """Inner function containing the actual processing logic."""
+        nonlocal local_file_path
 
         # Download file from S3 to temp location for processing
         # Use NamedTemporaryFile with delete=False to get a secure temp path
@@ -428,10 +425,35 @@ async def process_document_task(
         session.add(doc)
         session.commit()
 
+        return {"status": "success", "chunk_count": len(chunks)}
+
+    try:
+        # Update status to processing
+        doc.processing_status = "processing"
+        doc.processing_error = None
+        session.add(doc)
+        session.commit()
+
+        logger.info(
+            "document_processing_started",
+            document_id=str(document_id),
+            filename=doc.filename,
+            file_type=doc.file_type,
+            s3_key=s3_object_key,
+            timeout_seconds=timeout_seconds,
+        )
+
+        # Run processing with timeout
+        result = await run_with_timeout(
+            _do_processing(),
+            timeout_seconds=timeout_seconds,
+            operation_name=f"document_processing_{document_id}",
+        )
+
         logger.info(
             "document_processing_completed",
             document_id=str(document_id),
-            chunk_count=len(chunks),
+            chunk_count=result.get("chunk_count", 0),
             filename=doc.filename,
         )
 
@@ -445,21 +467,22 @@ async def process_document_task(
                     "temp_file_cleanup_failed", file_path=local_file_path, error=str(e)
                 )
 
-        return {"status": "success", "chunk_count": len(chunks)}
-
     except Exception as e:
         # Update document with error status
-        if doc:
-            doc.processing_status = "failed"
-            doc.processing_error = str(e)
-            doc.updated_at = datetime.now(UTC)
-            session.add(doc)
-            session.commit()
+        error_message = str(e)
+        if isinstance(e, AppTimeoutError):
+            error_message = f"Processing timed out after {timeout_seconds} seconds"
+
+        doc.processing_status = "failed"
+        doc.processing_error = error_message
+        doc.updated_at = datetime.now(UTC)
+        session.add(doc)
+        session.commit()
 
         logger.exception(
             "document_processing_failed",
             document_id=str(document_id),
-            error=str(e),
+            error=error_message,
             error_type=type(e).__name__,
         )
 
@@ -469,5 +492,9 @@ async def process_document_task(
                 os.remove(local_file_path)
 
         raise
+
+    else:
+        return result
+
     finally:
         session.close()

@@ -193,16 +193,16 @@ class BulkOperations:
         session.add_all(objects)
 
     @staticmethod
-    def bulk_update(session: Session, objects: list[T]) -> None:
-        """Update multiple objects efficiently.
+    def flush_tracked_changes(session: Session) -> None:
+        """Flush pending changes for tracked objects to the database.
 
-        Note: Objects must already be attached to the session
-        (fetched from DB or added previously).
+        This does NOT perform a bulk UPDATE statement. SQLModel/SQLAlchemy
+        tracks changes automatically on attached objects. This method just
+        flushes those pending changes to the database without committing.
+
+        Use this after modifying multiple objects to send all changes at once.
 
         Args:
-            session: Database session
-            objects: List of modified SQLModel objects (tracked by session)
+            session: Database session with tracked objects
         """
-        # SQLModel/SQLAlchemy tracks changes automatically
-        # Just flush to send updates
         session.flush()

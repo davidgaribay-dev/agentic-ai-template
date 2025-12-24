@@ -6,6 +6,7 @@ ensuring consistent timeout and error handling across the application.
 
 import asyncio
 import builtins
+import random
 from typing import Any, TypeVar
 
 import httpx
@@ -202,10 +203,13 @@ async def fetch_with_retry(
                     response.status_code in config.retry_on_status
                     and attempt < config.max_attempts - 1
                 ):
-                    delay = min(
+                    base_delay = min(
                         config.initial_delay * (config.exponential_base**attempt),
                         config.max_delay,
                     )
+                    # Add jitter to prevent thundering herd on failures
+                    jitter = random.uniform(0, base_delay * 0.1)
+                    delay = base_delay + jitter
                     logger.info(
                         "http_retry",
                         url=url,
@@ -221,10 +225,13 @@ async def fetch_with_retry(
         except (httpx.RequestError, TimeoutError) as e:
             last_error = e
             if attempt < config.max_attempts - 1:
-                delay = min(
+                base_delay = min(
                     config.initial_delay * (config.exponential_base**attempt),
                     config.max_delay,
                 )
+                # Add jitter to prevent thundering herd on failures
+                jitter = random.uniform(0, base_delay * 0.1)
+                delay = base_delay + jitter
                 logger.info(
                     "http_retry_error",
                     url=url,

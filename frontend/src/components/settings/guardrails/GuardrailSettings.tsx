@@ -109,7 +109,7 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
         </div>
         <Switch
           id="guardrails-enabled"
-          checked={guardrailsEnabled}
+          checked={isDisabledByHigherLevel ? false : guardrailsEnabled}
           onCheckedChange={(enabled) =>
             handleUpdate({ guardrails_enabled: enabled })
           }

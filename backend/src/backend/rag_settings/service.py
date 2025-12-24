@@ -8,6 +8,7 @@ import uuid
 
 from sqlmodel import Session, select
 
+from backend.core.cache import request_cached_sync
 from backend.rag_settings.models import (
     EffectiveRAGSettings,
     OrganizationRAGSettings,
@@ -158,6 +159,40 @@ def update_user_rag_settings(
     return settings
 
 
+# Positional argument indices for _rag_settings_cache_key
+_RAG_ARG_IDX_USER_ID = 1
+_RAG_ARG_IDX_ORG_ID = 2
+_RAG_ARG_IDX_TEAM_ID = 3
+_RAG_ARG_COUNT_WITH_USER = 2
+_RAG_ARG_COUNT_WITH_ORG = 3
+_RAG_ARG_COUNT_WITH_TEAM = 4
+
+
+def _rag_settings_cache_key(
+    *args: object,
+    _session: Session | None = None,
+    user_id: uuid.UUID | None = None,
+    organization_id: uuid.UUID | None = None,
+    team_id: uuid.UUID | None = None,
+    **_kwargs: object,
+) -> str:
+    """Generate cache key for effective RAG settings lookup.
+
+    Accepts both positional and keyword arguments to match how the decorated
+    function is called. The session is ignored for cache key purposes.
+    """
+    # Handle positional args: (session, user_id, organization_id, team_id?)
+    if args:
+        if len(args) >= _RAG_ARG_COUNT_WITH_USER:
+            user_id = args[_RAG_ARG_IDX_USER_ID]  # type: ignore[assignment]
+        if len(args) >= _RAG_ARG_COUNT_WITH_ORG:
+            organization_id = args[_RAG_ARG_IDX_ORG_ID]  # type: ignore[assignment]
+        if len(args) >= _RAG_ARG_COUNT_WITH_TEAM:
+            team_id = args[_RAG_ARG_IDX_TEAM_ID]  # type: ignore[assignment]
+    return f"rag_settings:{organization_id}:{team_id}:{user_id}"
+
+
+@request_cached_sync(_rag_settings_cache_key)
 def get_effective_rag_settings(
     session: Session,
     user_id: uuid.UUID,
@@ -171,6 +206,8 @@ def get_effective_rag_settings(
     2. Check team permissions (if org allows but team disables, block user customization)
     3. Apply user preferences (if allowed)
     4. Return effective settings with resolved values
+
+    Results are cached for the duration of the request to avoid redundant DB queries.
 
     Args:
         session: Database session

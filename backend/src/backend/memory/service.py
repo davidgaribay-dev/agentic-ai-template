@@ -14,12 +14,24 @@ from backend.memory.store import get_memory_namespace
 
 logger = get_logger(__name__)
 
-# Minimum number of search results to check for deduplication
-MIN_SEARCH_RESULTS = 3
+# Minimum word length for significant words extraction (filters short words)
+MIN_SIGNIFICANT_WORD_LENGTH = 3
 
 
 class MemoryService:
-    """Service for memory CRUD operations."""
+    """Service for memory CRUD operations.
+
+    Configuration constants (can be overridden via subclassing or monkey-patching):
+    - DEFAULT_SEARCH_LIMIT: Default results for memory search (5)
+    - DEFAULT_DEDUP_SEARCH_LIMIT: Results to check for deduplication (10)
+    - DEDUP_SIMILARITY_THRESHOLD: Embedding similarity for dedup (0.75)
+    - WORD_OVERLAP_THRESHOLD: Word overlap ratio for dedup (0.6)
+    """
+
+    # Default limits for memory operations
+    DEFAULT_SEARCH_LIMIT = 5
+    DEFAULT_DEDUP_SEARCH_LIMIT = 10
+    DEFAULT_LIST_LIMIT = 100
 
     # Similarity threshold for deduplication (0.0-1.0, higher = more similar required)
     # Lowered to 0.75 to catch more semantic duplicates like variations of the same fact
@@ -140,7 +152,7 @@ class MemoryService:
         return {
             w.strip(".,!?;:'\"()[]{}")
             for w in words
-            if w not in stop_words and len(w) >= MIN_SEARCH_RESULTS
+            if w not in stop_words and len(w) >= MIN_SIGNIFICANT_WORD_LENGTH
         }
 
     def _calculate_word_overlap(self, text1: str, text2: str) -> float:
@@ -184,7 +196,7 @@ class MemoryService:
         results = await self.store.asearch(
             namespace,
             query=content,
-            limit=10,  # Check more candidates for better dedup
+            limit=self.DEFAULT_DEDUP_SEARCH_LIMIT,
         )
 
         for item in results:
@@ -309,7 +321,7 @@ class MemoryService:
         team_id: str,
         user_id: str,
         query: str,
-        limit: int = 5,
+        limit: int | None = None,
     ) -> list[dict]:
         """Semantic search for relevant memories.
 
@@ -326,11 +338,12 @@ class MemoryService:
             List of matching memories with scores
         """
         namespace = get_memory_namespace(org_id, team_id, user_id)
+        effective_limit = limit if limit is not None else self.DEFAULT_SEARCH_LIMIT
 
         results = await self.store.asearch(
             namespace,
             query=query,
-            limit=limit,
+            limit=effective_limit,
         )
 
         memories = []
@@ -357,7 +370,7 @@ class MemoryService:
         org_id: str,
         team_id: str,
         user_id: str,
-        limit: int = 100,
+        limit: int | None = None,
     ) -> list[dict]:
         """List all memories for a user (for settings page).
 
@@ -365,15 +378,16 @@ class MemoryService:
             org_id: Organization ID for isolation
             team_id: Team ID for isolation
             user_id: User ID for isolation
-            limit: Maximum number of results
+            limit: Maximum number of results (default: DEFAULT_LIST_LIMIT)
 
         Returns:
             List of all memories for the user
         """
         namespace = get_memory_namespace(org_id, team_id, user_id)
+        effective_limit = limit if limit is not None else self.DEFAULT_LIST_LIMIT
 
         # Use search without query to list all items
-        results = await self.store.asearch(namespace, limit=limit)
+        results = await self.store.asearch(namespace, limit=effective_limit)
 
         return [{"id": item.key, **item.value} for item in results]
 

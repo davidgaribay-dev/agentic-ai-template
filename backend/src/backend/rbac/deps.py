@@ -425,3 +425,61 @@ def get_current_platform_admin(current_user: CurrentUser) -> User:
 
 # Type alias for platform admin dependency
 PlatformAdminDep = Annotated[User, Depends(get_current_platform_admin)]
+
+
+def validate_team_membership(
+    session: SessionDep,
+    current_user: CurrentUser,
+    team_id: uuid.UUID,
+) -> TeamMember:
+    """Validate user is a member of a team (for query parameter validation).
+
+    Unlike TeamContextDep which uses path parameters, this function validates
+    team membership when team_id is provided as a query parameter.
+
+    Args:
+        session: Database session
+        current_user: Authenticated user
+        team_id: Team UUID to validate membership for
+
+    Returns:
+        TeamMember if user is a member
+
+    Raises:
+        HTTPException: If team not found or user is not a member
+    """
+    # Get team
+    team = session.get(Team, team_id)
+    if not team:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Team not found",
+        )
+
+    # Get user's org membership
+    org_stmt = select(OrganizationMember).where(
+        OrganizationMember.organization_id == team.organization_id,
+        OrganizationMember.user_id == current_user.id,
+    )
+    org_membership = session.exec(org_stmt).first()
+
+    if not org_membership:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this organization",
+        )
+
+    # Get team membership
+    team_stmt = select(TeamMember).where(
+        TeamMember.team_id == team_id,
+        TeamMember.org_member_id == org_membership.id,
+    )
+    team_membership = session.exec(team_stmt).first()
+
+    if not team_membership:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not a member of this team",
+        )
+
+    return team_membership

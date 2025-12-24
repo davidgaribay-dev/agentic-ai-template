@@ -2,7 +2,13 @@ import uuid
 
 from sqlmodel import Session, select
 
-from backend.auth.models import User, UserCreate, UserUpdate
+from backend.auth.models import (
+    PASSWORD_HISTORY_LIMIT,
+    PasswordHistory,
+    User,
+    UserCreate,
+    UserUpdate,
+)
 from backend.core.security import get_password_hash, verify_password
 
 
@@ -110,3 +116,77 @@ def authenticate(*, session: Session, email: str, password: str) -> User | None:
         return None
 
     return db_user
+
+
+def check_password_history(*, session: Session, user: User, new_password: str) -> bool:
+    """Check if password has been used recently.
+
+    Args:
+        session: Database session
+        user: User to check password history for
+        new_password: The new password to check
+
+    Returns:
+        True if password is allowed (not in history), False if recently used
+    """
+    # Get recent password history entries
+    statement = (
+        select(PasswordHistory)
+        .where(PasswordHistory.user_id == user.id)
+        .order_by(PasswordHistory.created_at.desc())  # type: ignore[attr-defined]
+        .limit(PASSWORD_HISTORY_LIMIT)
+    )
+    history_entries = session.exec(statement).all()
+
+    # Check against each historical password
+    for entry in history_entries:
+        if verify_password(new_password, entry.hashed_password):
+            return False
+
+    return True
+
+
+def add_password_to_history(
+    *, session: Session, user: User, hashed_password: str
+) -> None:
+    """Add a password to the user's history and prune old entries.
+
+    Args:
+        session: Database session
+        user: User to add password history for
+        hashed_password: The hashed password to store
+    """
+    # Add new entry
+    history_entry = PasswordHistory(
+        user_id=user.id,
+        hashed_password=hashed_password,
+    )
+    session.add(history_entry)
+
+    # Count existing entries
+    count_statement = select(PasswordHistory).where(PasswordHistory.user_id == user.id)
+    existing_count = len(list(session.exec(count_statement).all()))
+
+    # If we exceed the limit, delete oldest entries
+    if existing_count >= PASSWORD_HISTORY_LIMIT:
+        # Get IDs of entries to keep (most recent PASSWORD_HISTORY_LIMIT - 1)
+        keep_statement = (
+            select(PasswordHistory.id)
+            .where(PasswordHistory.user_id == user.id)
+            .order_by(PasswordHistory.created_at.desc())  # type: ignore[attr-defined]
+            .limit(PASSWORD_HISTORY_LIMIT - 1)
+        )
+        keep_ids = list(session.exec(keep_statement).all())
+
+        # Delete entries not in the keep list
+        if keep_ids:
+            delete_statement = (
+                select(PasswordHistory)
+                .where(PasswordHistory.user_id == user.id)
+                .where(PasswordHistory.id.not_in(keep_ids))  # type: ignore[attr-defined]
+            )
+            old_entries = session.exec(delete_statement).all()
+            for entry in old_entries:
+                session.delete(entry)
+
+    session.flush()

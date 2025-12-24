@@ -26,6 +26,7 @@ class LLMContext:
     team_id: str | None = None
     user_id: str | None = None
     provider: str | None = None
+    has_media: bool = False  # Skip memory retrieval when inline attachments present
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dict for compatibility with existing code."""
@@ -34,6 +35,7 @@ class LLMContext:
             "team_id": self.team_id,
             "user_id": self.user_id,
             "provider": self.provider,
+            "has_media": self.has_media,
         }
 
 

@@ -82,7 +82,9 @@ def send_email(
     logger.info(f"Email sent to {email_to}, response: {response}")
 
 
-def generate_password_reset_token(email: str, password_changed_at: datetime) -> str:
+def generate_password_reset_token(
+    email: str, password_changed_at: datetime | None
+) -> str:
     """Generate a password reset token.
 
     The token includes a timestamp of when the password was last changed,
@@ -90,7 +92,7 @@ def generate_password_reset_token(email: str, password_changed_at: datetime) -> 
 
     Args:
         email: User's email address
-        password_changed_at: Timestamp of when the password was last changed
+        password_changed_at: Timestamp of when the password was last changed, or None
 
     Returns:
         JWT token for password reset
@@ -99,12 +101,14 @@ def generate_password_reset_token(email: str, password_changed_at: datetime) -> 
     now = datetime.now(UTC)
     expires = now + delta
     exp = expires.timestamp()
+    # Use 0 if password_changed_at is None (user never changed password)
+    pca_timestamp = password_changed_at.timestamp() if password_changed_at else 0
     return jwt.encode(
         {
             "exp": exp,
             "nbf": now.timestamp(),
             "sub": email,
-            "pca": password_changed_at.timestamp(),  # password_changed_at for invalidation
+            "pca": pca_timestamp,  # password_changed_at for invalidation
         },
         settings.SECRET_KEY,
         algorithm=settings.ALGORITHM,

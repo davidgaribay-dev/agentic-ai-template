@@ -9,10 +9,10 @@ from backend.core.config import settings
 
 engine = create_engine(
     str(settings.SQLALCHEMY_DATABASE_URI),
-    pool_size=5,
-    max_overflow=10,
+    pool_size=settings.POSTGRES_POOL_SIZE,
+    max_overflow=settings.POSTGRES_MAX_OVERFLOW,
     pool_pre_ping=True,
-    pool_recycle=3600,
+    pool_recycle=settings.POSTGRES_POOL_RECYCLE,
     echo=settings.DEBUG and settings.ENVIRONMENT == "local",
 )
 

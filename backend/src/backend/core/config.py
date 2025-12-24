@@ -60,10 +60,15 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "changethis"
     POSTGRES_DB: str = "app"
 
+    # Connection pool settings - adjust for production load
+    POSTGRES_POOL_SIZE: int = 5  # Core pool connections
+    POSTGRES_MAX_OVERFLOW: int = 10  # Additional connections beyond pool_size
+    POSTGRES_POOL_RECYCLE: int = 3600  # Recycle connections after N seconds
+
     @field_validator("POSTGRES_PASSWORD", mode="after")
     @classmethod
     def validate_postgres_password(cls, v: str, info: ValidationInfo) -> str:
-        """Validate that POSTGRES_PASSWORD is changed in production."""
+        """Validate that POSTGRES_PASSWORD is changed in non-local environments."""
         env = (
             info.data.get("ENVIRONMENT")
             if info.data
@@ -74,12 +79,10 @@ class Settings(BaseSettings):
                 "POSTGRES_PASSWORD must be changed from default value in production. "
                 "Set a strong, unique password via the POSTGRES_PASSWORD environment variable."
             )
-        if v == "changethis" and env != "local":
-            warnings.warn(
-                "POSTGRES_PASSWORD is set to default value 'changethis'. "
-                "Consider using a strong, unique password.",
-                UserWarning,
-                stacklevel=2,
+        if v == "changethis" and env == "staging":
+            raise ValueError(
+                "POSTGRES_PASSWORD must be changed from default value in staging. "
+                "Set a strong, unique password via the POSTGRES_PASSWORD environment variable."
             )
         return v
 
@@ -113,8 +116,30 @@ class Settings(BaseSettings):
     @field_validator("SECRET_KEY", mode="before")
     @classmethod
     def validate_secret_key(cls, v: str, info: ValidationInfo) -> str:
-        """Validate and warn about SECRET_KEY configuration."""
+        """Validate and warn about SECRET_KEY configuration.
+
+        In production, SECRET_KEY must be explicitly set.
+        In staging, a warning is issued but startup continues.
+        In local, a random key is generated (only suitable for development).
+        """
+        env = (
+            info.data.get("ENVIRONMENT")
+            if info.data
+            else os.getenv("ENVIRONMENT", "local")
+        )
+
         if not v:
+            if env == "production":
+                raise ValueError(
+                    "SECRET_KEY must be set in production. "
+                    'Generate a strong key using: python -c "import secrets; print(secrets.token_urlsafe(64))"'
+                )
+            if env == "staging":
+                raise ValueError(
+                    "SECRET_KEY must be set in staging environment. "
+                    'Generate a strong key using: python -c "import secrets; print(secrets.token_urlsafe(64))"'
+                )
+            # Local development only: generate a random key
             generated_key = secrets.token_urlsafe(MIN_SECRET_KEY_LENGTH)
             warnings.warn(
                 "SECRET_KEY not set! Using a randomly generated key. "
@@ -124,7 +149,12 @@ class Settings(BaseSettings):
                 stacklevel=2,
             )
             return generated_key
+
         if len(v) < MIN_SECRET_KEY_LENGTH:
+            if env == "production":
+                raise ValueError(
+                    f"SECRET_KEY must be at least {MIN_SECRET_KEY_LENGTH} characters in production."
+                )
             warnings.warn(
                 f"SECRET_KEY is shorter than {MIN_SECRET_KEY_LENGTH} characters. "
                 "Consider using a longer key for better security.",

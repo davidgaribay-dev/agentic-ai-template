@@ -119,7 +119,7 @@ export function ChatSettings({
         id="chat-enabled"
         label="Chat Enabled"
         description="Enable chat sidebar and standalone chat page"
-        checked={settings.chat_enabled}
+        checked={isChatDisabledByHigherLevel ? false : settings.chat_enabled}
         onCheckedChange={onChatEnabledChange}
         disabled={isChatDisabledByHigherLevel || isLoading}
         tooltipMessage={getTooltipMessage(chatDisabledBy)}
@@ -128,7 +128,9 @@ export function ChatSettings({
         id="chat-panel-enabled"
         label="Chat Panel Enabled"
         description="Enable the right-side chat panel"
-        checked={settings.chat_panel_enabled}
+        checked={
+          isChatPanelDisabledByHigherLevel ? false : settings.chat_panel_enabled
+        }
         onCheckedChange={onChatPanelEnabledChange}
         disabled={isChatPanelDisabledByHigherLevel || isLoading}
         tooltipMessage={getTooltipMessage(chatPanelDisabledBy)}

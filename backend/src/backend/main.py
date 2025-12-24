@@ -25,6 +25,7 @@ from backend.core.config import settings
 from backend.core.exceptions import AppException
 from backend.core.logging import get_logger, setup_logging
 from backend.core.rate_limit import limiter
+from backend.mcp.client import cleanup_mcp_clients
 from backend.memory.store import cleanup_memory_store, init_memory_store
 
 setup_logging()
@@ -77,6 +78,9 @@ async def lifespan(app: FastAPI):
 
         async with agent_lifespan():
             yield
+
+        # Cleanup MCP clients
+        await cleanup_mcp_clients()
 
         # Cleanup memory store
         await cleanup_memory_store()

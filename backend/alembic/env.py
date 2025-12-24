@@ -5,6 +5,9 @@ from sqlmodel import SQLModel, create_engine
 
 from alembic import context
 from backend.auth.models import User  # noqa: F401 - Import models for autogenerate
+from backend.auth.token_revocation import (
+    RevokedToken,  # noqa: F401 - Import models for autogenerate
+)
 from backend.conversations.models import (
     Conversation,  # noqa: F401 - Import models for autogenerate
 )

@@ -5,6 +5,7 @@ Provides caching for frequently accessed data:
 - TTL cache: Data cached with time-based expiration
 """
 
+from collections import OrderedDict
 from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -18,22 +19,40 @@ logger = get_logger(__name__)
 
 T = TypeVar("T")
 
+# Maximum size for request-scoped cache to prevent memory DoS
+REQUEST_CACHE_MAX_SIZE = 1000
 
-_request_cache: ContextVar[dict[str, Any] | None] = ContextVar(
+_request_cache: ContextVar[OrderedDict[str, Any] | None] = ContextVar(
     "_request_cache", default=None
 )
 
 
-def get_request_cache() -> dict[str, Any]:
+def get_request_cache() -> OrderedDict[str, Any]:
     """Get or create the request-scoped cache.
 
-    Returns an empty dict if called outside of a request context.
+    Returns an empty OrderedDict if called outside of a request context.
+    Uses OrderedDict for LRU-style eviction when max size is reached.
     """
     cache = _request_cache.get()
     if cache is None:
-        cache = {}
+        cache = OrderedDict()
         _request_cache.set(cache)
     return cache
+
+
+def _set_cache_with_limit(cache: OrderedDict[str, Any], key: str, value: Any) -> None:
+    """Set a cache value, evicting oldest entries if max size is exceeded."""
+    if key in cache:
+        # Move to end (most recently used)
+        cache.move_to_end(key)
+        cache[key] = value
+    else:
+        # New entry
+        cache[key] = value
+        # Evict oldest entries if we exceed max size
+        while len(cache) > REQUEST_CACHE_MAX_SIZE:
+            evicted_key, _ = cache.popitem(last=False)
+            logger.debug("request_cache_evicted", key=evicted_key)
 
 
 def clear_request_cache() -> None:
@@ -70,11 +89,13 @@ def request_cached(
             key = key_func(*args, **kwargs)
 
             if key in cache:
+                # Move to end for LRU ordering
+                cache.move_to_end(key)
                 logger.debug("request_cache_hit", key=key)
                 return cache[key]
 
             result = await func(*args, **kwargs)  # type: ignore[misc]
-            cache[key] = result
+            _set_cache_with_limit(cache, key, result)
             logger.debug("request_cache_miss", key=key)
             return result
 
@@ -98,11 +119,13 @@ def request_cached_sync(
             key = key_func(*args, **kwargs)
 
             if key in cache:
+                # Move to end for LRU ordering
+                cache.move_to_end(key)
                 logger.debug("request_cache_hit", key=key)
                 return cache[key]
 
             result = func(*args, **kwargs)
-            cache[key] = result
+            _set_cache_with_limit(cache, key, result)
             logger.debug("request_cache_miss", key=key)
             return result
 

@@ -11,6 +11,11 @@ from sqlmodel import Session
 
 from backend.documents.embeddings import EmbeddingsService
 
+# HNSW search configuration
+# ef_search controls the size of the dynamic candidate list during search
+# Higher values = more accurate but slower (default is 40, max is 1000)
+HNSW_EF_SEARCH = 100
+
 
 class SearchResult:
     """Search result with chunk data and similarity score."""
@@ -64,16 +69,20 @@ class VectorStoreService:
         # Generate query embedding
         query_embedding = await self.embeddings.embed_query(query)
 
+        # Configure HNSW index search parameters for this transaction
+        # This ensures the HNSW index is used with appropriate accuracy settings
+        self.session.execute(
+            text("SET LOCAL hnsw.ef_search = :ef_search"),
+            {"ef_search": HNSW_EF_SEARCH},
+        )
+
         # Build SQL query with tenant filtering
         # Distance operator <=> returns cosine distance (1 - cosine similarity)
         # So we compute similarity as: 1 - (embedding <=> query_embedding)
-        # Note: We format the embedding directly into the SQL to avoid SQLAlchemy
-        # parameter binding issues with the ::vector cast and <=> operator
+        # Embedding passed as parameterized query to avoid SQL injection patterns
         embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
 
         # Build WHERE clause conditions based on provided filters
-        # We avoid mixing SQLAlchemy parameters with PostgreSQL ::type cast
-        # by handling NULL checks in Python instead
         team_filter = (
             "AND (de.team_id IS NULL OR de.team_id = :team_id)"
             if team_id is not None
@@ -90,7 +99,7 @@ class VectorStoreService:
                 de.chunk_index,
                 d.filename,
                 d.file_type,
-                1 - (de.embedding <=> '{embedding_str}'::vector) as similarity
+                1 - (de.embedding <=> :embedding::vector) as similarity
             FROM document_chunks de
             JOIN documents d ON de.document_id = d.id
             WHERE
@@ -99,7 +108,7 @@ class VectorStoreService:
                 {user_filter}
                 AND d.processing_status = 'completed'
                 AND d.deleted_at IS NULL
-            ORDER BY de.embedding <=> '{embedding_str}'::vector
+            ORDER BY de.embedding <=> :embedding::vector
             LIMIT :k
         """)
 
@@ -107,6 +116,7 @@ class VectorStoreService:
         params: dict[str, str | int] = {
             "org_id": str(org_id),
             "k": k,
+            "embedding": embedding_str,
         }
         if team_id is not None:
             params["team_id"] = str(team_id)

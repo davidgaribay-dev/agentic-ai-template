@@ -13,6 +13,8 @@ from backend.auth import (
     NewPassword,
     SessionDep,
     UpdatePassword,
+    add_password_to_history,
+    check_password_history,
     get_user_by_email,
 )
 from backend.core.logging import get_logger
@@ -60,7 +62,34 @@ async def update_password_me(
             detail="New password cannot be the same as the current one",
         )
 
+    # Check password history to prevent reuse of recent passwords
+    if not check_password_history(
+        session=session, user=current_user, new_password=body.new_password
+    ):
+        await audit_service.log(
+            AuditAction.USER_PASSWORD_CHANGE_FAILED,
+            actor=current_user,
+            request=request,
+            outcome="failure",
+            severity=LogLevel.WARNING,
+            targets=[
+                Target(type="user", id=str(current_user.id), name=current_user.email)
+            ],
+            error_code="PASSWORD_RECENTLY_USED",
+            error_message="Password was used recently",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password was used recently. Please choose a different password.",
+        )
+
     hashed_password = get_password_hash(body.new_password)
+
+    # Add old password to history before changing
+    add_password_to_history(
+        session=session, user=current_user, hashed_password=current_user.hashed_password
+    )
+
     current_user.hashed_password = hashed_password
     current_user.password_changed_at = datetime.now(UTC)
     session.add(current_user)
@@ -172,7 +201,12 @@ async def reset_password(
             detail="Inactive user",
         )
 
-    if token_pca != 0 and abs(user.password_changed_at.timestamp() - token_pca) > 1:
+    # Check if token's password_changed_at timestamp matches current state
+    # If user has never changed password (None), pca should be 0
+    current_pca = (
+        user.password_changed_at.timestamp() if user.password_changed_at else 0
+    )
+    if token_pca != 0 and abs(current_pca - token_pca) > 1:
         await audit_service.log(
             AuditAction.USER_PASSWORD_RESET_FAILED,
             actor=user,
@@ -187,6 +221,30 @@ async def reset_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Token has already been used or is invalid",
         )
+
+    # Check password history to prevent reuse of recent passwords
+    if not check_password_history(
+        session=session, user=user, new_password=body.new_password
+    ):
+        await audit_service.log(
+            AuditAction.USER_PASSWORD_RESET_FAILED,
+            actor=user,
+            request=request,
+            outcome="failure",
+            severity=LogLevel.WARNING,
+            targets=[Target(type="user", id=str(user.id), name=user.email)],
+            error_code="PASSWORD_RECENTLY_USED",
+            error_message="Password was used recently during reset",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password was used recently. Please choose a different password.",
+        )
+
+    # Add old password to history before changing
+    add_password_to_history(
+        session=session, user=user, hashed_password=user.hashed_password
+    )
 
     hashed_password = get_password_hash(body.new_password)
     user.hashed_password = hashed_password

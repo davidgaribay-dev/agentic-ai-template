@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 import uuid
 
@@ -17,6 +17,10 @@ if TYPE_CHECKING:
     from backend.theme_settings.models import UserThemeSettings
 
 
+# Number of recent passwords to check for reuse prevention
+PASSWORD_HISTORY_LIMIT = 5
+
+
 class UserBase(SQLModel):
     email: EmailStr = Field(unique=True, index=True, max_length=255)
     is_active: bool = True
@@ -27,7 +31,8 @@ class UserBase(SQLModel):
 
 class User(UserBase, BaseTable, table=True):
     hashed_password: str
-    password_changed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    # Only set explicitly on password change operations, not on every model load
+    password_changed_at: datetime | None = Field(default=None)
 
     items: list["Item"] = Relationship(
         back_populates="owner",
@@ -66,6 +71,27 @@ class User(UserBase, BaseTable, table=True):
         back_populates="user",
         sa_relationship_kwargs={"cascade": "all, delete-orphan", "uselist": False},
     )
+
+    password_history: list["PasswordHistory"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
+
+class PasswordHistory(SQLModel, table=True):
+    """Stores hashed passwords to prevent reuse.
+
+    Keeps the last PASSWORD_HISTORY_LIMIT passwords per user.
+    """
+
+    __tablename__ = "password_history"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
+    hashed_password: str
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    user: "User" = Relationship(back_populates="password_history")
 
 
 class UserCreate(UserBase):

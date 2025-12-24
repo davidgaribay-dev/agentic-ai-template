@@ -1,9 +1,14 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+
+def _utc_now() -> datetime:
+    """Return current UTC datetime. Used as default_factory for Pydantic fields."""
+    return datetime.now(UTC)
 
 
 class LogLevel(str, Enum):
@@ -136,7 +141,7 @@ class AuditEvent(BaseModel):
 
     # Event identification
     id: str = Field(description="Unique event identifier (UUID)")
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=_utc_now)
     version: str = Field(default="1.0", description="Schema version")
 
     # What happened
@@ -177,7 +182,7 @@ class AppLogEvent(BaseModel):
     """
 
     id: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=_utc_now)
     level: LogLevel
     logger: str
     message: str
@@ -227,9 +232,15 @@ class AuditLogQuery(BaseModel):
     skip: int = Field(default=0, ge=0)
     limit: int = Field(default=50, ge=1, le=1000)
 
-    # Sorting
-    sort_field: str = "timestamp"
-    sort_order: str = "desc"
+    # Sorting - validated to prevent injection
+    sort_field: Literal[
+        "timestamp",
+        "action",
+        "outcome",
+        "actor_email",
+        "duration_ms",
+    ] = "timestamp"
+    sort_order: Literal["asc", "desc"] = "desc"
 
 
 class AuditLogResponse(BaseModel):

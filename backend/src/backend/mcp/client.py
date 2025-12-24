@@ -28,9 +28,6 @@ from backend.settings.service import get_effective_settings
 
 logger = get_logger(__name__)
 
-# Timeout for MCP server connections (in seconds)
-MCP_CONNECTION_TIMEOUT = 30
-
 # Global client references to keep connections alive
 _active_clients: dict[str, Any] = {}
 
@@ -304,7 +301,8 @@ def _sanitize_server_name(name: str) -> str:
     """Sanitize server name for use as a tool prefix.
 
     Converts to lowercase, replaces spaces with underscores,
-    removes special characters.
+    removes special characters. If the sanitized name is empty,
+    uses a fallback with a hash suffix to avoid collisions.
     """
     # Lowercase and replace spaces
     sanitized = name.lower().replace(" ", "_").replace("-", "_")
@@ -315,7 +313,13 @@ def _sanitize_server_name(name: str) -> str:
     # Remove leading/trailing underscores
     sanitized = sanitized.strip("_")
 
-    return sanitized or "mcp"
+    if not sanitized:
+        # Generate a unique suffix from the original name hash to avoid collisions
+        # when multiple servers have names that sanitize to empty strings
+        name_hash = abs(hash(name)) % 10000
+        return f"mcp_{name_hash}"
+
+    return sanitized
 
 
 async def test_mcp_server_connection(server: MCPServer, org_id: str) -> dict[str, Any]:

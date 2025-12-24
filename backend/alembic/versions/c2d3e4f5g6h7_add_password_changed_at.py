@@ -15,11 +15,9 @@ def upgrade() -> None:
         sa.Column(
             "password_changed_at",
             sa.DateTime(),
-            nullable=False,
-            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=True,
         ),
     )
-    op.alter_column("user", "password_changed_at", server_default=None)
 
 
 def downgrade() -> None:

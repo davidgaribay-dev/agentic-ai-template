@@ -200,6 +200,9 @@ ignore = [
 "src/backend/core/secrets.py" = [
     "PLW0603", # Global statement (secrets service singleton)
 ]
+"src/backend/auth/token_revocation.py" = [
+    "PLC0415", # Import inside function (circular import avoidance)
+]
 "src/backend/memory/*.py" = [
     "PLR0912", # Too many branches (extraction logic)
     "PLR0915", # Too many statements (extraction logic)

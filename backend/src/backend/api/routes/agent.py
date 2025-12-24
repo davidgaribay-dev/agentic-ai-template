@@ -3,7 +3,7 @@ import json
 from typing import Annotated
 import uuid
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.params import Depends
 from sqlmodel import Session, select
 from sse_starlette.sse import EventSourceResponse
@@ -41,8 +41,9 @@ from backend.conversations import (
 from backend.core.config import Settings, get_settings
 from backend.core.db import engine
 from backend.core.logging import get_logger
+from backend.core.rate_limit import AGENT_RATE_LIMIT, limiter
 from backend.core.secrets import get_secrets_service
-from backend.guardrails.models import GuardrailAction
+from backend.guardrails.models import EffectiveGuardrails, GuardrailAction
 from backend.guardrails.service import (
     check_input,
     check_output,
@@ -81,8 +82,20 @@ logger = get_logger(__name__)
 # Maximum number of messages to return in conversation history
 MAX_MESSAGE_HISTORY = 100
 
+# Maximum time (in seconds) for SSE streaming before timeout
+# This prevents indefinitely hanging connections
+SSE_STREAM_TIMEOUT_SECONDS = 300  # 5 minutes
+
 # Set to track background tasks and prevent garbage collection
-_background_tasks: set[asyncio.Task] = set()
+# Note: In asyncio, set operations are atomic within the event loop,
+# but we use a helper function to keep the pattern clean and documented.
+_background_tasks: set[asyncio.Task[None]] = set()
+
+
+def _track_background_task(task: asyncio.Task[None]) -> None:
+    """Add a task to the tracked set and register cleanup callback."""
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -103,8 +116,10 @@ async def health_check(
 
 
 @router.post("/chat", response_model=ChatResponse)
+@limiter.limit(AGENT_RATE_LIMIT)
 async def chat(
-    request: ChatRequest,
+    request: Request,  # Required for rate limiter
+    chat_request: ChatRequest,
     session: SessionDep,
     current_user: CurrentUser,
     settings: Annotated[Settings, Depends(get_settings)],
@@ -125,7 +140,7 @@ async def chat(
 
     When organization_id is provided, the user must be a member of that organization.
     """
-    has_org_context = request.organization_id is not None
+    has_org_context = chat_request.organization_id is not None
     if not settings.has_llm_api_key and not settings.infisical_enabled:
         raise HTTPException(
             status_code=503,
@@ -134,7 +149,7 @@ async def chat(
 
     # Verify organization membership when org context is provided
     if has_org_context:
-        org_id = uuid.UUID(request.organization_id)
+        org_id = uuid.UUID(chat_request.organization_id)
         statement = select(OrganizationMember).where(
             OrganizationMember.organization_id == org_id,
             OrganizationMember.user_id == current_user.id,
@@ -149,8 +164,8 @@ async def chat(
     if has_org_context and settings.infisical_enabled:
         secrets = get_secrets_service()
         statuses = secrets.list_api_key_status(
-            org_id=request.organization_id,
-            team_id=request.team_id,
+            org_id=chat_request.organization_id,
+            team_id=chat_request.team_id,
         )
         if not any(s["is_configured"] for s in statuses):
             raise HTTPException(
@@ -158,22 +173,22 @@ async def chat(
                 detail="No LLM API key configured for this organization/team. Set up API keys in settings.",
             )
 
-    is_new_conversation = request.conversation_id is None
-    conversation_id = request.conversation_id or str(uuid.uuid4())
+    is_new_conversation = chat_request.conversation_id is None
+    conversation_id = chat_request.conversation_id or str(uuid.uuid4())
 
     if is_new_conversation:
-        title = request.message[:MAX_MESSAGE_HISTORY] + (
-            "..." if len(request.message) > MAX_MESSAGE_HISTORY else ""
+        title = chat_request.message[:MAX_MESSAGE_HISTORY] + (
+            "..." if len(chat_request.message) > MAX_MESSAGE_HISTORY else ""
         )
         create_conversation_with_id(
             session=session,
             conversation_id=uuid.UUID(conversation_id),
             title=title,
             user_id=current_user.id,
-            organization_id=uuid.UUID(request.organization_id)
-            if request.organization_id
+            organization_id=uuid.UUID(chat_request.organization_id)
+            if chat_request.organization_id
             else None,
-            team_id=uuid.UUID(request.team_id) if request.team_id else None,
+            team_id=uuid.UUID(chat_request.team_id) if chat_request.team_id else None,
         )
     else:
         existing = get_conversation(
@@ -182,8 +197,8 @@ async def chat(
         if existing:
             is_owner = current_user.id in (existing.user_id, existing.created_by_id)
             team_matches = True
-            if existing.team_id and request.team_id:
-                team_matches = str(existing.team_id) == request.team_id
+            if existing.team_id and chat_request.team_id:
+                team_matches = str(existing.team_id) == chat_request.team_id
             if not is_owner or not team_matches:
                 raise HTTPException(
                     status_code=403,
@@ -196,17 +211,17 @@ async def chat(
     logger.info(
         "chat_request",
         conversation_id=conversation_id,
-        stream=request.stream,
-        message_length=len(request.message),
+        stream=chat_request.stream,
+        message_length=len(chat_request.message),
         user_id=str(current_user.id),
         is_new=is_new_conversation,
     )
 
     # Build media_json from media_ids if present
     media_json = None
-    if request.media_ids:
+    if chat_request.media_ids:
         media_list = []
-        for media_id_str in request.media_ids:
+        for media_id_str in chat_request.media_ids:
             try:
                 media = get_chat_media(session, uuid.UUID(media_id_str))
                 if media:
@@ -240,11 +255,11 @@ async def chat(
             session=session,
             conversation_id=uuid.UUID(conversation_id),
             role="user",
-            content=request.message,
-            organization_id=uuid.UUID(request.organization_id)
-            if request.organization_id
+            content=chat_request.message,
+            organization_id=uuid.UUID(chat_request.organization_id)
+            if chat_request.organization_id
             else None,
-            team_id=uuid.UUID(request.team_id) if request.team_id else None,
+            team_id=uuid.UUID(chat_request.team_id) if chat_request.team_id else None,
             created_by_id=current_user.id,
             media_json=media_json,
         )
@@ -255,25 +270,25 @@ async def chat(
             conversation_id=conversation_id,
         )
 
-    if request.stream:
+    if chat_request.stream:
         return EventSourceResponse(
             stream_response(
-                message=request.message,
+                message=chat_request.message,
                 conversation_id=conversation_id,
                 is_new_conversation=is_new_conversation,
-                org_id=request.organization_id,
-                team_id=request.team_id,
+                org_id=chat_request.organization_id,
+                team_id=chat_request.team_id,
                 user_id=str(current_user.id),
                 current_user=current_user,
                 session=session,
-                media_ids=request.media_ids,
+                media_ids=chat_request.media_ids,
             ),
             media_type="text/event-stream",
         )
 
     # Non-streaming path with guardrails
     guardrails = None
-    effective_message = request.message
+    effective_message = chat_request.message
 
     # Check input guardrails before calling LLM
     if has_org_context:
@@ -281,12 +296,14 @@ async def chat(
             guardrails = get_effective_guardrails(
                 session=session,
                 user_id=current_user.id,
-                organization_id=uuid.UUID(request.organization_id),
-                team_id=uuid.UUID(request.team_id) if request.team_id else None,
+                organization_id=uuid.UUID(chat_request.organization_id),
+                team_id=uuid.UUID(chat_request.team_id)
+                if chat_request.team_id
+                else None,
             )
 
             if guardrails.guardrails_enabled:
-                input_result = check_input(request.message, guardrails)
+                input_result = check_input(chat_request.message, guardrails)
 
                 if not input_result.passed:
                     # Persist the guardrail block as an assistant message
@@ -299,11 +316,11 @@ async def chat(
                             conversation_id=uuid.UUID(conversation_id),
                             role="assistant",
                             content=block_message,
-                            organization_id=uuid.UUID(request.organization_id)
-                            if request.organization_id
+                            organization_id=uuid.UUID(chat_request.organization_id)
+                            if chat_request.organization_id
                             else None,
-                            team_id=uuid.UUID(request.team_id)
-                            if request.team_id
+                            team_id=uuid.UUID(chat_request.team_id)
+                            if chat_request.team_id
                             else None,
                             created_by_id=current_user.id,
                             guardrail_blocked=True,
@@ -321,7 +338,9 @@ async def chat(
                     )
 
                 if input_result.action == GuardrailAction.REDACT:
-                    effective_message = input_result.redacted_content or request.message
+                    effective_message = (
+                        input_result.redacted_content or chat_request.message
+                    )
                     logger.info(
                         "guardrail_input_redacted_sync",
                         conversation_id=conversation_id,
@@ -346,11 +365,11 @@ async def chat(
         if has_org_context:
             response = await run_agent_with_context(
                 message=effective_message,
-                org_id=request.organization_id,
-                team_id=request.team_id,
+                org_id=chat_request.organization_id,
+                team_id=chat_request.team_id,
                 thread_id=conversation_id,
                 user_id=str(current_user.id),
-                media_ids=request.media_ids,
+                media_ids=chat_request.media_ids,
             )
         else:
             response = await run_agent(
@@ -395,10 +414,10 @@ async def chat(
         if is_new_conversation:
             await _update_conversation_title(
                 conversation_id=conversation_id,
-                user_message=request.message,
+                user_message=chat_request.message,
                 assistant_response=response,
-                org_id=request.organization_id,
-                team_id=request.team_id,
+                org_id=chat_request.organization_id,
+                team_id=chat_request.team_id,
             )
 
         # Index assistant response for search
@@ -408,10 +427,12 @@ async def chat(
                 conversation_id=uuid.UUID(conversation_id),
                 role="assistant",
                 content=stored_response,
-                organization_id=uuid.UUID(request.organization_id)
-                if request.organization_id
+                organization_id=uuid.UUID(chat_request.organization_id)
+                if chat_request.organization_id
                 else None,
-                team_id=uuid.UUID(request.team_id) if request.team_id else None,
+                team_id=uuid.UUID(chat_request.team_id)
+                if chat_request.team_id
+                else None,
                 created_by_id=current_user.id,
             )
         except Exception as e:
@@ -545,6 +566,40 @@ async def _extract_memories_background(
         )
 
 
+def _log_partial_response_guardrail_check(
+    partial_response: str,
+    guardrails: EffectiveGuardrails,
+    conversation_id: str,
+) -> None:
+    """Check guardrails on partial response and log violations.
+
+    Called when stream is interrupted (error/disconnect) to ensure
+    any problematic content that was already streamed is logged.
+    This is for audit purposes - the content was already sent to the client.
+    """
+    try:
+        output_result = check_output(partial_response, guardrails)
+        if not output_result.passed:
+            logger.warning(
+                "guardrail_output_violation_on_interrupt",
+                conversation_id=conversation_id,
+                match_count=len(output_result.matches),
+                partial_response_length=len(partial_response),
+            )
+        elif output_result.action == GuardrailAction.WARN:
+            logger.warning(
+                "guardrail_output_warning_on_interrupt",
+                conversation_id=conversation_id,
+                match_count=len(output_result.matches),
+            )
+    except Exception as e:
+        logger.warning(
+            "guardrail_partial_check_failed",
+            error=str(e),
+            conversation_id=conversation_id,
+        )
+
+
 async def stream_response(
     message: str,
     conversation_id: str,
@@ -665,81 +720,82 @@ async def stream_response(
                 effective_message, thread_id=conversation_id, user_id=user_id
             )
 
-        async for chunk in stream_gen:
-            # Check if this is a special event (dict) or a token (str)
-            if isinstance(chunk, dict):
-                event_type = chunk.get("type")
+        async with asyncio.timeout(SSE_STREAM_TIMEOUT_SECONDS):
+            async for chunk in stream_gen:
+                # Check if this is a special event (dict) or a token (str)
+                if isinstance(chunk, dict):
+                    event_type = chunk.get("type")
 
-                if event_type == "tool_approval":
-                    # Emit tool approval event with interrupt data
-                    is_interrupted = True
-                    tool_name = chunk["data"].get("tool_name")
-                    tool_args = chunk["data"].get("tool_args", {})
-                    tool_call_id = chunk["data"].get("tool_call_id")
+                    if event_type == "tool_approval":
+                        # Emit tool approval event with interrupt data
+                        is_interrupted = True
+                        tool_name = chunk["data"].get("tool_name")
+                        tool_args = chunk["data"].get("tool_args", {})
+                        tool_call_id = chunk["data"].get("tool_call_id")
 
-                    yield {
-                        "event": "tool_approval",
-                        "data": json.dumps(
-                            {
-                                "conversation_id": conversation_id,
+                        yield {
+                            "event": "tool_approval",
+                            "data": json.dumps(
+                                {
+                                    "conversation_id": conversation_id,
+                                    "tool_name": tool_name,
+                                    "tool_args": tool_args,
+                                    "tool_call_id": tool_call_id,
+                                    "tool_description": chunk["data"].get(
+                                        "tool_description", ""
+                                    ),
+                                }
+                            ),
+                        }
+                        logger.info(
+                            "tool_approval_event_sent",
+                            conversation_id=conversation_id,
+                            tool_name=tool_name,
+                        )
+
+                        # Audit log the tool approval request
+                        await audit_service.log(
+                            AuditAction.TOOL_APPROVAL_REQUESTED,
+                            actor=current_user,
+                            organization_id=uuid.UUID(org_id) if org_id else None,
+                            team_id=uuid.UUID(team_id) if team_id else None,
+                            targets=[
+                                Target(type="conversation", id=conversation_id),
+                                Target(type="tool", id=tool_call_id, name=tool_name),
+                            ],
+                            metadata={
                                 "tool_name": tool_name,
                                 "tool_args": tool_args,
-                                "tool_call_id": tool_call_id,
-                                "tool_description": chunk["data"].get(
-                                    "tool_description", ""
-                                ),
-                            }
-                        ),
-                    }
-                    logger.info(
-                        "tool_approval_event_sent",
-                        conversation_id=conversation_id,
-                        tool_name=tool_name,
-                    )
+                            },
+                        )
 
-                    # Audit log the tool approval request
-                    await audit_service.log(
-                        AuditAction.TOOL_APPROVAL_REQUESTED,
-                        actor=current_user,
-                        organization_id=uuid.UUID(org_id) if org_id else None,
-                        team_id=uuid.UUID(team_id) if team_id else None,
-                        targets=[
-                            Target(type="conversation", id=conversation_id),
-                            Target(type="tool", id=tool_call_id, name=tool_name),
-                        ],
-                        metadata={
-                            "tool_name": tool_name,
-                            "tool_args": tool_args,
-                        },
-                    )
-
-                elif event_type == "sources":
-                    # Emit sources event for RAG citation display
-                    sources = chunk.get("data", [])
-                    collected_sources.extend(sources)  # Track for persistence
+                    elif event_type == "sources":
+                        # Emit sources event for RAG citation display
+                        sources = chunk.get("data", [])
+                        collected_sources.extend(sources)  # Track for persistence
+                        yield {
+                            "event": "sources",
+                            "data": json.dumps(
+                                {
+                                    "conversation_id": conversation_id,
+                                    "sources": sources,
+                                }
+                            ),
+                        }
+                        logger.info(
+                            "sources_event_sent",
+                            conversation_id=conversation_id,
+                            source_count=len(sources),
+                        )
+                else:
+                    # Regular token
+                    full_response += chunk
                     yield {
-                        "event": "sources",
+                        "event": "message",
                         "data": json.dumps(
-                            {
-                                "conversation_id": conversation_id,
-                                "sources": sources,
-                            }
+                            {"token": chunk, "conversation_id": conversation_id}
                         ),
                     }
-                    logger.info(
-                        "sources_event_sent",
-                        conversation_id=conversation_id,
-                        source_count=len(sources),
-                    )
-            else:
-                # Regular token
-                full_response += chunk
-                yield {
-                    "event": "message",
-                    "data": json.dumps(
-                        {"token": chunk, "conversation_id": conversation_id}
-                    ),
-                }
 
         # Only do post-processing if we weren't interrupted
         if not is_interrupted:
@@ -844,8 +900,7 @@ async def stream_response(
                         conversation_id=conversation_id,
                     )
                 )
-                _background_tasks.add(task)
-                task.add_done_callback(_background_tasks.discard)
+                _track_background_task(task)
             else:
                 logger.info(
                     "memory_extraction_skipped_no_context",
@@ -859,7 +914,33 @@ async def stream_response(
                 "data": json.dumps({"conversation_id": conversation_id}),
             }
 
+    except TimeoutError:
+        # Stream timeout - check guardrails on partial response
+        if full_response and guardrails and guardrails.guardrails_enabled:
+            _log_partial_response_guardrail_check(
+                full_response, guardrails, conversation_id
+            )
+        logger.warning(
+            "stream_timeout",
+            conversation_id=conversation_id,
+            timeout_seconds=SSE_STREAM_TIMEOUT_SECONDS,
+            partial_response_length=len(full_response),
+        )
+        yield {
+            "event": "error",
+            "data": json.dumps(
+                {
+                    "error": "Request timed out. Please try again.",
+                    "type": "timeout_error",
+                }
+            ),
+        }
     except LLMConfigurationError as e:
+        # Check guardrails on any partial response that was streamed
+        if full_response and guardrails and guardrails.guardrails_enabled:
+            _log_partial_response_guardrail_check(
+                full_response, guardrails, conversation_id
+            )
         # Configuration errors have user-friendly messages - pass them through
         logger.warning(
             "stream_llm_config_error", error=str(e), error_type=type(e).__name__
@@ -869,6 +950,11 @@ async def stream_response(
             "data": json.dumps({"error": str(e), "type": "configuration_error"}),
         }
     except ValueError as e:
+        # Check guardrails on any partial response that was streamed
+        if full_response and guardrails and guardrails.guardrails_enabled:
+            _log_partial_response_guardrail_check(
+                full_response, guardrails, conversation_id
+            )
         # Check if this is an API key configuration error from the LLM layer
         error_msg = str(e)
         if "API key" in error_msg or "api_key" in error_msg.lower():
@@ -893,6 +979,11 @@ async def stream_response(
                 ),
             }
     except (AgentError, LLMError) as e:
+        # Check guardrails on any partial response that was streamed
+        if full_response and guardrails and guardrails.guardrails_enabled:
+            _log_partial_response_guardrail_check(
+                full_response, guardrails, conversation_id
+            )
         logger.exception(
             "stream_agent_error", error=str(e), error_type=type(e).__name__
         )
@@ -903,6 +994,11 @@ async def stream_response(
             ),
         }
     except ConnectionError as e:
+        # Check guardrails on any partial response that was streamed
+        if full_response and guardrails and guardrails.guardrails_enabled:
+            _log_partial_response_guardrail_check(
+                full_response, guardrails, conversation_id
+            )
         logger.exception("stream_connection_error", error=str(e))
         yield {
             "event": "error",
@@ -911,6 +1007,11 @@ async def stream_response(
             ),
         }
     except Exception as e:
+        # Check guardrails on any partial response that was streamed
+        if full_response and guardrails and guardrails.guardrails_enabled:
+            _log_partial_response_guardrail_check(
+                full_response, guardrails, conversation_id
+            )
         logger.exception(
             "stream_unexpected_error", error=str(e), error_type=type(e).__name__
         )

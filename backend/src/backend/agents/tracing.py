@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from typing import TYPE_CHECKING, Any
 
 from backend.core.config import settings
@@ -21,7 +22,10 @@ except ImportError:
 
 logger = get_logger(__name__)
 
+# Thread-safe initialization
+_langfuse_lock = threading.Lock()
 _langfuse_initialized = False
+_langfuse_handler: CallbackHandler | None = None
 
 
 def init_langfuse() -> bool:
@@ -29,6 +33,8 @@ def init_langfuse() -> bool:
 
     Call this once during application startup. Langfuse v3 uses a singleton
     pattern where credentials are set once, then accessed via get_client().
+
+    Thread-safe: Uses double-checked locking to ensure single initialization.
 
     Returns:
         True if initialization succeeded, False otherwise
@@ -39,6 +45,7 @@ def init_langfuse() -> bool:
         logger.debug("langfuse_disabled", reason="missing_configuration")
         return False
 
+    # Fast path: already initialized
     if _langfuse_initialized:
         return True
 
@@ -49,30 +56,68 @@ def init_langfuse() -> bool:
         )
         return False
 
-    try:
-        # Note: Langfuse v3 uses base_url instead of host
-        Langfuse(
-            public_key=settings.LANGFUSE_PUBLIC_KEY,
-            secret_key=settings.LANGFUSE_SECRET_KEY,
-            base_url=settings.langfuse_base_url,
-        )
-    except Exception as e:
-        logger.exception(
-            "langfuse_init_error",
-            error=str(e),
-            message="Failed to initialize Langfuse client",
-        )
-        return False
-    else:
-        _langfuse_initialized = True
-        logger.info(
-            "langfuse_initialized",
-            base_url=settings.langfuse_base_url,
-        )
-        return True
+    # Thread-safe initialization with double-checked locking
+    with _langfuse_lock:
+        # Re-check after acquiring lock (another thread may have initialized)
+        if _langfuse_initialized:
+            return True  # type: ignore[unreachable]
+
+        try:
+            # Note: Langfuse v3 uses base_url instead of host
+            Langfuse(
+                public_key=settings.LANGFUSE_PUBLIC_KEY,
+                secret_key=settings.LANGFUSE_SECRET_KEY,
+                base_url=settings.langfuse_base_url,
+            )
+        except Exception as e:
+            logger.exception(
+                "langfuse_init_error",
+                error=str(e),
+                message="Failed to initialize Langfuse client",
+            )
+            return False
+        else:
+            _langfuse_initialized = True
+            logger.info(
+                "langfuse_initialized",
+                base_url=settings.langfuse_base_url,
+            )
+            return True
+
+
+def _create_langfuse_handler() -> CallbackHandler | None:
+    """Create and cache the Langfuse handler. Thread-safe."""
+    global _langfuse_handler
+
+    with _langfuse_lock:
+        # Re-check after acquiring lock
+        if _langfuse_handler is not None:
+            return _langfuse_handler
+
+        try:
+            handler = CallbackHandler()
+        except Exception as e:
+            logger.exception(
+                "langfuse_handler_error",
+                error=str(e),
+                message="Failed to create Langfuse handler",
+            )
+            return None
+        else:
+            _langfuse_handler = handler
+            logger.debug("langfuse_handler_created")
+            return handler
 
 
 def get_langfuse_handler() -> CallbackHandler | None:
+    """Get the cached Langfuse callback handler.
+
+    The handler is created once and cached for reuse across calls.
+    Thread-safe: Uses double-checked locking for handler creation.
+
+    Returns:
+        CallbackHandler if available, None otherwise
+    """
     if not settings.langfuse_enabled:
         return None
 
@@ -87,18 +132,12 @@ def get_langfuse_handler() -> CallbackHandler | None:
         )
         return None
 
-    try:
-        handler = CallbackHandler()
-    except Exception as e:
-        logger.exception(
-            "langfuse_handler_error",
-            error=str(e),
-            message="Failed to create Langfuse handler",
-        )
-        return None
-    else:
-        logger.debug("langfuse_handler_created")
-        return handler
+    # Fast path: handler already created
+    if _langfuse_handler is not None:
+        return _langfuse_handler
+
+    # Thread-safe handler creation
+    return _create_langfuse_handler()
 
 
 def build_langfuse_config(

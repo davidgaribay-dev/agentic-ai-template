@@ -72,7 +72,7 @@ export function MemorySettings({
       </div>
       <Switch
         id="memory-enabled"
-        checked={memoryEnabled}
+        checked={isDisabledByHigherLevel ? false : memoryEnabled}
         onCheckedChange={onMemoryEnabledChange}
         disabled={isDisabledByHigherLevel || isLoading}
       />

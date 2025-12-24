@@ -20,6 +20,7 @@ from backend.conversations import (
     soft_delete_conversation,
     update_conversation,
 )
+from backend.rbac import validate_team_membership
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -45,6 +46,10 @@ def read_conversations(
 
     Returns conversations ordered by most recently updated first (or by relevance if searching).
     """
+    # Validate team membership if team_id is provided
+    if team_id:
+        validate_team_membership(session, current_user, team_id)
+
     # Search requires team_id for proper scoping
     if search and team_id:
         conversations, count = search_conversations_by_team(

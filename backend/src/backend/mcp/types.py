@@ -38,8 +38,11 @@ class MCPToolDefinition(TypedDict):
     input_schema: MCPToolInputSchema
 
 
-class MCPServerWithTools(TypedDict):
-    """MCP server with its discovered tools."""
+class MCPServerToolsData(TypedDict):
+    """MCP server with its discovered tools (internal TypedDict).
+
+    Note: Use MCPServerWithTools from models.py for API response schemas.
+    """
 
     server_id: str
     server_name: str
@@ -51,10 +54,13 @@ class MCPServerWithTools(TypedDict):
     error: NotRequired[str]
 
 
-class MCPToolsList(TypedDict):
-    """Response from effective-tools endpoint."""
+class MCPToolsListData(TypedDict):
+    """Response from effective-tools endpoint (internal TypedDict).
 
-    servers: list[MCPServerWithTools]
+    Note: Use MCPToolsList from models.py for API response schemas.
+    """
+
+    servers: list[MCPServerToolsData]
     total_tools: int
     total_servers: int
     error_count: int

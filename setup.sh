@@ -351,10 +351,10 @@ echo ""
 echo -e "${DIM}  Running database migrations...${NC}"
 cd "$BACKEND_DIR"
 if command_exists uv; then
-    if uv run alembic upgrade head 2>/dev/null; then
+    if uv run alembic upgrade head 2>&1 | tail -5; then
         print_success "Database migrations complete"
     else
-        print_warning "Migrations may have failed - check manually"
+        print_warning "Migrations may have failed - run manually: cd backend && uv run alembic upgrade head"
         WARNINGS=$((WARNINGS + 1))
     fi
 fi
@@ -364,10 +364,12 @@ cd "$SCRIPT_DIR"
 echo -e "${DIM}  Creating initial superuser...${NC}"
 cd "$BACKEND_DIR"
 if command_exists uv; then
-    if uv run python -m backend.scripts.initial_data 2>/dev/null; then
-        print_success "Initial superuser created"
+    # Don't suppress errors - show relevant output
+    if uv run python -m backend.scripts.initial_data 2>&1 | grep -E "(Created|already exists|ERROR|Error)" | tail -5; then
+        print_success "Initial superuser setup complete"
     else
-        print_info "Superuser may already exist"
+        print_warning "Initial data setup had issues - run manually: cd backend && uv run python -m backend.scripts.initial_data"
+        WARNINGS=$((WARNINGS + 1))
     fi
 fi
 cd "$SCRIPT_DIR"

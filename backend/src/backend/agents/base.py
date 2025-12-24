@@ -1,8 +1,8 @@
 import asyncio
 import base64
 from collections.abc import AsyncGenerator
+import contextlib
 from contextlib import asynccontextmanager
-from contextvars import ContextVar
 import json
 import traceback
 from typing import Any
@@ -16,6 +16,7 @@ from langgraph.types import Command, interrupt
 from psycopg_pool import AsyncConnectionPool
 from sqlmodel import Session, select
 
+from backend.agents.context import LLMContext, _llm_context
 from backend.agents.llm import get_chat_model, get_chat_model_with_context
 from backend.agents.tools import get_available_tools, get_context_aware_tools
 from backend.agents.tracing import build_langfuse_config
@@ -46,8 +47,6 @@ __all__ = [
 ]
 
 logger = get_logger(__name__)
-
-_llm_context: ContextVar[dict | None] = ContextVar("_llm_context", default=None)
 
 
 def _extract_text_content(content: Any) -> str:
@@ -541,11 +540,11 @@ def create_agent_graph(checkpointer: AsyncPostgresSaver | None = None) -> Any:
         Prepends system prompt if available.
         """
         ctx = _llm_context.get()
-        if ctx and ctx.get("org_id"):
+        if ctx and ctx.org_id:
             llm = get_chat_model_with_context(
-                org_id=ctx["org_id"],
-                team_id=ctx.get("team_id"),
-                provider=ctx.get("provider"),
+                org_id=ctx.org_id,
+                team_id=ctx.team_id,
+                provider=ctx.provider,
             )
         else:
             llm = get_chat_model(settings.DEFAULT_LLM_PROVIDER)
@@ -556,9 +555,9 @@ def create_agent_graph(checkpointer: AsyncPostgresSaver | None = None) -> Any:
         # Add system prompt if we have context and it's configured
         if ctx:
             system_prompt = _get_system_prompt_content(
-                org_id=ctx.get("org_id"),
-                team_id=ctx.get("team_id"),
-                user_id=ctx.get("user_id"),
+                org_id=ctx.org_id,
+                team_id=ctx.team_id,
+                user_id=ctx.user_id,
             )
             if system_prompt and (
                 not messages or not isinstance(messages[0], SystemMessage)
@@ -570,12 +569,12 @@ def create_agent_graph(checkpointer: AsyncPostgresSaver | None = None) -> Any:
         # Inject relevant memories if enabled (with timeout to avoid blocking)
         # Skip memory retrieval when message has inline media attachments
         # (they're for immediate analysis, not related to past memories)
-        has_media = ctx.get("has_media", False) if ctx else False
-        if ctx and ctx.get("org_id") and ctx.get("user_id") and not has_media:
+        has_media = ctx.has_media if ctx else False
+        if ctx and ctx.org_id and ctx.user_id and not has_media:
             memory_enabled = _is_memory_enabled(
-                org_id=ctx.get("org_id"),
-                team_id=ctx.get("team_id"),
-                user_id=ctx.get("user_id"),
+                org_id=ctx.org_id,
+                team_id=ctx.team_id,
+                user_id=ctx.user_id,
             )
             if memory_enabled:
                 # Timeout for memory retrieval (don't block chat if embeddings are slow)
@@ -595,18 +594,27 @@ def create_agent_graph(checkpointer: AsyncPostgresSaver | None = None) -> Any:
 
                         if last_message:
                             return await service.search_memories(
-                                org_id=ctx.get("org_id"),
-                                team_id=ctx.get("team_id") or "default",
-                                user_id=ctx.get("user_id"),
+                                org_id=ctx.org_id,
+                                team_id=ctx.team_id or "default",
+                                user_id=ctx.user_id,
                                 query=last_message,
                                 limit=5,
                             )
                         return []
 
-                    memories = await asyncio.wait_for(
-                        _retrieve_memories(),
-                        timeout=memory_timeout_seconds,
-                    )
+                    # Create task and properly cancel on timeout to avoid orphaned coroutines
+                    memory_task = asyncio.create_task(_retrieve_memories())
+                    try:
+                        memories = await asyncio.wait_for(
+                            memory_task,
+                            timeout=memory_timeout_seconds,
+                        )
+                    except TimeoutError:
+                        # Properly cancel the task to avoid connection leaks
+                        memory_task.cancel()
+                        with contextlib.suppress(asyncio.CancelledError):
+                            await memory_task
+                        raise
 
                     if memories:
                         memory_context = format_memories_for_context(memories)
@@ -621,7 +629,7 @@ def create_agent_graph(checkpointer: AsyncPostgresSaver | None = None) -> Any:
                             logger.debug(
                                 "memories_injected",
                                 count=len(memories),
-                                user_id=ctx.get("user_id"),
+                                user_id=ctx.user_id,
                             )
                 except TimeoutError:
                     logger.warning(
@@ -899,11 +907,11 @@ def create_agent_graph_with_tools(
     async def chat_node(state: MessagesState) -> dict:
         """Process messages and generate a response, potentially with tool calls."""
         ctx = _llm_context.get()
-        if ctx and ctx.get("org_id"):
+        if ctx and ctx.org_id:
             llm = get_chat_model_with_context(
-                org_id=ctx["org_id"],
-                team_id=ctx.get("team_id"),
-                provider=ctx.get("provider"),
+                org_id=ctx.org_id,
+                team_id=ctx.team_id,
+                provider=ctx.provider,
             )
         else:
             llm = get_chat_model(settings.DEFAULT_LLM_PROVIDER)
@@ -952,9 +960,9 @@ def create_agent_graph_with_tools(
         # Add system prompt if we have context and it's configured
         if ctx:
             system_prompt = _get_system_prompt_content(
-                org_id=ctx.get("org_id"),
-                team_id=ctx.get("team_id"),
-                user_id=ctx.get("user_id"),
+                org_id=ctx.org_id,
+                team_id=ctx.team_id,
+                user_id=ctx.user_id,
             )
             if system_prompt and (
                 not messages or not isinstance(messages[0], SystemMessage)
@@ -964,12 +972,12 @@ def create_agent_graph_with_tools(
 
         # Inject relevant memories if enabled
         # Skip memory retrieval when message has inline media attachments
-        has_media = ctx.get("has_media", False) if ctx else False
-        if ctx and ctx.get("org_id") and ctx.get("user_id") and not has_media:
+        has_media = ctx.has_media if ctx else False
+        if ctx and ctx.org_id and ctx.user_id and not has_media:
             memory_enabled = _is_memory_enabled(
-                org_id=ctx.get("org_id"),
-                team_id=ctx.get("team_id"),
-                user_id=ctx.get("user_id"),
+                org_id=ctx.org_id,
+                team_id=ctx.team_id,
+                user_id=ctx.user_id,
             )
             if memory_enabled:
                 try:
@@ -984,9 +992,9 @@ def create_agent_graph_with_tools(
 
                     if last_message:
                         memories = await service.search_memories(
-                            org_id=ctx.get("org_id"),
-                            team_id=ctx.get("team_id") or "default",
-                            user_id=ctx.get("user_id"),
+                            org_id=ctx.org_id,
+                            team_id=ctx.team_id or "default",
+                            user_id=ctx.user_id,
                             query=last_message,
                             limit=5,
                         )
@@ -1002,7 +1010,7 @@ def create_agent_graph_with_tools(
                                 logger.debug(
                                     "memories_injected",
                                     count=len(memories),
-                                    user_id=ctx.get("user_id"),
+                                    user_id=ctx.user_id,
                                 )
                 except Exception as e:
                     logger.warning("memory_injection_failed", error=str(e))
@@ -1100,11 +1108,11 @@ def create_agent_graph_with_tool_approval(
     async def chat_node(state: MessagesState) -> dict:
         """Process messages and generate a response, potentially with tool calls."""
         ctx = _llm_context.get()
-        if ctx and ctx.get("org_id"):
+        if ctx and ctx.org_id:
             llm = get_chat_model_with_context(
-                org_id=ctx["org_id"],
-                team_id=ctx.get("team_id"),
-                provider=ctx.get("provider"),
+                org_id=ctx.org_id,
+                team_id=ctx.team_id,
+                provider=ctx.provider,
             )
         else:
             llm = get_chat_model(settings.DEFAULT_LLM_PROVIDER)
@@ -1155,9 +1163,9 @@ def create_agent_graph_with_tool_approval(
         # Add system prompt if we have context and it's configured
         if ctx:
             system_prompt = _get_system_prompt_content(
-                org_id=ctx.get("org_id"),
-                team_id=ctx.get("team_id"),
-                user_id=ctx.get("user_id"),
+                org_id=ctx.org_id,
+                team_id=ctx.team_id,
+                user_id=ctx.user_id,
             )
             if system_prompt and (
                 not messages or not isinstance(messages[0], SystemMessage)
@@ -1167,12 +1175,12 @@ def create_agent_graph_with_tool_approval(
 
         # Inject relevant memories if enabled
         # Skip memory retrieval when message has inline media attachments
-        has_media = ctx.get("has_media", False) if ctx else False
-        if ctx and ctx.get("org_id") and ctx.get("user_id") and not has_media:
+        has_media = ctx.has_media if ctx else False
+        if ctx and ctx.org_id and ctx.user_id and not has_media:
             memory_enabled = _is_memory_enabled(
-                org_id=ctx.get("org_id"),
-                team_id=ctx.get("team_id"),
-                user_id=ctx.get("user_id"),
+                org_id=ctx.org_id,
+                team_id=ctx.team_id,
+                user_id=ctx.user_id,
             )
             if memory_enabled:
                 try:
@@ -1187,9 +1195,9 @@ def create_agent_graph_with_tool_approval(
 
                     if last_message:
                         memories = await service.search_memories(
-                            org_id=ctx.get("org_id"),
-                            team_id=ctx.get("team_id") or "default",
-                            user_id=ctx.get("user_id"),
+                            org_id=ctx.org_id,
+                            team_id=ctx.team_id or "default",
+                            user_id=ctx.user_id,
                             query=last_message,
                             limit=5,
                         )
@@ -1205,7 +1213,7 @@ def create_agent_graph_with_tool_approval(
                                 logger.debug(
                                     "memories_injected",
                                     count=len(memories),
-                                    user_id=ctx.get("user_id"),
+                                    user_id=ctx.user_id,
                                 )
                 except Exception as e:
                     logger.warning("memory_injection_failed", error=str(e))
@@ -1243,11 +1251,16 @@ def create_agent_graph_with_tool_approval(
         """
         last_msg = state["messages"][-1]
 
-        if not isinstance(last_msg, AIMessage) or not last_msg.tool_calls:
+        if not isinstance(last_msg, AIMessage):
+            return {}
+
+        # Get all tool calls from all possible locations (tool_calls, additional_kwargs, content)
+        all_tool_calls = _get_all_tool_calls_from_message(last_msg)
+        if not all_tool_calls:
             return {}
 
         # Process each tool call that needs approval
-        for tool_call in last_msg.tool_calls:
+        for tool_call in all_tool_calls:
             tool_name = tool_call.get("name", "")
 
             if tool_name in mcp_tool_names:
@@ -1480,16 +1493,25 @@ async def _init_checkpointer() -> AsyncPostgresSaver:
     if _checkpointer is not None:
         return _checkpointer
 
-    _pool = AsyncConnectionPool(
+    pool = AsyncConnectionPool(
         conninfo=settings.CHECKPOINT_DATABASE_URI,
         max_size=20,
         kwargs={"autocommit": True},
         open=False,
     )
-    await _pool.open()
+    await pool.open()
 
-    _checkpointer = AsyncPostgresSaver(_pool)
-    await _checkpointer.setup()
+    try:
+        checkpointer = AsyncPostgresSaver(pool)
+        await checkpointer.setup()
+    except Exception:
+        # Clean up pool if checkpointer setup fails to prevent leaks
+        await pool.close()
+        raise
+
+    # Only assign to globals after successful setup
+    _pool = pool
+    _checkpointer = checkpointer
 
     logger.info("checkpointer_initialized", uri=settings.POSTGRES_SERVER)
     return _checkpointer
@@ -1648,13 +1670,13 @@ async def run_agent_with_context(
     )
 
     token = _llm_context.set(
-        {
-            "org_id": org_id,
-            "team_id": team_id,
-            "provider": provider,
-            "user_id": user_id,
-            "has_media": bool(media_ids),  # Skip memory when inline attachments present
-        }
+        LLMContext(
+            org_id=org_id,
+            team_id=team_id,
+            provider=provider,
+            user_id=user_id,
+            has_media=bool(media_ids),  # Skip memory when inline attachments present
+        )
     )
 
     try:
@@ -1729,13 +1751,13 @@ async def stream_agent_with_context(
         Response tokens as strings, or a dict with interrupt info for tool approval
     """
     token = _llm_context.set(
-        {
-            "org_id": org_id,
-            "team_id": team_id,
-            "provider": provider,
-            "user_id": user_id,
-            "has_media": bool(media_ids),  # Skip memory when inline attachments present
-        }
+        LLMContext(
+            org_id=org_id,
+            team_id=team_id,
+            provider=provider,
+            user_id=user_id,
+            has_media=bool(media_ids),  # Skip memory when inline attachments present
+        )
     )
 
     try:
@@ -2106,12 +2128,12 @@ async def resume_agent_with_context(
         Response tokens as strings, or a dict with interrupt info for additional tool approvals
     """
     token = _llm_context.set(
-        {
-            "org_id": org_id,
-            "team_id": team_id,
-            "provider": provider,
-            "user_id": user_id,
-        }
+        LLMContext(
+            org_id=org_id,
+            team_id=team_id,
+            provider=provider,
+            user_id=user_id,
+        )
     )
 
     try:

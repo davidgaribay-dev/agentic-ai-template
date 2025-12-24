@@ -21,6 +21,7 @@ from backend.rbac.deps import (
     require_org_permission,
     require_team_admin,
     require_team_permission,
+    validate_team_membership,
 )
 from backend.rbac.permissions import (
     ORG_ROLE_PERMISSIONS,
@@ -70,4 +71,6 @@ __all__ = [
     "require_org_permission",
     "require_team_admin",
     "require_team_permission",
+    # Validation helpers
+    "validate_team_membership",
 ]

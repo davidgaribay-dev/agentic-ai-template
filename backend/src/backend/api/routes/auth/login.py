@@ -1,5 +1,6 @@
 """Login and token authentication routes."""
 
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -15,6 +16,8 @@ from backend.auth import (
     Token,
     UserPublic,
     authenticate,
+    is_token_revoked,
+    revoke_token,
 )
 from backend.auth.models import RefreshTokenRequest, TokenPayload, User
 from backend.core.config import settings
@@ -99,6 +102,7 @@ def refresh_access_token(
 
     This implements token rotation: each refresh token can only be used once.
     A new refresh token is issued with each access token refresh.
+    The old refresh token is revoked to prevent replay attacks.
     """
     try:
         payload = jwt.decode(
@@ -123,6 +127,15 @@ def refresh_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Check if refresh token has been revoked (token rotation security)
+    if is_token_revoked(session, token_data.jti):
+        logger.warning("refresh_token_already_used", jti=token_data.jti)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token has already been used",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     user = session.get(User, token_data.sub)
     if not user:
         raise HTTPException(
@@ -135,6 +148,17 @@ def refresh_access_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Inactive user",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Revoke the old refresh token (token rotation - each token can only be used once)
+    if token_data.jti:
+        expires_at = datetime.fromtimestamp(payload["exp"], tz=UTC)
+        revoke_token(
+            session=session,
+            jti=token_data.jti,
+            user_id=user.id,
+            token_type="refresh",
+            expires_at=expires_at,
         )
 
     access_token, new_refresh_token, expires_in = create_token_pair(str(user.id))

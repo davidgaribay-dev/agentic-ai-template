@@ -3,6 +3,7 @@ import uuid
 
 from sqlmodel import Session, select
 
+from backend.core.cache import request_cached_sync
 from backend.settings.models import (
     EffectiveSettings,
     OrganizationSettings,
@@ -136,6 +137,41 @@ def update_user_settings(
     return settings
 
 
+# Positional argument indices for _settings_cache_key
+_ARG_IDX_USER_ID = 1
+_ARG_IDX_ORG_ID = 2
+_ARG_IDX_TEAM_ID = 3
+_ARG_COUNT_WITH_USER = 2
+_ARG_COUNT_WITH_ORG = 3
+_ARG_COUNT_WITH_TEAM = 4
+
+
+def _settings_cache_key(
+    *args: object,
+    _session: Session | None = None,
+    user_id: uuid.UUID | None = None,
+    organization_id: uuid.UUID | None = None,
+    team_id: uuid.UUID | None = None,
+    **_kwargs: object,
+) -> str:
+    """Generate cache key for effective settings lookup.
+
+    Accepts both positional and keyword arguments to match how the decorated
+    function is called. The session is ignored for cache key purposes.
+    """
+    # Handle positional args: (session, user_id, organization_id?, team_id?)
+    if args:
+        # First positional arg is session (ignored), second is user_id
+        if len(args) >= _ARG_COUNT_WITH_USER:
+            user_id = args[_ARG_IDX_USER_ID]  # type: ignore[assignment]
+        if len(args) >= _ARG_COUNT_WITH_ORG:
+            organization_id = args[_ARG_IDX_ORG_ID]  # type: ignore[assignment]
+        if len(args) >= _ARG_COUNT_WITH_TEAM:
+            team_id = args[_ARG_IDX_TEAM_ID]  # type: ignore[assignment]
+    return f"settings:{organization_id}:{team_id}:{user_id}"
+
+
+@request_cached_sync(_settings_cache_key)
 def get_effective_settings(
     session: Session,
     user_id: uuid.UUID,
@@ -148,6 +184,8 @@ def get_effective_settings(
     - If org disables a feature, it's disabled regardless of team/user settings
     - If team disables a feature (and org allows), it's disabled for team members
     - User settings only apply if both org and team allow the feature
+
+    Results are cached for the duration of the request to avoid redundant DB queries.
     """
     org_settings = None
     team_settings = None

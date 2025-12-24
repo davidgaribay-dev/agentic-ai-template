@@ -3,9 +3,13 @@ from typing import Literal
 from infisical_sdk import InfisicalSDKClient
 import structlog
 
+from backend.core.cache import secrets_cache
 from backend.core.config import settings
 
 logger = structlog.get_logger()
+
+# Cache TTL for secrets (5 minutes)
+SECRETS_CACHE_TTL_SECONDS = 300
 
 # Supported LLM providers
 LLMProvider = Literal["openai", "anthropic", "google"]
@@ -137,10 +141,28 @@ class SecretsService:
         logger.info("infisical_folders_ensured", path=path)
         return True
 
+    def _get_cache_key(self, secret_name: str, path: str) -> str:
+        """Generate a cache key for a secret."""
+        return f"secret:{path}:{secret_name}"
+
     def _get_secret(self, secret_name: str, path: str) -> str | None:
-        """Get a secret from Infisical by name and path."""
+        """Get a secret from Infisical by name and path.
+
+        Uses TTL cache to avoid hitting Infisical API on every call.
+        """
         if not self._ensure_initialized() or self._client is None:
             return None
+
+        # Check cache first
+        cache_key = self._get_cache_key(secret_name, path)
+        cached_value = secrets_cache.get(cache_key)
+        if cached_value is not None:
+            logger.debug(
+                "infisical_cache_hit",
+                secret_name=secret_name,
+                path=path,
+            )
+            return cached_value
 
         try:
             secret = self._client.secrets.get_secret_by_name(
@@ -159,7 +181,16 @@ class SecretsService:
             )
             return None
         else:
-            return secret.secretValue if secret else None
+            value = secret.secretValue if secret else None
+            if value:
+                # Cache the value with TTL
+                secrets_cache.set(cache_key, value, SECRETS_CACHE_TTL_SECONDS)
+                logger.debug(
+                    "infisical_cache_set",
+                    secret_name=secret_name,
+                    path=path,
+                )
+            return value
 
     def _set_secret(self, secret_name: str, secret_value: str, path: str) -> bool:
         """Create or update a secret in Infisical."""
@@ -175,6 +206,10 @@ class SecretsService:
                 secret_name=secret_name,
             )
             return False
+
+        # Invalidate cache before updating
+        cache_key = self._get_cache_key(secret_name, path)
+        secrets_cache.delete(cache_key)
 
         try:
             # Try to create first
@@ -223,6 +258,10 @@ class SecretsService:
         if not self._ensure_initialized() or self._client is None:
             logger.error("infisical_not_available", operation="delete_secret")
             return False
+
+        # Invalidate cache before deleting
+        cache_key = self._get_cache_key(secret_name, path)
+        secrets_cache.delete(cache_key)
 
         try:
             self._client.secrets.delete_secret_by_name(

@@ -1,6 +1,7 @@
 import csv
 from datetime import datetime
 import io
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -62,8 +63,10 @@ async def list_audit_logs(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(50, ge=1, le=1000, description="Maximum records to return"),
     # Sorting
-    sort_field: str = Query("timestamp", description="Field to sort by"),
-    sort_order: str = Query("desc", description="Sort order (asc/desc)"),
+    sort_field: Literal[
+        "timestamp", "action", "outcome", "actor_email", "duration_ms"
+    ] = Query("timestamp", description="Field to sort by"),
+    sort_order: Literal["asc", "desc"] = Query("desc", description="Sort order"),
 ) -> AuditLogResponse:
     """Query audit logs for an organization.
 

@@ -8,11 +8,11 @@ Comprehensive file type support using LangChain loaders:
 """
 
 import asyncio
+import csv
 from pathlib import Path
 from typing import Any, ClassVar
 
 from langchain_community.document_loaders import (
-    CSVLoader,
     Docx2txtLoader,
     # Structured data
     JSONLoader,
@@ -39,6 +39,9 @@ class DocumentParser:
     - Web: HTML, CSS
     """
 
+    # File types with custom parsing (not using LangChain loaders)
+    CUSTOM_TYPES: ClassVar[set[str]] = {"csv"}
+
     # File type to loader mapping
     LOADERS: ClassVar[dict[str, type]] = {
         # === DOCUMENTS ===
@@ -52,7 +55,6 @@ class DocumentParser:
         "yaml": TextLoader,  # Parse as text, structure preserved
         "yml": TextLoader,
         "xml": UnstructuredXMLLoader,
-        "csv": CSVLoader,
         "xlsx": UnstructuredExcelLoader,
         # === CODE FILES (all as TextLoader with metadata) ===
         "py": TextLoader,
@@ -114,27 +116,42 @@ class DocumentParser:
         Raises:
             ValueError: If file type is not supported
         """
-        # Get loader class
-        loader_class = cls.LOADERS.get(file_type.lower())
-        if not loader_class:
+        file_type_lower = file_type.lower()
+
+        # Check if file type is supported (either in LOADERS or CUSTOM_TYPES)
+        all_supported = set(cls.LOADERS.keys()) | cls.CUSTOM_TYPES
+        if file_type_lower not in all_supported:
             raise ValueError(
                 f"Unsupported file type: {file_type}. "
-                f"Supported: {', '.join(cls.LOADERS.keys())}"
+                f"Supported: {', '.join(sorted(all_supported))}"
             )
+
+        # Special handling for CSV - consolidate all rows into a single document
+        if file_type_lower == "csv":
+            documents = await cls._parse_csv(file_path)
+            if add_metadata:
+                file_path_obj = Path(file_path)
+                for doc in documents:
+                    doc.metadata.update(
+                        {
+                            "file_type": file_type,
+                            "filename": file_path_obj.name,
+                            "mime_type": cls.MIME_TYPES.get(file_type),
+                        }
+                    )
+            return documents
+
+        # Get loader class for other file types (we've already checked it's supported)
+        loader_class = cls.LOADERS[file_type_lower]
 
         # Special handling for different loader types
         loader_kwargs: dict[str, Any] = {}
 
-        if file_type == "json":
+        if file_type_lower == "json":
             # JSONLoader requires jq_schema parameter
             loader_kwargs = {
                 "jq_schema": ".",  # Load entire JSON
                 "text_content": False,
-            }
-        elif file_type == "csv":
-            # CSVLoader creates one document per row
-            loader_kwargs = {
-                "csv_args": {"delimiter": ",", "quotechar": '"'},
             }
 
         # Create loader
@@ -160,6 +177,61 @@ class DocumentParser:
                     doc.metadata["language"] = cls._get_language_name(file_type)
 
         return documents
+
+    @classmethod
+    async def _parse_csv(cls, file_path: str) -> list[LangChainDocument]:
+        """Parse CSV file into a single consolidated document.
+
+        Instead of creating one document per row (which can create thousands
+        of documents for large CSVs), this consolidates all rows into a single
+        document with a readable text format.
+
+        Args:
+            file_path: Path to CSV file
+
+        Returns:
+            List containing a single LangChainDocument with consolidated content
+        """
+
+        def _read_csv() -> LangChainDocument:
+            with Path(file_path).open(newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+
+            if not rows:
+                return LangChainDocument(
+                    page_content="Empty CSV file",
+                    metadata={"row_count": 0, "source": file_path},
+                )
+
+            # Get headers from first row's keys
+            headers = list(rows[0].keys())
+
+            # Build consolidated text representation
+            lines = []
+            lines.append(f"CSV Data ({len(rows)} rows, {len(headers)} columns)")
+            lines.append(f"Columns: {', '.join(headers)}")
+            lines.append("")
+
+            # Add each row as a readable entry
+            for i, row in enumerate(rows, 1):
+                row_parts = [f"{key}: {value}" for key, value in row.items() if value]
+                lines.append(f"Row {i}: {' | '.join(row_parts)}")
+
+            content = "\n".join(lines)
+
+            return LangChainDocument(
+                page_content=content,
+                metadata={
+                    "row_count": len(rows),
+                    "column_count": len(headers),
+                    "columns": headers,
+                    "source": file_path,
+                },
+            )
+
+        document = await asyncio.to_thread(_read_csv)
+        return [document]
 
     @staticmethod
     def _is_code_file(file_type: str) -> bool:
@@ -208,9 +280,10 @@ class DocumentParser:
     @classmethod
     def get_supported_extensions(cls) -> list[str]:
         """Get list of all supported file extensions."""
-        return list(cls.LOADERS.keys())
+        return sorted(set(cls.LOADERS.keys()) | cls.CUSTOM_TYPES)
 
     @classmethod
     def is_supported(cls, file_type: str) -> bool:
         """Check if file type is supported."""
-        return file_type.lower() in cls.LOADERS
+        file_type_lower = file_type.lower()
+        return file_type_lower in cls.LOADERS or file_type_lower in cls.CUSTOM_TYPES

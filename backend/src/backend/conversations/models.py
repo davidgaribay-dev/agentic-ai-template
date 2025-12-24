@@ -1,7 +1,9 @@
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Optional
+import json
+from typing import TYPE_CHECKING, Any, Optional
 import uuid
 
+from pydantic import field_validator
 from sqlmodel import Field, Relationship, SQLModel
 
 from backend.core.base_models import (
@@ -10,6 +12,9 @@ from backend.core.base_models import (
     SoftDeleteMixin,
     TimestampResponseMixin,
 )
+from backend.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     from backend.auth.models import User
@@ -133,6 +138,51 @@ class ConversationMessage(SQLModel, table=True):
     created_by_id: uuid.UUID | None = Field(
         default=None, index=True
     )  # User who owns the conversation
+
+    # Soft delete support (set when parent conversation is soft-deleted)
+    deleted_at: datetime | None = Field(default=None, index=True)
+
+    @field_validator("sources_json", mode="before")
+    @classmethod
+    def validate_sources_json(cls, v: Any) -> str | None:
+        """Validate sources_json is valid JSON array."""
+        if v is None:
+            return None
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+            except json.JSONDecodeError as e:
+                logger.warning("sources_json_invalid", error=str(e))
+                return None
+            else:
+                if not isinstance(parsed, list):
+                    logger.warning(
+                        "sources_json_not_array", value_type=type(parsed).__name__
+                    )
+                    return None
+                return v
+        return None
+
+    @field_validator("media_json", mode="before")
+    @classmethod
+    def validate_media_json(cls, v: Any) -> str | None:
+        """Validate media_json is valid JSON array."""
+        if v is None:
+            return None
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+            except json.JSONDecodeError as e:
+                logger.warning("media_json_invalid", error=str(e))
+                return None
+            else:
+                if not isinstance(parsed, list):
+                    logger.warning(
+                        "media_json_not_array", value_type=type(parsed).__name__
+                    )
+                    return None
+                return v
+        return None
 
 
 # Forward reference resolution

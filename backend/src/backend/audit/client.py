@@ -1,3 +1,5 @@
+import asyncio
+import contextlib
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any
@@ -11,9 +13,17 @@ from backend.core.logging import get_logger
 logger = get_logger(__name__)
 
 _client: AsyncOpenSearch | None = None
+_cleanup_task: asyncio.Task[None] | None = None
 
 AUDIT_INDEX_PREFIX = "audit-logs"
 APP_INDEX_PREFIX = "app-logs"
+
+# Retention periods in days
+AUDIT_LOG_RETENTION_DAYS = 90
+APP_LOG_RETENTION_DAYS = 30
+
+# Cleanup interval (24 hours in seconds)
+CLEANUP_INTERVAL_SECONDS = 24 * 60 * 60
 
 AUDIT_INDEX_MAPPINGS = {
     "properties": {
@@ -217,6 +227,10 @@ async def opensearch_lifespan():
             APP_INDEX_MAPPINGS,
         )
 
+        # Run initial cleanup on startup and start periodic scheduler
+        await run_scheduled_cleanup()
+        start_cleanup_scheduler()
+
         yield
 
     except Exception as e:
@@ -224,6 +238,9 @@ async def opensearch_lifespan():
         yield
 
     finally:
+        # Stop cleanup scheduler before closing client
+        await stop_cleanup_scheduler()
+
         if _client is not None:
             await _client.close()
             _client = None
@@ -267,6 +284,69 @@ async def index_document(
         return False
     else:
         return True
+
+
+async def bulk_index_documents(
+    index_prefix: str,
+    documents: list[dict[str, Any]],
+) -> tuple[int, int]:
+    """Bulk index multiple documents to OpenSearch.
+
+    More efficient than individual index_document calls for high-volume logging.
+
+    Args:
+        index_prefix: Either AUDIT_INDEX_PREFIX or APP_INDEX_PREFIX
+        documents: List of documents to index
+
+    Returns:
+        Tuple of (success_count, error_count)
+    """
+    if _client is None or not documents:
+        return 0, len(documents) if documents else 0
+
+    index_name = _get_index_name(index_prefix)
+    success_count = 0
+    error_count = 0
+
+    # Build bulk request body
+    bulk_body: list[dict[str, Any]] = []
+    for doc in documents:
+        doc_id = doc.get("id")
+        # Action line
+        bulk_body.append({"index": {"_index": index_name, "_id": doc_id}})
+        # Document line
+        bulk_body.append(doc)
+
+    try:
+        response = await _client.bulk(body=bulk_body, refresh=False)
+
+        # Count successes and failures
+        if response.get("errors"):
+            for item in response.get("items", []):
+                if "error" in item.get("index", {}):
+                    error_count += 1
+                else:
+                    success_count += 1
+        else:
+            success_count = len(documents)
+
+        if error_count > 0:
+            logger.warning(
+                "opensearch_bulk_index_partial_failure",
+                index_prefix=index_prefix,
+                success_count=success_count,
+                error_count=error_count,
+            )
+    except Exception as e:
+        logger.exception(
+            "opensearch_bulk_index_failed",
+            index_prefix=index_prefix,
+            document_count=len(documents),
+            error=str(e),
+        )
+        return 0, len(documents)
+    else:
+        return success_count, error_count
 
 
 async def search_logs(
@@ -370,3 +450,56 @@ async def delete_old_indices(
         return []
     else:
         return deleted
+
+
+async def run_scheduled_cleanup() -> None:
+    """Run cleanup for both audit and app log indices.
+
+    This function is called on startup and then periodically.
+    """
+    audit_deleted = await delete_old_indices(
+        AUDIT_INDEX_PREFIX, days_to_keep=AUDIT_LOG_RETENTION_DAYS
+    )
+    app_deleted = await delete_old_indices(
+        APP_INDEX_PREFIX, days_to_keep=APP_LOG_RETENTION_DAYS
+    )
+
+    if audit_deleted or app_deleted:
+        logger.info(
+            "opensearch_scheduled_cleanup_completed",
+            audit_indices_deleted=len(audit_deleted),
+            app_indices_deleted=len(app_deleted),
+        )
+
+
+async def _periodic_cleanup_task() -> None:
+    """Background task that runs index cleanup periodically."""
+    while True:
+        try:
+            await asyncio.sleep(CLEANUP_INTERVAL_SECONDS)
+            await run_scheduled_cleanup()
+        except asyncio.CancelledError:
+            logger.info("opensearch_cleanup_task_cancelled")
+            break
+        except Exception as e:
+            logger.exception("opensearch_cleanup_task_error", error=str(e))
+            # Continue running even after errors
+
+
+def start_cleanup_scheduler() -> None:
+    """Start the background cleanup task."""
+    global _cleanup_task
+    if _cleanup_task is None or _cleanup_task.done():
+        _cleanup_task = asyncio.create_task(_periodic_cleanup_task())
+        logger.info("opensearch_cleanup_scheduler_started")
+
+
+async def stop_cleanup_scheduler() -> None:
+    """Stop the background cleanup task."""
+    global _cleanup_task
+    if _cleanup_task is not None and not _cleanup_task.done():
+        _cleanup_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await _cleanup_task
+        _cleanup_task = None
+        logger.info("opensearch_cleanup_scheduler_stopped")

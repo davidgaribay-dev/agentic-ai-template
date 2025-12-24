@@ -30,16 +30,23 @@ def generate_slug(name: str) -> str:
     return slug[:100]
 
 
-def make_slug_unique(session: Session, base_slug: str, max_attempts: int = 100) -> str:
-    """Ensure a slug is unique by appending a random suffix if necessary.
+def make_slug_unique(
+    session: Session, base_slug: str, max_numeric_attempts: int = 5
+) -> str:
+    """Ensure a slug is unique by appending a suffix if necessary.
 
-    Uses a random suffix approach to reduce collision probability and avoid
-    unbounded loops. Falls back to UUID suffix if max attempts exceeded.
+    Strategy:
+    1. Try base slug first
+    2. Try numeric suffixes (1-5) for common collision cases
+    3. Fall back to random hex suffix for guaranteed uniqueness
+
+    This approach reduces database queries compared to linear search while
+    maintaining predictable slugs for common cases.
 
     Args:
         session: Database session
         base_slug: The base slug to make unique
-        max_attempts: Maximum number of attempts before using UUID suffix
+        max_numeric_attempts: Max numeric suffixes to try before random (default: 5)
 
     Returns:
         A unique slug
@@ -51,13 +58,15 @@ def make_slug_unique(session: Session, base_slug: str, max_attempts: int = 100) 
     if not existing:
         return slug
 
-    for counter in range(1, max_attempts + 1):
+    # Try a few numeric suffixes for predictable slugs
+    for counter in range(1, max_numeric_attempts + 1):
         slug = f"{base_slug}-{counter}"
         statement = select(Organization).where(Organization.slug == slug)
         existing = session.exec(statement).first()
         if not existing:
             return slug
 
+    # Fall back to random suffix for guaranteed uniqueness
     random_suffix = secrets.token_hex(4)
     return f"{base_slug}-{random_suffix}"
 

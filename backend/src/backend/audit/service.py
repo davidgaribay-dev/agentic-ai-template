@@ -9,6 +9,7 @@ from fastapi import Request
 from backend.audit.client import (
     APP_INDEX_PREFIX,
     AUDIT_INDEX_PREFIX,
+    bulk_index_documents,
     index_document,
     search_logs,
 )
@@ -33,12 +34,27 @@ class AuditService:
 
     This service provides a high-level interface for logging events
     to OpenSearch with proper formatting and async handling.
+
+    Dropped events are tracked via _dropped_count for monitoring.
+    When the queue is full, events are logged with severity and dropped.
     """
 
+    # Queue capacity for async event processing
+    QUEUE_MAX_SIZE = 10000
+
+    # Batch size for bulk indexing (balance between efficiency and latency)
+    BATCH_SIZE = 50
+
+    # Maximum wait time before flushing a partial batch (seconds)
+    BATCH_FLUSH_INTERVAL = 2.0
+
     def __init__(self) -> None:
-        self._queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=10000)
+        self._queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(
+            maxsize=self.QUEUE_MAX_SIZE
+        )
         self._worker_task: asyncio.Task | None = None
         self._running = False
+        self._dropped_count = 0  # Track dropped events for monitoring
 
     async def start(self) -> None:
         """Start the background worker for async log processing."""
@@ -65,18 +81,60 @@ class AuditService:
             logger.info("audit_service_stopped")
 
     async def _process_queue(self) -> None:
-        """Background worker that processes the event queue."""
+        """Background worker that processes the event queue with batching."""
         while self._running:
             try:
-                await self._process_single()
+                await self._process_batch()
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 logger.exception("audit_queue_processing_error", error=str(e))
                 await asyncio.sleep(1)
 
+    async def _process_batch(self) -> None:
+        """Collect and process a batch of items from the queue.
+
+        Collects up to BATCH_SIZE items or waits BATCH_FLUSH_INTERVAL seconds,
+        whichever comes first. Uses bulk indexing for efficiency.
+        """
+        audit_batch: list[dict[str, Any]] = []
+        app_batch: list[dict[str, Any]] = []
+        batch_start = asyncio.get_event_loop().time()
+
+        # Collect items until batch is full or timeout
+        while len(audit_batch) + len(app_batch) < self.BATCH_SIZE:
+            elapsed = asyncio.get_event_loop().time() - batch_start
+            remaining = max(0.1, self.BATCH_FLUSH_INTERVAL - elapsed)
+
+            try:
+                item = await asyncio.wait_for(self._queue.get(), timeout=remaining)
+                index_prefix = item.pop("_index_prefix")
+
+                if index_prefix == AUDIT_INDEX_PREFIX:
+                    audit_batch.append(item)
+                else:
+                    app_batch.append(item)
+
+                self._queue.task_done()
+            except TimeoutError:
+                # Flush interval reached, process what we have
+                break
+
+        # Process collected batches
+        if audit_batch:
+            if len(audit_batch) == 1:
+                await index_document(AUDIT_INDEX_PREFIX, audit_batch[0])
+            else:
+                await bulk_index_documents(AUDIT_INDEX_PREFIX, audit_batch)
+
+        if app_batch:
+            if len(app_batch) == 1:
+                await index_document(APP_INDEX_PREFIX, app_batch[0])
+            else:
+                await bulk_index_documents(APP_INDEX_PREFIX, app_batch)
+
     async def _process_single(self) -> None:
-        """Process a single item from the queue."""
+        """Process a single item from the queue (used during shutdown)."""
         try:
             item = await asyncio.wait_for(self._queue.get(), timeout=1.0)
             index_prefix = item.pop("_index_prefix")
@@ -176,7 +234,14 @@ class AuditService:
             document["_index_prefix"] = AUDIT_INDEX_PREFIX
             self._queue.put_nowait(document)
         except asyncio.QueueFull:
-            logger.warning("audit_queue_full", event_id=event_id)
+            self._dropped_count += 1
+            logger.warning(
+                "audit_queue_full",
+                event_id=event_id,
+                action=event.action,
+                dropped_total=self._dropped_count,
+                queue_size=self._queue.qsize(),
+            )
 
         return event_id
 
@@ -251,7 +316,14 @@ class AuditService:
             document["_index_prefix"] = APP_INDEX_PREFIX
             self._queue.put_nowait(document)
         except asyncio.QueueFull:
-            logger.warning("app_log_queue_full", event_id=event_id)
+            self._dropped_count += 1
+            logger.warning(
+                "app_log_queue_full",
+                event_id=event_id,
+                level=level.value,
+                dropped_total=self._dropped_count,
+                queue_size=self._queue.qsize(),
+            )
 
         return event_id
 
@@ -342,7 +414,7 @@ class AuditService:
             query = {"match_all": {}}
 
         # Sort configuration
-        sort = [{params.sort_field: {"order": params.sort_order}}]
+        sort: list[dict[str, Any]] = [{params.sort_field: {"order": params.sort_order}}]
 
         # Execute search
         results, total = await search_logs(
@@ -362,6 +434,19 @@ class AuditService:
             skip=params.skip,
             limit=params.limit,
         )
+
+    def get_stats(self) -> dict[str, Any]:
+        """Get service statistics for monitoring.
+
+        Returns:
+            Dict with queue_size, dropped_count, and running status
+        """
+        return {
+            "queue_size": self._queue.qsize(),
+            "queue_max_size": self.QUEUE_MAX_SIZE,
+            "dropped_count": self._dropped_count,
+            "running": self._running,
+        }
 
 
 # Global service instance

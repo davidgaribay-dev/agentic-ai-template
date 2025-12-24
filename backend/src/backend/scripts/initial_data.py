@@ -18,8 +18,11 @@ from backend.organizations.models import (  # noqa: F401
     OrganizationCreate,
     OrganizationMember,
 )
+from backend.rag_settings.models import UserRAGSettings  # noqa: F401
+from backend.settings.models import UserSettings  # noqa: F401
 from backend.teams import crud as team_crud
 from backend.teams.models import Team, TeamCreate, TeamMember  # noqa: F401
+from backend.theme_settings.models import UserThemeSettings  # noqa: F401
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
