@@ -21,10 +21,13 @@ Stack: React 19, TypeScript 5.9, Vite 7, TanStack Router (file-based), TanStack 
 src/
 ├── routes/              # File-based routing → routeTree.gen.ts (auto-generated, never edit)
 ├── components/
-│   ├── ui/              # shadcn/ui (add: npx shadcn@latest add <name>)
-│   ├── chat/            # Chat, ChatInput, ChatMessage, AttachmentPicker, CitationBadge, ToolApprovalCard
+│   ├── ui/              # shadcn/ui (add: npx shadcn@latest add <name>), ErrorAlert
+│   ├── chat/            # Chat, ChatInput, ChatMessage, MessageMedia, ToolApprovalCard
+│   │   └── citations/   # CitationBadge, InlineCitationBadge, SourcesHeader, utils
 │   ├── documents/       # DocumentUpload, DocumentList, DocumentViewer (RAG)
-│   ├── settings/        # MemorySettings, MemoryViewer, ApiKeys, Prompts, RAG, Theme, Guardrails
+│   ├── settings/        # MemorySettings, MemoryViewer, ApiKeys, RAG, Theme, Guardrails
+│   │   └── prompts/     # PromptRow, CreatePromptDialog, EditPromptDialog, DeletePromptButton
+│   ├── sidebar/         # AppSidebar, NavUser, TeamSwitcher, RecentChats
 │   ├── search-conversations.tsx  # Full-text conversation search with debouncing
 │   └── side-panel.tsx   # Collapsible chat panel with dual-pane support
 ├── hooks/
@@ -700,4 +703,64 @@ Comments: Keep WHY comments, remove WHAT comments. JSDoc for exported functions 
 ```typescript
 // ❌ Section separators, obvious explanations
 // ✅ Non-obvious decisions, gotchas, workarounds
+```
+
+### Form Handling with React Hook Form
+
+Settings forms use React Hook Form with Zod validation:
+
+```typescript
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+
+const schema = z.object({
+  name: z.string().min(1, "Name is required"),
+  enabled: z.boolean(),
+  count: z.number().min(1).max(20),
+});
+type FormData = z.infer<typeof schema>;
+
+// In component:
+const form = useForm<FormData>({
+  resolver: zodResolver(schema),
+  defaultValues: { name: "", enabled: true, count: 5 },
+});
+const { formState: { isDirty }, reset, register, watch, setValue } = form;
+
+// Reset when data loads:
+useEffect(() => {
+  if (data) reset({ ...data });
+}, [data, reset]);
+
+// For Switch (controlled):
+<Switch
+  checked={watch("enabled")}
+  onCheckedChange={(checked) => setValue("enabled", checked, { shouldDirty: true })}
+/>
+
+// For Input (uncontrolled):
+<Input {...register("count", { valueAsNumber: true })} />
+
+// Submit:
+const handleSave = form.handleSubmit((data) => mutation.mutate(data));
+```
+
+Use `ErrorAlert` component for mutation errors:
+```typescript
+import { ErrorAlert } from "@/components/ui/error-alert";
+
+{mutation.isError && <ErrorAlert error={mutation.error} fallback="Failed to save" />}
+```
+
+### shadcn Dialog Width Override
+
+shadcn's Dialog has a default `sm:max-w-lg` that overrides custom width classes. Use `!important`:
+
+```typescript
+// ❌ Won't work - default sm:max-w-lg takes precedence
+<DialogContent className="max-w-4xl">
+
+// ✅ Works - !important overrides default
+<DialogContent className="!max-w-6xl w-[90vw]">
 ```
