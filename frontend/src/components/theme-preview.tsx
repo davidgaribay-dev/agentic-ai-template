@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { Check } from "lucide-react";
 import type { ThemeColors } from "@/lib/api";
@@ -19,6 +20,7 @@ export function ThemePreview({
   onSelect,
   disabled = false,
 }: ThemePreviewProps) {
+  const { t } = useTranslation();
   return (
     <button
       onClick={onSelect}
@@ -59,7 +61,7 @@ export function ThemePreview({
                   color: colors.primary_foreground,
                 }}
               >
-                Primary
+                {t("theme_preview_primary")}
               </div>
             </div>
 
@@ -70,7 +72,7 @@ export function ThemePreview({
                   backgroundColor: colors.secondary,
                   borderColor: colors.border,
                 }}
-                title="Secondary"
+                title={t("theme_preview_secondary")}
               />
               <div
                 className="h-6 rounded border"
@@ -78,7 +80,7 @@ export function ThemePreview({
                   backgroundColor: colors.accent,
                   borderColor: colors.border,
                 }}
-                title="Accent"
+                title={t("theme_preview_accent")}
               />
               <div
                 className="h-6 rounded border"
@@ -86,7 +88,7 @@ export function ThemePreview({
                   backgroundColor: colors.muted,
                   borderColor: colors.border,
                 }}
-                title="Muted"
+                title={t("theme_preview_muted")}
               />
               <div
                 className="h-6 rounded border"
@@ -94,7 +96,7 @@ export function ThemePreview({
                   backgroundColor: colors.destructive,
                   borderColor: colors.border,
                 }}
-                title="Destructive"
+                title={t("theme_preview_destructive")}
               />
               <div
                 className="h-6 rounded border"
@@ -102,7 +104,7 @@ export function ThemePreview({
                   backgroundColor: colors.card,
                   borderColor: colors.border,
                 }}
-                title="Card"
+                title={t("theme_preview_card")}
               />
             </div>
           </div>
@@ -111,30 +113,6 @@ export function ThemePreview({
     </button>
   );
 }
-
-interface ThemeModeOption {
-  value: "light" | "dark" | "system";
-  label: string;
-  description: string;
-}
-
-const themeModeOptions: ThemeModeOption[] = [
-  {
-    value: "light",
-    label: "Light",
-    description: "Always use light theme",
-  },
-  {
-    value: "dark",
-    label: "Dark",
-    description: "Always use dark theme",
-  },
-  {
-    value: "system",
-    label: "System",
-    description: "Match system preference",
-  },
-];
 
 interface ThemeModeSelectorProps {
   value: "light" | "dark" | "system";
@@ -147,6 +125,26 @@ export function ThemeModeSelector({
   onChange,
   disabled = false,
 }: ThemeModeSelectorProps) {
+  const { t } = useTranslation();
+
+  const themeModeOptions = [
+    {
+      value: "light" as const,
+      label: t("theme_mode_light"),
+      description: t("theme_mode_light_desc"),
+    },
+    {
+      value: "dark" as const,
+      label: t("theme_mode_dark"),
+      description: t("theme_mode_dark_desc"),
+    },
+    {
+      value: "system" as const,
+      label: t("theme_mode_system"),
+      description: t("theme_mode_system_desc"),
+    },
+  ];
+
   return (
     <div className="grid grid-cols-3 gap-3">
       {themeModeOptions.map((option) => (

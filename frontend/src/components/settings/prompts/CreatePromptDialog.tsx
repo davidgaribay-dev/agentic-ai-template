@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,9 +22,9 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { type PromptScope, getQueryKey, createPromptApi } from "./types";
 
 const createPromptSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "prompts_name_required"),
   description: z.string(),
-  content: z.string().min(1, "Content is required"),
+  content: z.string().min(1, "prompts_content_required"),
 });
 
 type CreatePromptFormData = z.infer<typeof createPromptSchema>;
@@ -39,6 +40,7 @@ export function CreatePromptDialog({
   defaultType = "template",
   compact = false,
 }: CreatePromptDialogProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
 
@@ -91,69 +93,71 @@ export function CreatePromptDialog({
           className={compact ? "h-5 text-[10px] px-1.5" : "h-7 text-xs"}
         >
           <Plus className={compact ? "size-2.5 mr-0.5" : "size-3 mr-1"} />
-          Add
+          {t("prompts_add")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-base">
-            Create {defaultType === "system" ? "System Prompt" : "Template"}
+            {defaultType === "system"
+              ? t("prompts_create_system")
+              : t("prompts_create_template")}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit}>
           <div className="space-y-3 py-3">
             <div className="space-y-1.5">
               <Label htmlFor="name" className="text-xs">
-                Name
+                {t("com_name")}
               </Label>
               <Input
                 id="name"
                 {...register("name")}
-                placeholder="e.g., My Writing Style"
+                placeholder={t("prompts_name_example")}
                 className="h-8 text-sm"
               />
-              {errors.name && (
+              {errors.name?.message && (
                 <p className="text-xs text-destructive">
-                  {errors.name.message}
+                  {t(errors.name.message as "prompts_name_required")}
                 </p>
               )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="description" className="text-xs">
-                Description (optional)
+                {t("prompts_description_optional")}
               </Label>
               <Input
                 id="description"
                 {...register("description")}
-                placeholder="Brief description"
+                placeholder={t("prompts_brief_description")}
                 className="h-8 text-sm"
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="content" className="text-xs">
-                Content
+                {t("com_content")}
               </Label>
               <Textarea
                 id="content"
                 {...register("content")}
                 placeholder={
                   defaultType === "system"
-                    ? "Always respond in a concise manner..."
-                    : "Enter the template text..."
+                    ? t("prompts_system_content_placeholder")
+                    : t("prompts_template_content_placeholder")
                 }
                 rows={4}
                 className="font-mono text-sm"
               />
-              {errors.content && (
+              {errors.content?.message && (
                 <p className="text-xs text-destructive">
-                  {errors.content.message}
+                  {t(errors.content.message as "prompts_content_required")}
                 </p>
               )}
             </div>
             {createMutation.isError && (
               <ErrorAlert
                 error={createMutation.error}
-                fallback="Failed to create prompt"
+                fallback={t("prompts_failed_create")}
               />
             )}
           </div>
@@ -164,13 +168,13 @@ export function CreatePromptDialog({
               size="sm"
               onClick={handleClose}
             >
-              Cancel
+              {t("com_cancel")}
             </Button>
             <Button type="submit" size="sm" disabled={createMutation.isPending}>
               {createMutation.isPending && (
                 <Loader2 className="mr-1.5 size-3 animate-spin" />
               )}
-              Create
+              {t("com_create")}
             </Button>
           </DialogFooter>
         </form>

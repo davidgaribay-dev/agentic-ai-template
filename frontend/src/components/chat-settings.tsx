@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -87,6 +88,8 @@ export function ChatSettings({
   isLoading = false,
   level,
 }: ChatSettingsProps) {
+  const { t } = useTranslation();
+
   const getChatDisabledBy = (): DisabledByLevel => {
     if (chatDisabledByOrg) return "org";
     if (chatDisabledByTeam && level !== "team") return "team";
@@ -108,8 +111,8 @@ export function ChatSettings({
     chatPanelDisabledBy === "org" || chatPanelDisabledBy === "team";
 
   const getTooltipMessage = (disabledBy: DisabledByLevel): string | null => {
-    if (disabledBy === "org") return "Disabled by organization settings";
-    if (disabledBy === "team") return "Disabled by team settings";
+    if (disabledBy === "org") return t("chat_disabled_by_org_setting");
+    if (disabledBy === "team") return t("chat_disabled_by_team_setting");
     return null;
   };
 
@@ -117,8 +120,8 @@ export function ChatSettings({
     <div className="space-y-4">
       <SettingRow
         id="chat-enabled"
-        label="Chat Enabled"
-        description="Enable chat sidebar and standalone chat page"
+        label={t("chat_enabled")}
+        description={t("chat_enabled_desc")}
         checked={isChatDisabledByHigherLevel ? false : settings.chat_enabled}
         onCheckedChange={onChatEnabledChange}
         disabled={isChatDisabledByHigherLevel || isLoading}
@@ -126,8 +129,8 @@ export function ChatSettings({
       />
       <SettingRow
         id="chat-panel-enabled"
-        label="Chat Panel Enabled"
-        description="Enable the right-side chat panel"
+        label={t("chat_panel_enabled")}
+        description={t("chat_panel_enabled_desc")}
         checked={
           isChatPanelDisabledByHigherLevel ? false : settings.chat_panel_enabled
         }

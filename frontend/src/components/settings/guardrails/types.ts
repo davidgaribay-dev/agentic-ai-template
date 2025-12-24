@@ -53,18 +53,9 @@ export type GuardrailSettingsProps =
 
 export const ACTION_OPTIONS: {
   value: GuardrailAction;
-  label: string;
-  description: string;
+  labelKey: string;
 }[] = [
-  {
-    value: "block",
-    label: "Block",
-    description: "Reject the message entirely",
-  },
-  { value: "warn", label: "Warn", description: "Allow but log warning" },
-  {
-    value: "redact",
-    label: "Redact",
-    description: "Replace matched content with [REDACTED]",
-  },
+  { value: "block", labelKey: "guardrails_action_block" },
+  { value: "warn", labelKey: "guardrails_action_warn" },
+  { value: "redact", labelKey: "guardrails_action_redact" },
 ];

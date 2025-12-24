@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -132,6 +133,7 @@ export const Route = createFileRoute("/org/team/$teamId/settings")({
 });
 
 function TeamSettingsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { teamId } = Route.useParams();
   const { tab: tabFromUrl } = Route.useSearch();
@@ -179,13 +181,21 @@ function TeamSettingsPage() {
   const canManageTeam = isOrgAdmin || isTeamAdmin;
 
   const tabs = [
-    { value: "general", label: "General", icon: Users },
-    { value: "people", label: "People", icon: User },
-    { value: "ai", label: "AI Configuration", icon: Sparkles },
-    { value: "preferences", label: "Preferences", icon: Settings2 },
-    { value: "theme", label: "Theme", icon: Palette },
-    { value: "rag", label: "Document Search", icon: FileSearch },
-    { value: "guardrails", label: "Guardrails", icon: ShieldAlert },
+    { value: "general", label: t("org_settings_general"), icon: Users },
+    { value: "people", label: t("org_settings_people"), icon: User },
+    { value: "ai", label: t("org_settings_ai_config"), icon: Sparkles },
+    {
+      value: "preferences",
+      label: t("org_settings_preferences"),
+      icon: Settings2,
+    },
+    { value: "theme", label: t("org_settings_theme"), icon: Palette },
+    { value: "rag", label: t("org_settings_docs"), icon: FileSearch },
+    {
+      value: "guardrails",
+      label: t("org_settings_guardrails"),
+      icon: ShieldAlert,
+    },
   ];
 
   if (!currentOrg || !team) {
@@ -216,7 +226,9 @@ function TeamSettingsPage() {
   return (
     <div className="bg-background min-h-screen">
       <div className="mx-auto max-w-5xl px-4 md:px-6 py-4 md:py-8">
-        <h1 className="text-lg font-semibold mb-4 md:mb-6">Team Settings</h1>
+        <h1 className="text-lg font-semibold mb-4 md:mb-6">
+          {t("team_settings_title")}
+        </h1>
         <Tabs
           value={currentTab}
           onValueChange={handleTabChange}
@@ -352,6 +364,7 @@ function MembersSection({
   currentUserId,
   onUpdate,
 }: MembersSectionProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
@@ -378,7 +391,7 @@ function MembersSection({
     },
     onError: (err: ApiError) => {
       const detail = (err.body as { detail?: string })?.detail;
-      setError(detail || "Failed to add member");
+      setError(detail || t("team_failed_add_member"));
     },
   });
 
@@ -426,7 +439,7 @@ function MembersSection({
             className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-0 text-xs h-5"
           >
             <Shield className="mr-1 size-2.5" />
-            Admin
+            {t("org_role_admin")}
           </Badge>
         );
       case "member":
@@ -436,7 +449,7 @@ function MembersSection({
             className="text-muted-foreground text-xs h-5"
           >
             <User className="mr-1 size-2.5" />
-            Member
+            {t("org_role_member")}
           </Badge>
         );
       case "viewer":
@@ -446,7 +459,7 @@ function MembersSection({
             className="text-muted-foreground text-xs h-5"
           >
             <Eye className="mr-1 size-2.5" />
-            Viewer
+            {t("team_role_viewer")}
           </Badge>
         );
     }
@@ -456,7 +469,7 @@ function MembersSection({
     () => [
       {
         accessorKey: "user_full_name",
-        header: "Member",
+        header: t("org_role_member"),
         cell: ({ row }) => {
           const member = row.original;
           const isCurrentUser = member.user_id === currentUserId;
@@ -479,7 +492,9 @@ function MembersSection({
                 <div className="text-sm font-medium truncate flex items-center gap-1">
                   {member.user_full_name || member.user_email}
                   {isCurrentUser && (
-                    <span className="text-xs text-muted-foreground">(you)</span>
+                    <span className="text-xs text-muted-foreground">
+                      ({t("com_you")})
+                    </span>
                   )}
                 </div>
                 {member.user_full_name && (
@@ -494,12 +509,12 @@ function MembersSection({
       },
       {
         accessorKey: "role",
-        header: "Role",
+        header: t("com_role"),
         cell: ({ row }) => getRoleBadge(row.original.role),
       },
       {
         id: "actions",
-        header: () => <div className="text-right">Actions</div>,
+        header: () => <div className="text-right">{t("com_actions")}</div>,
         cell: ({ row }) => {
           const member = row.original;
           const isCurrentUser = member.user_id === currentUserId;
@@ -530,7 +545,7 @@ function MembersSection({
                         disabled={member.role === "admin"}
                       >
                         <Shield className="mr-2 size-3.5" />
-                        Admin
+                        {t("org_role_admin")}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() =>
@@ -542,7 +557,7 @@ function MembersSection({
                         disabled={member.role === "member"}
                       >
                         <User className="mr-2 size-3.5" />
-                        Member
+                        {t("org_role_member")}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() =>
@@ -554,7 +569,7 @@ function MembersSection({
                         disabled={member.role === "viewer"}
                       >
                         <Eye className="mr-2 size-3.5" />
-                        Viewer
+                        {t("team_role_viewer")}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                     </>
@@ -566,24 +581,27 @@ function MembersSection({
                         className="text-destructive focus:text-destructive"
                       >
                         <UserMinus className="mr-2 size-3.5" />
-                        Remove
+                        {t("com_remove")}
                       </DropdownMenuItem>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Remove Member</AlertDialogTitle>
+                        <AlertDialogTitle>
+                          {t("team_remove_member_title")}
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
-                          Remove {member.user_full_name || member.user_email}{" "}
-                          from this team?
+                          {t("team_remove_member_confirm", {
+                            name: member.user_full_name || member.user_email,
+                          })}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel>{t("com_cancel")}</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => removeMemberMutation.mutate(member.id)}
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                          Remove
+                          {t("com_remove")}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -601,6 +619,8 @@ function MembersSection({
       isOrgAdmin,
       updateRoleMutation,
       removeMemberMutation,
+      t,
+      getRoleBadge,
     ],
   );
 
@@ -623,7 +643,7 @@ function MembersSection({
       <div className="flex items-center justify-between py-2">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Users className="size-4" />
-          Members
+          {t("org_members")}
           <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
             {members.length}
           </Badge>
@@ -638,25 +658,27 @@ function MembersSection({
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm" className="h-7 text-xs">
                 <Plus className="size-3 mr-1" />
-                Add
+                {t("team_add_member")}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle className="text-base">Add Member</DialogTitle>
+                <DialogTitle className="text-base">
+                  {t("team_add_member")}
+                </DialogTitle>
                 <DialogDescription className="text-xs">
-                  Add an organization member to this team.
+                  {t("team_add_member_desc")}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-3 py-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Member</Label>
+                  <Label className="text-xs">{t("org_role_member")}</Label>
                   <Select
                     value={selectedUserId}
                     onValueChange={setSelectedUserId}
                   >
                     <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Choose a member..." />
+                      <SelectValue placeholder={t("team_choose_member")} />
                     </SelectTrigger>
                     <SelectContent>
                       {availableOrgMembers.map((member) => (
@@ -668,7 +690,7 @@ function MembersSection({
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Role</Label>
+                  <Label className="text-xs">{t("com_role")}</Label>
                   <Select
                     value={selectedRole}
                     onValueChange={(v) => setSelectedRole(v as TeamRole)}
@@ -677,9 +699,15 @@ function MembersSection({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="viewer">Viewer</SelectItem>
-                      <SelectItem value="member">Member</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="viewer">
+                        {t("team_role_viewer")}
+                      </SelectItem>
+                      <SelectItem value="member">
+                        {t("org_role_member")}
+                      </SelectItem>
+                      <SelectItem value="admin">
+                        {t("org_role_admin")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -687,7 +715,7 @@ function MembersSection({
               </div>
               <DialogFooter>
                 <Button variant="ghost" size="sm" onClick={resetAddDialog}>
-                  Cancel
+                  {t("com_cancel")}
                 </Button>
                 <Button
                   size="sm"
@@ -697,7 +725,7 @@ function MembersSection({
                   {addMemberMutation.isPending && (
                     <Loader2 className="mr-1.5 size-3 animate-spin" />
                   )}
-                  Add
+                  {t("team_add_member")}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -711,14 +739,14 @@ function MembersSection({
         </div>
       ) : members.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4 text-center">
-          No members yet
+          {t("team_no_members")}
         </p>
       ) : (
         <DataTable
           columns={memberColumns}
           data={memberData}
           searchKey="user_full_name"
-          searchPlaceholder="Search members..."
+          searchPlaceholder={t("team_search_members")}
         />
       )}
     </div>
@@ -732,6 +760,7 @@ function AIConfigurationSection({
   orgId: string;
   teamId: string;
 }) {
+  const { t } = useTranslation();
   const [promptsOpen, setPromptsOpen] = useState(true);
   const [apiKeysOpen, setApiKeysOpen] = useState(true);
 
@@ -745,7 +774,7 @@ function AIConfigurationSection({
             <ChevronRight className="size-4" />
           )}
           <Sparkles className="size-4" />
-          Prompts & Templates
+          {t("prompts_and_templates")}
         </CollapsibleTrigger>
         <CollapsibleContent>
           <PromptsSection orgId={orgId} teamId={teamId} />
@@ -762,7 +791,7 @@ function AIConfigurationSection({
             <ChevronRight className="size-4" />
           )}
           <Key className="size-4" />
-          API Keys
+          {t("api_keys_title")}
         </CollapsibleTrigger>
         <CollapsibleContent>
           <ApiKeysSection orgId={orgId} teamId={teamId} />
@@ -773,6 +802,7 @@ function AIConfigurationSection({
 }
 
 function PromptsSection({ orgId, teamId }: { orgId: string; teamId: string }) {
+  const { t } = useTranslation();
   const { data: promptsData, isLoading } = useQuery({
     queryKey: ["team-prompts", orgId, teamId],
     queryFn: () => promptsApi.listTeamPrompts(orgId, teamId),
@@ -797,7 +827,7 @@ function PromptsSection({ orgId, teamId }: { orgId: string; teamId: string }) {
             ) : (
               <ChevronRight className="size-3" />
             )}
-            System Prompts
+            {t("prompts_system")}
             <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
               {systemPrompts.length}
             </Badge>
@@ -811,7 +841,7 @@ function PromptsSection({ orgId, teamId }: { orgId: string; teamId: string }) {
             </div>
           ) : systemPrompts.length === 0 ? (
             <p className="text-xs text-muted-foreground py-2 text-center">
-              No system prompts
+              {t("prompts_no_system")}
             </p>
           ) : (
             systemPrompts.map((prompt) => (
@@ -834,7 +864,7 @@ function PromptsSection({ orgId, teamId }: { orgId: string; teamId: string }) {
             ) : (
               <ChevronRight className="size-3" />
             )}
-            Templates
+            {t("prompts_templates")}
             <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
               {templatePrompts.length}
             </Badge>
@@ -848,7 +878,7 @@ function PromptsSection({ orgId, teamId }: { orgId: string; teamId: string }) {
             </div>
           ) : templatePrompts.length === 0 ? (
             <p className="text-xs text-muted-foreground py-2 text-center">
-              No templates
+              {t("prompts_no_templates")}
             </p>
           ) : (
             templatePrompts.map((prompt) => (
@@ -867,6 +897,7 @@ function PromptsSection({ orgId, teamId }: { orgId: string; teamId: string }) {
 }
 
 function ApiKeysSection({ orgId, teamId }: { orgId: string; teamId: string }) {
+  const { t } = useTranslation();
   const { data: apiKeyStatuses, isLoading } = useQuery({
     queryKey: ["team-api-keys", orgId, teamId],
     queryFn: () => apiKeysApi.listTeamKeys(orgId, teamId),
@@ -881,7 +912,9 @@ function ApiKeysSection({ orgId, teamId }: { orgId: string; teamId: string }) {
   return (
     <div className="pl-6 space-y-4">
       <div className="flex items-center gap-3">
-        <Label className="text-xs text-muted-foreground">Default:</Label>
+        <Label className="text-xs text-muted-foreground">
+          {t("com_default")}:
+        </Label>
         <DefaultProviderSelector
           scope={scope}
           currentProvider={defaultProvider?.provider}
@@ -923,6 +956,7 @@ function ChatFeaturesSection({
   orgId: string;
   teamId: string;
 }) {
+  const { t } = useTranslation();
   const { data: orgSettings, isLoading: isLoadingOrg } =
     useOrgChatSettings(orgId);
   const { data: teamSettings, isLoading: isLoadingTeam } = useTeamChatSettings(
@@ -942,10 +976,10 @@ function ChatFeaturesSection({
       <div>
         <div className="flex items-center gap-2 py-2">
           <MessageSquare className="size-4" />
-          <span className="text-sm font-medium">Chat Features</span>
+          <span className="text-sm font-medium">{t("chat_features")}</span>
         </div>
         <p className="text-xs text-muted-foreground mb-2">
-          Organization settings take precedence over team preferences.
+          {t("team_org_settings_precedence")}
         </p>
         <ChatSettings
           settings={
@@ -974,10 +1008,10 @@ function ChatFeaturesSection({
       <div className="border-t pt-4">
         <div className="flex items-center gap-2 py-2">
           <Brain className="size-4" />
-          <span className="text-sm font-medium">Memory</span>
+          <span className="text-sm font-medium">{t("settings_memory")}</span>
         </div>
         <p className="text-xs text-muted-foreground mb-2">
-          When disabled, memory will be turned off for all users in this team.
+          {t("team_memory_disable_desc")}
         </p>
         <MemorySettings
           memoryEnabled={teamSettings?.memory_enabled ?? true}
@@ -1019,6 +1053,7 @@ function TeamMCPSection({
   updateMutation: ReturnType<typeof useUpdateTeamChatSettings>;
   isLoading: boolean;
 }) {
+  const { t } = useTranslation();
   const mcpDisabledByOrg = orgSettings ? !orgSettings.mcp_enabled : false;
   const customServersDisabledByOrg = orgSettings
     ? !orgSettings.mcp_allow_custom_servers
@@ -1028,10 +1063,10 @@ function TeamMCPSection({
     <div className="space-y-4">
       <div className="flex items-center gap-2 py-2">
         <Plug className="size-4" />
-        <span className="text-sm font-medium">MCP Integration</span>
+        <span className="text-sm font-medium">{t("mcp_integration")}</span>
       </div>
       <p className="text-xs text-muted-foreground">
-        Configure Model Context Protocol (MCP) servers for this team.
+        {t("team_mcp_configure_desc")}
       </p>
 
       <MCPSettings
@@ -1065,6 +1100,7 @@ function TeamGuardrailsSection({
   orgId: string;
   teamId: string;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const { data: orgGuardrails, isLoading: isLoadingOrg } = useQuery({
@@ -1104,12 +1140,11 @@ function TeamGuardrailsSection({
     <div className="space-y-4">
       <div className="flex items-center gap-2 py-2">
         <ShieldAlert className="size-4" />
-        <span className="text-sm font-medium">AI Guardrails</span>
+        <span className="text-sm font-medium">{t("guardrails_title")}</span>
       </div>
       <p className="text-xs text-muted-foreground">
-        Configure content filtering rules for this team.
-        {disabledByOrg &&
-          " Team-level guardrails are disabled by organization settings."}
+        {t("team_guardrails_desc")}
+        {disabledByOrg && ` ${t("team_guardrails_disabled_by_org")}`}
       </p>
       <GuardrailSettings
         level="team"

@@ -3,6 +3,7 @@
  */
 
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 
@@ -48,6 +49,7 @@ import {
 import { SidebarConversationItem } from "./SidebarConversationItem";
 
 export function RecentChats() {
+  const { t } = useTranslation();
   const { state, isMobile, setOpenMobile } = useSidebar();
   const navigate = useNavigate();
   const { currentTeam } = useWorkspace();
@@ -140,7 +142,7 @@ export function RecentChats() {
         <SidebarMenu className="items-center">
           <SidebarMenuItem>
             <SidebarMenuButton
-              tooltip="New Chat"
+              tooltip={t("sidebar_new_chat")}
               onClick={handleNewChat}
               className="flex items-center justify-center"
             >
@@ -163,7 +165,7 @@ export function RecentChats() {
               <div className="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
                 <Plus className="size-3" />
               </div>
-              <span>New Chat</span>
+              <span>{t("sidebar_new_chat")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -173,7 +175,7 @@ export function RecentChats() {
           <div className="mt-2">
             <div className="flex items-center px-2 py-1">
               <span className="text-xs font-medium text-muted-foreground">
-                Starred
+                {t("sidebar_starred")}
               </span>
             </div>
             <SidebarMenu>
@@ -196,11 +198,11 @@ export function RecentChats() {
         <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mt-2">
           <div className="flex items-center justify-between px-2 py-1">
             <span className="text-xs font-medium text-muted-foreground">
-              Recents
+              {t("sidebar_recents")}
             </span>
             <CollapsibleTrigger asChild>
               <button className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                {isOpen ? "Hide" : "Show"}
+                {isOpen ? t("sidebar_hide") : t("sidebar_show")}
               </button>
             </CollapsibleTrigger>
           </div>
@@ -209,15 +211,15 @@ export function RecentChats() {
               {isLoading ? (
                 <SidebarMenuItem>
                   <span className="px-2 py-1 text-xs text-muted-foreground">
-                    Loading...
+                    {t("sidebar_loading")}
                   </span>
                 </SidebarMenuItem>
               ) : recentConversations.length === 0 ? (
                 <SidebarMenuItem>
                   <span className="px-2 py-1 text-xs text-muted-foreground">
                     {conversations.length === 0
-                      ? "No conversations yet"
-                      : "No recent conversations"}
+                      ? t("sidebar_no_conversations")
+                      : t("sidebar_no_recent")}
                   </span>
                 </SidebarMenuItem>
               ) : (
@@ -243,7 +245,7 @@ export function RecentChats() {
       <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Rename chat</DialogTitle>
+            <DialogTitle>{t("chat_history_rename")}</DialogTitle>
           </DialogHeader>
           <Input
             ref={renameInputRef}
@@ -255,20 +257,20 @@ export function RecentChats() {
                 handleRename();
               }
             }}
-            placeholder="Enter new title"
+            placeholder={t("search_enter_new_title")}
           />
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setRenameDialogOpen(false)}
             >
-              Cancel
+              {t("com_cancel")}
             </Button>
             <Button
               onClick={handleRename}
               disabled={!newTitle.trim() || updateMutation.isPending}
             >
-              {updateMutation.isPending ? "Saving..." : "Save"}
+              {updateMutation.isPending ? t("com_loading") : t("com_save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -277,20 +279,25 @@ export function RecentChats() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t("chat_history_delete_confirm")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete "{conversationToDelete?.title}". This action
-              cannot be undone.
+              {t("chat_history_delete_desc", {
+                title: conversationToDelete?.title,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("com_cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
               disabled={deleteMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteMutation.isPending
+                ? t("prompts_deleting")
+                : t("com_delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

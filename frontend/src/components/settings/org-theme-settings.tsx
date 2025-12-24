@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   CardContent,
@@ -24,6 +25,7 @@ interface OrgThemeSettingsProps {
 }
 
 export function OrgThemeSettings({ orgId }: OrgThemeSettingsProps) {
+  const { t } = useTranslation();
   const { data: orgSettings, isLoading: isLoadingSettings } =
     useOrgThemeSettings(orgId);
   const { data: predefinedThemes, isLoading: isLoadingThemes } =
@@ -131,7 +133,7 @@ export function OrgThemeSettings({ orgId }: OrgThemeSettingsProps) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>Failed to load theme options.</AlertDescription>
+        <AlertDescription>{t("theme_failed_load")}</AlertDescription>
       </Alert>
     );
   }
@@ -177,20 +179,17 @@ export function OrgThemeSettings({ orgId }: OrgThemeSettingsProps) {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Theme Customization</CardTitle>
-          <CardDescription>
-            Control whether teams and users can customize themes
-          </CardDescription>
+          <CardTitle>{t("theme_customization")}</CardTitle>
+          <CardDescription>{t("theme_control_teams_users")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="theme-customization">
-                Enable Theme Customization
+                {t("theme_enable_customization")}
               </Label>
               <div className="text-sm text-muted-foreground">
-                Allow theme customization for teams and users in this
-                organization
+                {t("theme_allow_customization_desc")}
               </div>
             </div>
             <Switch
@@ -203,10 +202,10 @@ export function OrgThemeSettings({ orgId }: OrgThemeSettingsProps) {
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="team-customization">
-                Allow Team Customization
+                {t("theme_allow_team")}
               </Label>
               <div className="text-sm text-muted-foreground">
-                Teams can set their own default themes
+                {t("theme_allow_team_desc")}
               </div>
             </div>
             <Switch
@@ -220,10 +219,10 @@ export function OrgThemeSettings({ orgId }: OrgThemeSettingsProps) {
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="user-customization">
-                Allow User Customization
+                {t("theme_allow_user")}
               </Label>
               <div className="text-sm text-muted-foreground">
-                Users can set their own personal themes
+                {t("theme_allow_user_desc")}
               </div>
             </div>
             <Switch
@@ -238,11 +237,8 @@ export function OrgThemeSettings({ orgId }: OrgThemeSettingsProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Default Theme Mode</CardTitle>
-          <CardDescription>
-            Organization default theme mode (used when customization is
-            disabled)
-          </CardDescription>
+          <CardTitle>{t("theme_default_mode")}</CardTitle>
+          <CardDescription>{t("theme_org_default_mode_desc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ThemeModeSelector value={themeMode} onChange={setThemeMode} />
@@ -251,8 +247,8 @@ export function OrgThemeSettings({ orgId }: OrgThemeSettingsProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Default Light Theme</CardTitle>
-          <CardDescription>Organization default light theme</CardDescription>
+          <CardTitle>{t("theme_default_light")}</CardTitle>
+          <CardDescription>{t("theme_org_light_desc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ThemeGrid
@@ -265,8 +261,8 @@ export function OrgThemeSettings({ orgId }: OrgThemeSettingsProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Default Dark Theme</CardTitle>
-          <CardDescription>Organization default dark theme</CardDescription>
+          <CardTitle>{t("theme_default_dark")}</CardTitle>
+          <CardDescription>{t("theme_org_dark_desc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ThemeGrid
@@ -284,13 +280,13 @@ export function OrgThemeSettings({ orgId }: OrgThemeSettingsProps) {
             onClick={handleReset}
             disabled={updateMutation.isPending}
           >
-            Reset
+            {t("com_reset")}
           </Button>
           <Button onClick={handleSave} disabled={updateMutation.isPending}>
             {updateMutation.isPending && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
-            Save Changes
+            {t("com_save_changes")}
           </Button>
         </div>
       )}
@@ -298,9 +294,7 @@ export function OrgThemeSettings({ orgId }: OrgThemeSettingsProps) {
       {updateMutation.isError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Failed to save theme settings. Please try again.
-          </AlertDescription>
+          <AlertDescription>{t("theme_failed_save")}</AlertDescription>
         </Alert>
       )}
     </div>

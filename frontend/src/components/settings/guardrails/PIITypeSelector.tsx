@@ -3,8 +3,9 @@
  */
 
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
-import { PII_TYPES, PII_TYPE_LABELS, type PIIType } from "@/lib/api";
+import { PII_TYPES, PII_TYPE_LABEL_KEYS, type PIIType } from "@/lib/api";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,8 @@ export function PIITypeSelector({
   onChange,
   disabled,
 }: PIITypeSelectorProps) {
+  const { t } = useTranslation();
+
   const handleToggle = useCallback(
     (type: PIIType, checked: boolean) => {
       if (checked) {
@@ -45,7 +48,14 @@ export function PIITypeSelector({
             htmlFor={`pii-${type}`}
             className={cn("text-sm", disabled && "text-muted-foreground")}
           >
-            {PII_TYPE_LABELS[type]}
+            {t(
+              PII_TYPE_LABEL_KEYS[type] as
+                | "pii_email"
+                | "pii_phone"
+                | "pii_ssn"
+                | "pii_credit_card"
+                | "pii_ip_address",
+            )}
           </Label>
         </div>
       ))}

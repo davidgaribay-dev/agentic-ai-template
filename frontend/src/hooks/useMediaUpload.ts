@@ -12,6 +12,7 @@ import {
   type ChatMedia,
   type AllowedMediaType,
 } from "@/lib/api";
+import i18n from "@/locales/i18n";
 
 /** Maximum file size for images in bytes (10MB) */
 const MAX_IMAGE_FILE_SIZE = 10 * 1024 * 1024;
@@ -117,18 +118,21 @@ export function useMediaUpload(
 
       if (!attachmentType) {
         const allowedTypes = allowDocuments
-          ? "JPEG, PNG, GIF, WebP, PDF, TXT, MD, CSV"
-          : "JPEG, PNG, GIF, WebP";
+          ? i18n.t("file_types_with_docs")
+          : i18n.t("file_types_images_only");
         return {
           valid: false,
-          error: `Invalid file type: ${file.type}. Allowed: ${allowedTypes}`,
+          error: i18n.t("error_invalid_file_type", {
+            type: file.type,
+            allowed: allowedTypes,
+          }),
         };
       }
 
       if (attachmentType === "document" && !allowDocuments) {
         return {
           valid: false,
-          error: `Document uploads not allowed. Use images only.`,
+          error: i18n.t("error_documents_not_allowed"),
         };
       }
 
@@ -138,7 +142,10 @@ export function useMediaUpload(
         const maxMB = Math.round(maxSize / (1024 * 1024));
         return {
           valid: false,
-          error: `File too large: ${file.name}. Maximum size: ${maxMB}MB`,
+          error: i18n.t("error_file_too_large", {
+            filename: file.name,
+            maxSize: maxMB,
+          }),
         };
       }
 
@@ -155,7 +162,7 @@ export function useMediaUpload(
       for (const file of fileArray) {
         // Check max files limit
         if (pendingUploads.length + newUploads.length >= maxFiles) {
-          onError?.(`Maximum ${maxFiles} files per message`);
+          onError?.(i18n.t("error_max_files", { count: maxFiles }));
           break;
         }
 
@@ -240,7 +247,8 @@ export function useMediaUpload(
           results.push(media);
           onUploadComplete?.(media);
         } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : "Upload failed";
+          const errorMsg =
+            err instanceof Error ? err.message : i18n.t("error_upload_failed");
           setPendingUploads((prev) =>
             prev.map((u) =>
               u.id === upload.id

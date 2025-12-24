@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const detailsSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "prompts_name_required"),
   description: z.string(),
 });
 
@@ -42,6 +43,7 @@ interface OrgDetailsSectionProps {
 }
 
 export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -91,7 +93,7 @@ export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
     onError: (err) => {
       const detail =
         (err as { body?: { detail?: string } }).body?.detail ??
-        "Failed to upload logo";
+        t("entity_failed_upload_logo");
       setLogoError(detail);
     },
   });
@@ -106,7 +108,7 @@ export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
     onError: (err) => {
       const detail =
         (err as { body?: { detail?: string } }).body?.detail ??
-        "Failed to delete logo";
+        t("entity_failed_delete_logo");
       setLogoError(detail);
     },
   });
@@ -159,7 +161,7 @@ export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
               {isValidImageUrl(org.logo_url) ? (
                 <img
                   src={org.logo_url}
-                  alt="Organization logo"
+                  alt={t("entity_org_logo")}
                   className="size-full rounded-lg object-cover"
                 />
               ) : (
@@ -179,7 +181,7 @@ export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
           <DropdownMenuContent align="start" className="w-40">
             <DropdownMenuItem onClick={handleUploadClick}>
               <Camera className="mr-2 size-4" />
-              {org.logo_url ? "Change" : "Upload"}
+              {org.logo_url ? t("com_change") : t("com_upload")}
             </DropdownMenuItem>
             {org.logo_url && (
               <DropdownMenuItem
@@ -187,7 +189,7 @@ export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
                 className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="mr-2 size-4" />
-                Remove
+                {t("com_remove")}
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
@@ -196,26 +198,28 @@ export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
         <div className="flex-1 space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="org-name" className="text-xs">
-              Name
+              {t("com_name")}
             </Label>
             <Input
               id="org-name"
               {...register("name")}
-              placeholder="Organization name"
+              placeholder={t("entity_org_name")}
               className="h-8 text-sm"
             />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
+            {errors.name?.message && (
+              <p className="text-xs text-destructive">
+                {t(errors.name.message as "prompts_name_required")}
+              </p>
             )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="org-description" className="text-xs">
-              Description
+              {t("com_description")}
             </Label>
             <Textarea
               id="org-description"
               {...register("description")}
-              placeholder="Optional description"
+              placeholder={t("entity_optional_description")}
               rows={2}
               className="text-sm resize-none"
             />
@@ -226,7 +230,7 @@ export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
       {updateMutation.isError && (
         <ErrorAlert
           error={updateMutation.error}
-          fallback="Failed to update organization"
+          fallback={t("entity_failed_update_org")}
         />
       )}
 
@@ -240,7 +244,7 @@ export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
         {updateMutation.isPending && (
           <Loader2 className="mr-1.5 size-3 animate-spin" />
         )}
-        Save Changes
+        {t("com_save_changes")}
       </Button>
     </div>
   );
@@ -262,6 +266,7 @@ export function TeamDetailsSection({
   team,
   onUpdate,
 }: TeamDetailsSectionProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -310,7 +315,7 @@ export function TeamDetailsSection({
     onError: (err) => {
       const detail =
         (err as { body?: { detail?: string } }).body?.detail ??
-        "Failed to upload logo";
+        t("entity_failed_upload_logo");
       setLogoError(detail);
     },
   });
@@ -325,7 +330,7 @@ export function TeamDetailsSection({
     onError: (err) => {
       const detail =
         (err as { body?: { detail?: string } }).body?.detail ??
-        "Failed to delete logo";
+        t("entity_failed_delete_logo");
       setLogoError(detail);
     },
   });
@@ -378,7 +383,7 @@ export function TeamDetailsSection({
               {isValidImageUrl(team.logo_url) ? (
                 <img
                   src={team.logo_url}
-                  alt="Team logo"
+                  alt={t("entity_team_logo")}
                   className="size-full rounded-lg object-cover"
                 />
               ) : (
@@ -398,7 +403,7 @@ export function TeamDetailsSection({
           <DropdownMenuContent align="start" className="w-40">
             <DropdownMenuItem onClick={handleUploadClick}>
               <Camera className="mr-2 size-4" />
-              {team.logo_url ? "Change" : "Upload"}
+              {team.logo_url ? t("com_change") : t("com_upload")}
             </DropdownMenuItem>
             {team.logo_url && (
               <DropdownMenuItem
@@ -406,7 +411,7 @@ export function TeamDetailsSection({
                 className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="mr-2 size-4" />
-                Remove
+                {t("com_remove")}
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
@@ -415,26 +420,28 @@ export function TeamDetailsSection({
         <div className="flex-1 space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="team-name" className="text-xs">
-              Name
+              {t("com_name")}
             </Label>
             <Input
               id="team-name"
               {...register("name")}
-              placeholder="Team name"
+              placeholder={t("entity_team_name")}
               className="h-8 text-sm"
             />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
+            {errors.name?.message && (
+              <p className="text-xs text-destructive">
+                {t(errors.name.message as "prompts_name_required")}
+              </p>
             )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="team-description" className="text-xs">
-              Description
+              {t("com_description")}
             </Label>
             <Textarea
               id="team-description"
               {...register("description")}
-              placeholder="Optional description"
+              placeholder={t("entity_optional_description")}
               rows={2}
               className="text-sm resize-none"
             />
@@ -445,7 +452,7 @@ export function TeamDetailsSection({
       {updateMutation.isError && (
         <ErrorAlert
           error={updateMutation.error}
-          fallback="Failed to update team"
+          fallback={t("entity_failed_update_team")}
         />
       )}
 
@@ -459,7 +466,7 @@ export function TeamDetailsSection({
         {updateMutation.isPending && (
           <Loader2 className="mr-1.5 size-3 animate-spin" />
         )}
-        Save Changes
+        {t("com_save_changes")}
       </Button>
     </div>
   );

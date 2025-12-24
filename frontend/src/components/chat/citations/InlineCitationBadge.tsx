@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ChevronLeft,
   ChevronRight,
@@ -33,6 +34,7 @@ export function InlineCitationBadge({
   sources,
   className,
 }: InlineCitationBadgeProps) {
+  const { t } = useTranslation();
   const [viewerOpen, setViewerOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -118,7 +120,7 @@ export function InlineCitationBadge({
                 <button
                   onClick={handlePrev}
                   className="rounded p-0.5 hover:bg-muted text-muted-foreground hover:text-foreground"
-                  aria-label="Previous source"
+                  aria-label={t("aria_prev_source")}
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </button>
@@ -128,13 +130,13 @@ export function InlineCitationBadge({
                 <button
                   onClick={handleNext}
                   className="rounded p-0.5 hover:bg-muted text-muted-foreground hover:text-foreground"
-                  aria-label="Next source"
+                  aria-label={t("aria_next_source")}
                 >
                   <ChevronRight className="h-3.5 w-3.5" />
                 </button>
               </div>
               <span className="text-xs text-muted-foreground">
-                {totalSources} sources
+                {t("sources_plural_count", { count: totalSources })}
               </span>
             </div>
           )}
@@ -178,7 +180,7 @@ export function InlineCitationBadge({
                   onClick={handleViewDocument}
                 >
                   <ExternalLink className="h-3 w-3 mr-1" />
-                  View Document
+                  {t("docs_view_document")}
                 </Button>
               )}
             </div>

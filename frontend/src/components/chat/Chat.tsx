@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useChat, type ChatMessage } from "@/hooks/useChat";
 import { ChatContainer } from "./ChatContainer";
@@ -40,11 +41,13 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
       onTitleUpdate,
       onStreamEnd,
       className,
-      welcomeMessage = "How can I help you today?",
+      welcomeMessage,
     },
     ref,
   ) => {
+    const { t } = useTranslation();
     const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+    const displayWelcome = welcomeMessage ?? t("chat_welcome");
     const {
       messages,
       sendMessage,
@@ -147,14 +150,14 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
         >
           <div className="w-full max-w-2xl px-4">
             <h1 className="mb-8 text-center text-2xl font-medium text-foreground">
-              {welcomeMessage}
+              {displayWelcome}
             </h1>
             <ChatInput
               onSubmit={sendMessage}
               onStop={stopStreaming}
               disabled={isStreaming}
               isStreaming={isStreaming}
-              placeholder="Ask something..."
+              placeholder={t("chat_ask_something")}
               organizationId={organizationId}
               teamId={teamId}
             />
@@ -211,8 +214,8 @@ export const Chat = React.forwardRef<ChatHandle, ChatProps>(
               isStreaming={isStreaming}
               placeholder={
                 pendingToolApproval
-                  ? "Type to skip the tool and continue..."
-                  : "Ask something..."
+                  ? t("chat_skip_tool_continue")
+                  : t("chat_ask_something")
               }
               organizationId={organizationId}
               teamId={teamId}

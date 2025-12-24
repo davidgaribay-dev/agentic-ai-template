@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Brain,
@@ -46,13 +47,13 @@ const memoryTypeColors: Record<MemoryType, string> = {
   summary: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
 };
 
-const memoryTypeLabels: Record<MemoryType, string> = {
-  preference: "Preference",
-  fact: "Fact",
-  entity: "Entity",
-  relationship: "Relationship",
-  summary: "Summary",
-};
+const memoryTypeKeys = {
+  preference: "memory_type_preference",
+  fact: "memory_type_fact",
+  entity: "memory_type_entity",
+  relationship: "memory_type_relationship",
+  summary: "memory_type_summary",
+} as const;
 
 function formatDate(dateString: string): string {
   try {
@@ -74,6 +75,7 @@ interface MemoryDataTableProps {
 }
 
 function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
+  const { t } = useTranslation();
   const columns: ColumnDef<Memory>[] = useMemo(
     () => [
       {
@@ -84,7 +86,7 @@ function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
             className="-ml-4"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
-            Content
+            {t("memory_content")}
             <ArrowUpDown className="ml-2 size-4" />
           </Button>
         ),
@@ -102,7 +104,7 @@ function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
             className="-ml-4"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
-            Type
+            {t("com_type")}
             <ArrowUpDown className="ml-2 size-4" />
           </Button>
         ),
@@ -113,7 +115,7 @@ function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
               variant="secondary"
               className={memoryTypeColors[type] || memoryTypeColors.fact}
             >
-              {memoryTypeLabels[type] || type}
+              {t(memoryTypeKeys[type]) || type}
             </Badge>
           );
         },
@@ -126,7 +128,7 @@ function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
             className="-ml-4"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
-            Created
+            {t("memory_created")}
             <ArrowUpDown className="ml-2 size-4" />
           </Button>
         ),
@@ -138,7 +140,7 @@ function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
       },
       {
         id: "actions",
-        header: () => <div className="text-right">Actions</div>,
+        header: () => <div className="text-right">{t("com_actions")}</div>,
         cell: ({ row }) => {
           const memory = row.original;
           const isDeleting = deletingId === memory.id;
@@ -157,7 +159,7 @@ function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
                     ) : (
                       <MoreHorizontal className="size-4" />
                     )}
-                    <span className="sr-only">Open menu</span>
+                    <span className="sr-only">{t("com_open_menu")}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
@@ -166,7 +168,7 @@ function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
                     onClick={() => onDelete(memory.id)}
                   >
                     <Trash2 className="mr-2 size-4" />
-                    Delete
+                    {t("com_delete")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -175,7 +177,7 @@ function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
         },
       },
     ],
-    [deletingId, onDelete],
+    [deletingId, onDelete, t],
   );
 
   return (
@@ -183,12 +185,13 @@ function MemoryDataTable({ data, onDelete, deletingId }: MemoryDataTableProps) {
       columns={columns}
       data={data}
       searchKey="content"
-      searchPlaceholder="Search memories..."
+      searchPlaceholder={t("com_search") + "..."}
     />
   );
 }
 
 export function MemoryViewer() {
+  const { t } = useTranslation();
   const { currentOrg, currentTeam } = useWorkspace();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -230,7 +233,7 @@ export function MemoryViewer() {
     return (
       <div className="flex items-center gap-2 py-4 text-destructive">
         <AlertCircle className="h-4 w-4" />
-        <span>Failed to load memories</span>
+        <span>{t("memory_failed_load")}</span>
       </div>
     );
   }
@@ -239,9 +242,9 @@ export function MemoryViewer() {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
         <Brain className="h-12 w-12 text-muted-foreground/50 mb-4" />
-        <p className="text-muted-foreground">No memories yet</p>
+        <p className="text-muted-foreground">{t("memory_no_memories")}</p>
         <p className="text-sm text-muted-foreground/75 mt-1">
-          As you chat, important information will be remembered here.
+          {t("memory_no_memories_desc")}
         </p>
       </div>
     );
@@ -251,8 +254,7 @@ export function MemoryViewer() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">
-          {memories.length} {memories.length === 1 ? "memory" : "memories"}{" "}
-          stored
+          {t("memory_one", { count: memories.length })} {t("memory_stored")}
         </p>
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -266,22 +268,20 @@ export function MemoryViewer() {
               ) : (
                 <Trash2 className="h-4 w-4 mr-2" />
               )}
-              Clear All
+              {t("memory_clear_all")}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Clear all memories?</AlertDialogTitle>
+              <AlertDialogTitle>{t("memory_clear_confirm")}</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently delete all {memories.length} memories.
-                This action cannot be undone. The AI will no longer remember
-                information from your previous conversations.
+                {t("memory_clear_desc", { count: memories.length })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>{t("com_cancel")}</AlertDialogCancel>
               <AlertDialogAction onClick={handleClearAll}>
-                Clear All
+                {t("memory_clear_all")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

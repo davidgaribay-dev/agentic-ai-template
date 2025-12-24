@@ -1,4 +1,5 @@
 import { memo, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { X, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -16,6 +17,7 @@ export const MessageMedia = memo(function MessageMedia({
   media,
   className,
 }: MessageMediaProps) {
+  const { t } = useTranslation();
   const [selectedImage, setSelectedImage] =
     useState<ChatMediaAttachment | null>(null);
 
@@ -66,7 +68,7 @@ export const MessageMedia = memo(function MessageMedia({
         <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-background/95 backdrop-blur-sm">
           <VisuallyHidden>
             <DialogTitle>
-              {selectedImage?.filename || "Image preview"}
+              {selectedImage?.filename || t("media_image_preview")}
             </DialogTitle>
           </VisuallyHidden>
 

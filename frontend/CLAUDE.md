@@ -15,7 +15,7 @@ npm run preview      # Preview production build
 
 ## Architecture
 
-Stack: React 19, TypeScript 5.9, Vite 7, TanStack Router (file-based), TanStack Query (server state), Zustand (client state), Tailwind v4, shadcn/ui
+Stack: React 19, TypeScript 5.9, Vite 7, TanStack Router (file-based), TanStack Query (server state), Zustand (client state), Tailwind v4, shadcn/ui, i18next (11 languages: en, es, zh, hi, ru, uk, fr, ar, bn, pt, ja)
 
 ```
 src/
@@ -36,6 +36,20 @@ src/
 │   ├── useIsMobile.ts   # Mobile viewport detection (768px breakpoint)
 │   ├── useMediaUpload.ts # Image upload with validation and progress
 │   └── useDocumentUpload.ts # RAG document upload with progress
+├── locales/             # Internationalization (i18n) - 11 languages, ~930 keys each
+│   ├── i18n.ts          # i18next configuration and initialization
+│   ├── i18next.d.ts     # TypeScript type definitions for translations
+│   ├── en/translation.json  # English (base)
+│   ├── es/translation.json  # Spanish (Español)
+│   ├── zh/translation.json  # Chinese Simplified (中文)
+│   ├── hi/translation.json  # Hindi (हिन्दी)
+│   ├── ru/translation.json  # Russian (Русский)
+│   ├── uk/translation.json  # Ukrainian (Українська)
+│   ├── fr/translation.json  # French (Français)
+│   ├── ar/translation.json  # Arabic (العربية) - RTL
+│   ├── bn/translation.json  # Bengali (বাংলা)
+│   ├── pt/translation.json  # Portuguese (Português)
+│   └── ja/translation.json  # Japanese (日本語)
 └── lib/
     ├── api/             # Modular API client (see API Architecture below)
     ├── auth.ts          # Token management & auth hooks
@@ -457,6 +471,198 @@ Types:
 Settings hierarchy:
 - Org: `default_theme_mode`, `default_light_theme`, `default_dark_theme`
 - Team/User: Can override if `allow_*_customization=true`
+
+## Internationalization (i18n)
+
+All user-facing strings use i18next for translation support. **NEVER hardcode user-facing strings** - always use translation keys.
+
+### Setup
+
+i18next is initialized in `locales/i18n.ts` with:
+- Browser language detection (localStorage → navigator)
+- Fallback to English
+- Type-safe translations via `i18next.d.ts`
+
+### Usage Pattern
+
+```typescript
+import { useTranslation } from "react-i18next";
+
+function MyComponent() {
+  const { t } = useTranslation();
+
+  return (
+    <div>
+      <h1>{t("page_title")}</h1>
+      <p>{t("welcome_message", { name: user.name })}</p>
+      <Button>{t("com_save")}</Button>
+    </div>
+  );
+}
+```
+
+### Translation Key Naming Convention
+
+Keys follow a hierarchical naming pattern with prefixes:
+
+| Prefix | Usage | Examples |
+|--------|-------|----------|
+| `com_` | Common/shared strings | `com_save`, `com_cancel`, `com_delete`, `com_loading` |
+| `auth_` | Authentication | `auth_sign_in`, `auth_email_required`, `auth_password_min_length` |
+| `chat_` | Chat interface | `chat_placeholder`, `chat_send`, `chat_stop` |
+| `nav_` | Navigation | `nav_settings`, `nav_home`, `nav_log_out` |
+| `settings_` | Settings pages | `settings_profile`, `settings_account`, `settings_preferences` |
+| `org_` | Organization management | `org_create`, `org_members`, `org_invite` |
+| `team_` | Team management | `team_create`, `team_members`, `team_settings` |
+| `mcp_` | MCP servers | `mcp_add_server`, `mcp_test_connection`, `mcp_transport` |
+| `rag_` | RAG/Documents | `rag_enabled`, `rag_upload`, `rag_chunks` |
+| `guard_` | Guardrails | `guard_input`, `guard_output`, `guard_pii_detection` |
+| `mem_` | Memory | `mem_enabled`, `mem_clear_all`, `mem_no_memories` |
+| `theme_` | Theme settings | `theme_mode`, `theme_light`, `theme_dark` |
+| `prompt_` | Prompts | `prompt_system`, `prompt_template`, `prompt_create` |
+| `doc_` | Documents | `doc_upload`, `doc_processing`, `doc_failed` |
+| `err_` | Error messages | `err_generic`, `err_network`, `err_unauthorized` |
+| `aria_` | Accessibility labels | `aria_toggle_sidebar`, `aria_chat_messages` |
+
+### Adding New Translations
+
+1. **Add the key to `locales/en/translation.json`**:
+```json
+{
+  "my_feature_title": "My Feature",
+  "my_feature_description": "This is my new feature",
+  "my_feature_action": "Do Something"
+}
+```
+
+2. **Use in component**:
+```typescript
+const { t } = useTranslation();
+return <h1>{t("my_feature_title")}</h1>;
+```
+
+### Interpolation (Dynamic Values)
+
+Use double curly braces for variables:
+
+```json
+{
+  "welcome_user": "Welcome, {{name}}!",
+  "items_count": "{{count}} items found",
+  "confirm_delete": "Are you sure you want to delete \"{{name}}\"?"
+}
+```
+
+```typescript
+t("welcome_user", { name: "Alice" })  // "Welcome, Alice!"
+t("items_count", { count: 5 })        // "5 items found"
+```
+
+### Pluralization
+
+i18next supports plural forms:
+
+```json
+{
+  "item": "{{count}} item",
+  "item_plural": "{{count}} items"
+}
+```
+
+```typescript
+t("item", { count: 1 })  // "1 item"
+t("item", { count: 5 })  // "5 items"
+```
+
+### Best Practices
+
+1. **Always use `useTranslation`** - Never hardcode strings
+```typescript
+// ✅ Correct
+<Button>{t("com_save")}</Button>
+
+// ❌ Wrong - hardcoded string
+<Button>Save</Button>
+```
+
+2. **Reuse common keys** - Check for existing `com_*` keys before adding new ones
+```typescript
+// ✅ Reuse common keys
+t("com_save")    // Not "settings_save_button"
+t("com_cancel")  // Not "dialog_cancel"
+t("com_delete")  // Not "remove_item"
+```
+
+3. **Use descriptive key names** - Keys should be self-documenting
+```typescript
+// ✅ Clear and specific
+t("mcp_test_connection_success")
+t("org_member_invite_sent")
+
+// ❌ Vague or ambiguous
+t("success")
+t("message1")
+```
+
+4. **Group related translations** - Use consistent prefixes
+```json
+{
+  "mcp_add_server": "Add Server",
+  "mcp_edit_server": "Edit Server",
+  "mcp_delete_server": "Delete Server",
+  "mcp_test_connection": "Test Connection"
+}
+```
+
+5. **Include context in placeholders** - Help translators understand
+```json
+{
+  "confirm_delete_server": "Delete MCP server \"{{serverName}}\"?",
+  "error_load_failed": "Failed to load {{resourceType}}"
+}
+```
+
+### Adding New Languages
+
+1. Create `locales/{lang}/translation.json` (copy from `en/`)
+2. Add to `supportedLanguages` in `locales/i18n.ts`:
+```typescript
+export const supportedLanguages = [
+  { code: "en", name: "English", nativeName: "English" },
+  { code: "es", name: "Spanish", nativeName: "Español" },
+  { code: "zh", name: "Chinese", nativeName: "中文" },
+  { code: "hi", name: "Hindi", nativeName: "हिन्दी" },
+  { code: "ru", name: "Russian", nativeName: "Русский" },
+  { code: "uk", name: "Ukrainian", nativeName: "Українська" },
+  { code: "fr", name: "French", nativeName: "Français" },
+  { code: "ar", name: "Arabic", nativeName: "العربية" },
+  { code: "bn", name: "Bengali", nativeName: "বাংলা" },
+  { code: "pt", name: "Portuguese", nativeName: "Português" },
+  { code: "ja", name: "Japanese", nativeName: "日本語" },
+] as const;
+```
+
+3. Import and add to `resources`:
+```typescript
+import es from "./es/translation.json";
+import zh from "./zh/translation.json";
+// ... other imports
+export const resources = {
+  en: { translation: en },
+  es: { translation: es },
+  zh: { translation: zh },
+  // ... other languages
+} as const;
+```
+
+**Note on RTL**: Arabic (`ar`) is a right-to-left language. The app should handle RTL layout when Arabic is selected.
+
+### Language Settings UI
+
+`LanguageSettings` component (`components/settings/language-settings.tsx`) provides:
+- Dropdown to select language
+- Persists selection to localStorage
+- Applies immediately without page refresh
 
 ## Layout System
 

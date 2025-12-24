@@ -205,7 +205,7 @@ OpenSearch indices: `audit-logs-YYYY.MM.DD` (90-day retention), `app-logs-YYYY.M
 │   ├── scripts/            # Setup scripts (setup-infisical.py, backfill_message_index.py, etc.)
 │   ├── opensearch/         # Default dashboards config
 │   └── alembic/            # Database migrations
-└── frontend/               # React 19 + TanStack + Tailwind v4
+└── frontend/               # React 19 + TanStack + Tailwind v4 + i18next
     └── src/
         ├── routes/         # File-based routing (including /org/team/:teamId/documents)
         ├── components/
@@ -214,6 +214,7 @@ OpenSearch indices: `audit-logs-YYYY.MM.DD` (90-day retention), `app-logs-YYYY.M
         │   ├── settings/   # Org/team/user settings panels (RAG, theme, guardrails, MCP)
         │   └── documents/  # DocumentUpload, DocumentList, DocumentViewer
         ├── hooks/          # useChat, useMediaUpload, useDocumentUpload, useIsMobile
+        ├── locales/        # i18n translations (11 languages: en, es, zh, hi, ru, uk, fr, ar, bn, pt, ja)
         └── lib/
             ├── api/        # Modular API client (agent, auth, orgs, teams, documents, rag-settings, theme-settings, etc.)
             ├── auth.ts     # Token management & auth hooks
@@ -329,6 +330,8 @@ New database model: Add SQLModel class, import in `alembic/env.py`, run migratio
 New agent tool: Add `@tool` function in `backend/agents/tools.py`
 
 New MCP server: Add via UI at org/team/user settings pages, or via API (`/v1/organizations/{id}/mcp-servers`, `/v1/organizations/{id}/teams/{id}/mcp-servers`, `/v1/mcp-servers/me`)
+
+New frontend strings: **NEVER hardcode** - add to `frontend/src/locales/en/translation.json`, use `useTranslation()` hook. See [frontend/CLAUDE.md](frontend/CLAUDE.md#internationalization-i18n) for key naming conventions (`com_`, `auth_`, `chat_`, etc.)
 
 ## Code Style & Linting Standards
 

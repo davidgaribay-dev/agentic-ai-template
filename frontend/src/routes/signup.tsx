@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/signup")({
 type Step = "account" | "organization";
 
 function SignupPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const register = useRegister();
@@ -38,15 +40,15 @@ function SignupPage() {
 
   const validateAccountStep = () => {
     if (!email) {
-      setLocalError("Email is required");
+      setLocalError(t("auth_email_required"));
       return false;
     }
     if (password !== confirmPassword) {
-      setLocalError("Passwords do not match");
+      setLocalError(t("auth_passwords_no_match"));
       return false;
     }
     if (password.length < 8) {
-      setLocalError("Password must be at least 8 characters");
+      setLocalError(t("auth_password_min_length"));
       return false;
     }
     return true;
@@ -99,8 +101,8 @@ function SignupPage() {
           </div>
           <h1 className="text-3xl font-semibold tracking-tight">
             {step === "account"
-              ? "Sign up below to unlock the full potential"
-              : "Set up your workspace"}
+              ? t("auth_sign_up_title")
+              : t("auth_setup_workspace")}
           </h1>
         </div>
 
@@ -116,7 +118,7 @@ function SignupPage() {
               <Input
                 id="fullName"
                 type="text"
-                placeholder="Full name (optional)"
+                placeholder={t("auth_full_name_optional")}
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 autoComplete="name"
@@ -125,7 +127,7 @@ function SignupPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
+                placeholder={t("auth_email_placeholder")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -135,7 +137,7 @@ function SignupPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Create a password (min 8 characters)"
+                placeholder={t("auth_password_create_placeholder")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -146,7 +148,7 @@ function SignupPage() {
               <Input
                 id="confirmPassword"
                 type="password"
-                placeholder="Confirm your password"
+                placeholder={t("auth_password_confirm_placeholder")}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
@@ -160,14 +162,14 @@ function SignupPage() {
               <Input
                 id="organizationName"
                 type="text"
-                placeholder="Organization name (optional)"
+                placeholder={t("auth_org_name_optional")}
                 value={organizationName}
                 onChange={(e) => setOrganizationName(e.target.value)}
                 autoFocus
                 className="h-11 rounded-xl border-border/50 bg-muted/30 px-4 text-[15px] placeholder:text-muted-foreground/60"
               />
               <p className="text-sm text-muted-foreground">
-                Leave blank to use a default name based on your email.
+                {t("auth_org_name_hint")}
               </p>
             </div>
           )}
@@ -178,7 +180,7 @@ function SignupPage() {
               className="h-11 w-full rounded-xl text-[15px] font-medium"
               onClick={handleNextStep}
             >
-              Continue with email
+              {t("auth_continue_email")}
             </Button>
           ) : (
             <div className="flex gap-3">
@@ -189,25 +191,27 @@ function SignupPage() {
                 className="h-11 gap-2 rounded-xl"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back
+                {t("com_back")}
               </Button>
               <Button
                 type="submit"
                 className="h-11 flex-1 rounded-xl text-[15px] font-medium"
                 disabled={register.isPending}
               >
-                {register.isPending ? "Creating..." : "Create account"}
+                {register.isPending
+                  ? t("auth_creating")
+                  : t("auth_create_account")}
               </Button>
             </div>
           )}
 
           <p className="pt-4 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
+            {t("auth_have_account")}{" "}
             <Link
               to="/login"
               className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-muted-foreground"
             >
-              Sign in
+              {t("auth_sign_in")}
             </Link>
           </p>
         </form>

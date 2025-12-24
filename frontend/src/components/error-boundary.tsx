@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
+import i18n from "@/locales/i18n";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -48,23 +49,24 @@ export class ErrorBoundary extends Component<
         <div className="flex min-h-screen flex-col items-center justify-center gap-6 p-4">
           <div className="text-center">
             <h1 className="text-4xl font-bold text-destructive">
-              Something went wrong
+              {i18n.t("error_something_wrong")}
             </h1>
             <p className="mt-2 text-muted-foreground">
-              An unexpected error occurred. Please try again.
+              {i18n.t("error_unexpected")}
             </p>
           </div>
 
           {import.meta.env.DEV && this.state.error && (
             <details className="max-w-2xl rounded-lg border bg-muted p-4 text-left">
               <summary className="cursor-pointer font-medium">
-                Error Details
+                {i18n.t("error_details")}
               </summary>
               <pre className="mt-2 overflow-auto text-xs">
                 <code>{this.state.error.toString()}</code>
                 {this.state.errorInfo && (
                   <>
-                    {"\n\nComponent Stack:"}
+                    {"\n\n"}
+                    {i18n.t("error_component_stack")}
                     {this.state.errorInfo.componentStack}
                   </>
                 )}
@@ -77,13 +79,13 @@ export class ErrorBoundary extends Component<
               onClick={this.handleReset}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              Try Again
+              {i18n.t("error_try_again")}
             </button>
             <Link
               to="/"
               className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
             >
-              Go Home
+              {i18n.t("error_go_home")}
             </Link>
           </div>
         </div>
@@ -106,13 +108,15 @@ export function ErrorFallback({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 p-4 text-center">
-      <p className="text-sm text-destructive">Something went wrong</p>
+      <p className="text-sm text-destructive">
+        {i18n.t("error_something_wrong")}
+      </p>
       {resetErrorBoundary && (
         <button
           onClick={resetErrorBoundary}
           className="text-sm text-primary underline hover:no-underline"
         >
-          Try again
+          {i18n.t("error_try_again")}
         </button>
       )}
     </div>

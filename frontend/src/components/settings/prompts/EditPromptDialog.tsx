@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,9 +22,9 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { type PromptScope, getQueryKey, updatePromptApi } from "./types";
 
 const editPromptSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "prompts_name_required"),
   description: z.string(),
-  content: z.string().min(1, "Content is required"),
+  content: z.string().min(1, "prompts_content_required"),
 });
 
 type EditPromptFormData = z.infer<typeof editPromptSchema>;
@@ -39,6 +40,7 @@ export function EditPromptDialog({
   scope,
   compact = false,
 }: EditPromptDialogProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
 
@@ -111,28 +113,28 @@ export function EditPromptDialog({
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base">Edit Prompt</DialogTitle>
+          <DialogTitle className="text-base">{t("prompts_edit")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit}>
           <div className="space-y-3 py-3">
             <div className="space-y-1.5">
               <Label htmlFor="edit-name" className="text-xs">
-                Name
+                {t("com_name")}
               </Label>
               <Input
                 id="edit-name"
                 {...register("name")}
                 className="h-8 text-sm"
               />
-              {errors.name && (
+              {errors.name?.message && (
                 <p className="text-xs text-destructive">
-                  {errors.name.message}
+                  {t(errors.name.message as "prompts_name_required")}
                 </p>
               )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="edit-description" className="text-xs">
-                Description (optional)
+                {t("prompts_description_optional")}
               </Label>
               <Input
                 id="edit-description"
@@ -142,7 +144,7 @@ export function EditPromptDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="edit-content" className="text-xs">
-                Content
+                {t("com_content")}
               </Label>
               <Textarea
                 id="edit-content"
@@ -150,16 +152,16 @@ export function EditPromptDialog({
                 rows={4}
                 className="font-mono text-sm"
               />
-              {errors.content && (
+              {errors.content?.message && (
                 <p className="text-xs text-destructive">
-                  {errors.content.message}
+                  {t(errors.content.message as "prompts_content_required")}
                 </p>
               )}
             </div>
             {updateMutation.isError && (
               <ErrorAlert
                 error={updateMutation.error}
-                fallback="Failed to update prompt"
+                fallback={t("prompts_failed_update")}
               />
             )}
           </div>
@@ -170,13 +172,13 @@ export function EditPromptDialog({
               size="sm"
               onClick={() => setOpen(false)}
             >
-              Cancel
+              {t("com_cancel")}
             </Button>
             <Button type="submit" size="sm" disabled={updateMutation.isPending}>
               {updateMutation.isPending && (
                 <Loader2 className="mr-1.5 size-3 animate-spin" />
               )}
-              Save
+              {t("com_save")}
             </Button>
           </DialogFooter>
         </form>

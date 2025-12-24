@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import i18n from "@/locales/i18n";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -81,20 +82,20 @@ export function formatRelativeTime(date: string | Date): string {
   const diffYear = Math.floor(diffDay / 365);
 
   if (diffSec < 10) {
-    return "just now";
+    return i18n.t("time_just_now");
   } else if (diffSec < 60) {
-    return `${diffSec}s ago`;
+    return i18n.t("time_seconds_ago", { count: diffSec });
   } else if (diffMin < 60) {
-    return `${diffMin}m ago`;
+    return i18n.t("time_minutes_ago", { count: diffMin });
   } else if (diffHour < 24) {
-    return `${diffHour}h ago`;
+    return i18n.t("time_hours_ago", { count: diffHour });
   } else if (diffDay < 7) {
-    return `${diffDay}d ago`;
+    return i18n.t("time_days_ago", { count: diffDay });
   } else if (diffWeek < 4) {
-    return `${diffWeek}w ago`;
+    return i18n.t("time_weeks_ago", { count: diffWeek });
   } else if (diffMonth < 12) {
-    return `${diffMonth}mo ago`;
+    return i18n.t("time_months_ago", { count: diffMonth });
   } else {
-    return `${diffYear}y ago`;
+    return i18n.t("time_years_ago", { count: diffYear });
   }
 }

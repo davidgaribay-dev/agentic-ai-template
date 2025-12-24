@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -112,6 +113,7 @@ export function DefaultProviderSelector({
   currentProvider,
   isLoading,
 }: DefaultProviderSelectorProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const updateMutation = useMutation({
@@ -135,9 +137,11 @@ export function DefaultProviderSelector({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="anthropic">Anthropic</SelectItem>
-        <SelectItem value="openai">OpenAI</SelectItem>
-        <SelectItem value="google">Google</SelectItem>
+        <SelectItem value="anthropic">
+          {t("api_keys_provider_anthropic")}
+        </SelectItem>
+        <SelectItem value="openai">{t("api_keys_provider_openai")}</SelectItem>
+        <SelectItem value="google">{t("api_keys_provider_google")}</SelectItem>
       </SelectContent>
     </Select>
   );
@@ -150,21 +154,22 @@ interface ProviderRowProps {
 }
 
 export function ProviderRow({ provider, status, scope }: ProviderRowProps) {
+  const { t } = useTranslation();
   const info = PROVIDER_INFO[provider];
   const isConfigured = status?.is_configured || false;
   const level = status?.level;
 
   const getLevelLabel = () => {
-    if (!isConfigured) return "Not set";
+    if (!isConfigured) return t("api_keys_status_not_set");
     if (scope.type === "team") {
-      if (level === "team") return "Team key";
-      if (level === "org") return "Org fallback";
-      if (level === "environment") return "Env fallback";
-      return "Set";
+      if (level === "team") return t("api_keys_status_team_key");
+      if (level === "org") return t("api_keys_status_org_fallback");
+      if (level === "environment") return t("api_keys_status_env_fallback");
+      return t("api_keys_configured");
     }
-    if (level === "org") return "Configured";
-    if (level === "environment") return "Env fallback";
-    return "Set";
+    if (level === "org") return t("api_keys_configured");
+    if (level === "environment") return t("api_keys_status_env_fallback");
+    return t("api_keys_configured");
   };
 
   const hasOwnKey = scope.type === "team" ? level === "team" : level === "org";
@@ -193,7 +198,11 @@ export function ProviderRow({ provider, status, scope }: ProviderRowProps) {
             ) : level === "org" ? (
               <Building2 className="size-2 mr-0.5" />
             ) : null}
-            {hasOwnKey ? "Set" : level === "org" ? "Org" : "Env"}
+            {hasOwnKey
+              ? t("api_keys_badge_set")
+              : level === "org"
+                ? t("api_keys_badge_org")
+                : t("api_keys_badge_env")}
           </Badge>
         )}
         <SetApiKeyDialog provider={provider} scope={scope} hasKey={hasOwnKey} />
@@ -204,7 +213,7 @@ export function ProviderRow({ provider, status, scope }: ProviderRowProps) {
 }
 
 const apiKeySchema = z.object({
-  api_key: z.string().min(1, "API key is required"),
+  api_key: z.string().min(1, "api_keys_required"),
 });
 
 type ApiKeyFormData = z.infer<typeof apiKeySchema>;
@@ -220,6 +229,7 @@ export function SetApiKeyDialog({
   scope,
   hasKey,
 }: SetApiKeyDialogProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const queryClient = useQueryClient();
@@ -268,27 +278,33 @@ export function SetApiKeyDialog({
           size="sm"
           className="h-6 text-[10px] px-2"
         >
-          {hasKey ? "Update" : "Set"}
+          {hasKey ? t("com_update") : t("api_keys_set")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-base">
-            {hasKey ? "Update" : "Set"} {PROVIDER_INFO[provider].name} Key
+            {hasKey
+              ? t("api_keys_update_key_title", {
+                  provider: PROVIDER_INFO[provider].name,
+                })
+              : t("api_keys_set_key_title", {
+                  provider: PROVIDER_INFO[provider].name,
+                })}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit}>
           <div className="space-y-3 py-3">
             <div className="space-y-1.5">
               <Label htmlFor="api-key" className="text-xs">
-                API Key
+                {t("api_keys_label")}
               </Label>
               <div className="relative">
                 <Input
                   id="api-key"
                   type={showKey ? "text" : "password"}
                   {...register("api_key")}
-                  placeholder="sk-..."
+                  placeholder={t("api_keys_placeholder_short")}
                   className="h-8 text-sm pr-9"
                 />
                 <Button
@@ -305,16 +321,16 @@ export function SetApiKeyDialog({
                   )}
                 </Button>
               </div>
-              {errors.api_key && (
+              {errors.api_key?.message && (
                 <p className="text-xs text-destructive">
-                  {errors.api_key.message}
+                  {t(errors.api_key.message as "api_keys_required")}
                 </p>
               )}
             </div>
             {mutation.isError && (
               <ErrorAlert
                 error={mutation.error}
-                fallback="Failed to save API key"
+                fallback={t("api_keys_failed_save")}
               />
             )}
           </div>
@@ -325,13 +341,13 @@ export function SetApiKeyDialog({
               size="sm"
               onClick={() => handleOpenChange(false)}
             >
-              Cancel
+              {t("com_cancel")}
             </Button>
             <Button type="submit" size="sm" disabled={mutation.isPending}>
               {mutation.isPending && (
                 <Loader2 className="mr-1.5 size-3 animate-spin" />
               )}
-              Save
+              {t("com_save")}
             </Button>
           </DialogFooter>
         </form>
@@ -349,6 +365,7 @@ export function DeleteApiKeyButton({
   provider,
   scope,
 }: DeleteApiKeyButtonProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
@@ -360,8 +377,8 @@ export function DeleteApiKeyButton({
 
   const fallbackMessage =
     scope.type === "team"
-      ? "The team will fall back to organization or environment keys."
-      : "Teams will fall back to environment variables.";
+      ? t("api_keys_fallback_team")
+      : t("api_keys_fallback_org");
 
   return (
     <AlertDialog>
@@ -376,18 +393,21 @@ export function DeleteApiKeyButton({
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete API Key</AlertDialogTitle>
+          <AlertDialogTitle>{t("api_keys_delete_title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Delete the {PROVIDER_INFO[provider].name} API key? {fallbackMessage}
+            {t("api_keys_delete_key_confirm", {
+              provider: PROVIDER_INFO[provider].name,
+              fallback: fallbackMessage,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t("com_cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={() => mutation.mutate()}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            Delete
+            {t("com_delete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

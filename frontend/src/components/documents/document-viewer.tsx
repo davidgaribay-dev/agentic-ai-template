@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import Editor from "@monaco-editor/react";
 import { FileText, Loader2, Copy, Check } from "lucide-react";
@@ -127,6 +128,7 @@ export function DocumentViewer({
   open,
   onOpenChange,
 }: DocumentViewerProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const { theme } = useTheme();
 
@@ -156,7 +158,8 @@ export function DocumentViewer({
   });
 
   const content = docContent?.content || "";
-  const filename = providedFilename || docContent?.filename || "Document";
+  const filename =
+    providedFilename || docContent?.filename || t("docs_fallback_name");
   const fileType = providedFileType || docContent?.file_type || "txt";
 
   const useCodeView = isCodeFile(fileType);
@@ -203,7 +206,9 @@ export function DocumentViewer({
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
-                <span className="ml-1.5">{copied ? "Copied" : "Copy"}</span>
+                <span className="ml-1.5">
+                  {copied ? t("com_copied") : t("com_copy")}
+                </span>
               </Button>
             </div>
           </div>
@@ -218,9 +223,9 @@ export function DocumentViewer({
           ) : error ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <FileText className="h-12 w-12 mb-2 opacity-50" />
-              <p>Failed to load document content</p>
+              <p>{t("docs_load_error")}</p>
               <p className="text-sm">
-                {error instanceof Error ? error.message : "Unknown error"}
+                {error instanceof Error ? error.message : t("error_unknown")}
               </p>
             </div>
           ) : useCodeView ? (

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
   FileText,
@@ -26,6 +27,7 @@ interface SourcesHeaderProps {
  * Similar to the "Reviewed X sources" UI in the reference
  */
 export function SourcesHeader({ sources, className }: SourcesHeaderProps) {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   const [viewerDocId, setViewerDocId] = useState<string | null>(null);
   const [viewerFilename, setViewerFilename] = useState<string>("");
@@ -66,7 +68,12 @@ export function SourcesHeader({ sources, className }: SourcesHeaderProps) {
       >
         <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group">
           <span>
-            Reviewed {uniqueCount} {uniqueCount === 1 ? "source" : "sources"}
+            {t(
+              uniqueCount === 1
+                ? "sources_reviewed"
+                : "sources_reviewed_plural",
+              { count: uniqueCount },
+            )}
           </span>
           <ChevronDown
             className={cn(
@@ -82,11 +89,13 @@ export function SourcesHeader({ sources, className }: SourcesHeaderProps) {
             <div className="border-b px-3 py-2 bg-muted/30">
               <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
                 <Search className="h-3 w-3" />
-                <span>Searching documents</span>
+                <span>{t("sources_searching")}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Check className="h-3 w-3 text-green-500" />
-                <span>Reviewing sources · {uniqueCount}</span>
+                <span>
+                  {t("sources_reviewing")} · {uniqueCount}
+                </span>
               </div>
             </div>
 
@@ -145,7 +154,7 @@ export function SourcesHeader({ sources, className }: SourcesHeaderProps) {
             <div className="px-3 py-2 bg-muted/30 border-t">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Check className="h-3 w-3 text-green-500" />
-                <span>Finished</span>
+                <span>{t("sources_finished")}</span>
               </div>
             </div>
           </div>

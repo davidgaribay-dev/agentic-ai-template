@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const login = useLogin();
@@ -50,7 +52,7 @@ function LoginPage() {
             <Sparkles className="h-6 w-6 text-primary-foreground" />
           </div>
           <h1 className="text-3xl font-semibold tracking-tight">
-            Sign in below to continue
+            {t("auth_sign_in_title")}
           </h1>
         </div>
 
@@ -65,7 +67,7 @@ function LoginPage() {
             <Input
               id="email"
               type="email"
-              placeholder="Enter your email"
+              placeholder={t("auth_email_placeholder")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -75,7 +77,7 @@ function LoginPage() {
             <Input
               id="password"
               type="password"
-              placeholder="Enter your password"
+              placeholder={t("auth_password_placeholder")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -90,16 +92,16 @@ function LoginPage() {
             className="h-11 w-full rounded-xl text-[15px] font-medium"
             disabled={login.isPending}
           >
-            {login.isPending ? "Signing in..." : "Continue with email"}
+            {login.isPending ? t("auth_signing_in") : t("auth_continue_email")}
           </Button>
 
           <p className="pt-4 text-center text-sm text-muted-foreground">
-            Don't have an account?{" "}
+            {t("auth_no_account")}{" "}
             <Link
               to="/signup"
               className="font-medium text-foreground underline underline-offset-4 transition-colors hover:text-muted-foreground"
             >
-              Create one
+              {t("auth_create_one")}
             </Link>
           </p>
         </form>

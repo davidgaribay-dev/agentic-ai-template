@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Loader2,
@@ -75,6 +76,7 @@ export const Route = createFileRoute("/org/prompts")({
 });
 
 function OrgPromptsPage() {
+  const { t } = useTranslation();
   const { currentOrg, currentOrgRole } = useWorkspace();
   const isAdmin = currentOrgRole === "owner" || currentOrgRole === "admin";
 
@@ -99,12 +101,14 @@ function OrgPromptsPage() {
         <div className="px-6 py-6">
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center">
             <AlertTriangle className="mx-auto h-12 w-12 text-destructive" />
-            <h2 className="mt-4 text-xl font-semibold">Access Denied</h2>
+            <h2 className="mt-4 text-xl font-semibold">
+              {t("error_access_denied")}
+            </h2>
             <p className="mt-2 text-muted-foreground">
-              Only organization admins and owners can manage prompts.
+              {t("prompts_access_denied")}
             </p>
             <Button asChild className="mt-4">
-              <Link to="/org/settings">Back to Settings</Link>
+              <Link to="/org/settings">{t("prompts_back")}</Link>
             </Button>
           </div>
         </div>
@@ -120,14 +124,16 @@ function OrgPromptsPage() {
           <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
             <Link to="/org/settings">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Settings
+              {t("prompts_back")}
             </Link>
           </Button>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Prompts</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {t("prompts_title")}
+              </h1>
               <p className="text-sm text-muted-foreground">
-                Manage prompt templates and system prompts for {currentOrg.name}
+                {t("prompts_manage", { orgName: currentOrg.name })}
               </p>
             </div>
             <CreatePromptDialog orgId={currentOrg.id} />
@@ -139,11 +145,9 @@ function OrgPromptsPage() {
           <div className="flex gap-3">
             <Sparkles className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-medium">Organization Prompts</p>
+              <p className="font-medium">{t("prompts_org_title")}</p>
               <p className="text-muted-foreground">
-                Prompts created here are available to all members of{" "}
-                {currentOrg.name}. System prompts configure the AI's behavior,
-                while templates are reusable text snippets.
+                {t("prompts_org_desc", { orgName: currentOrg.name })}
               </p>
             </div>
           </div>
@@ -157,6 +161,7 @@ function OrgPromptsPage() {
 }
 
 function PromptsTabsSection({ orgId }: { orgId: string }) {
+  const { t } = useTranslation();
   const { data: promptsData, isLoading } = useQuery({
     queryKey: ["org-prompts", orgId],
     queryFn: () => promptsApi.listOrgPrompts(orgId),
@@ -181,7 +186,7 @@ function PromptsTabsSection({ orgId }: { orgId: string }) {
       <TabsList variant="underline">
         <TabsTrigger variant="underline" value="system" className="gap-2">
           <Sparkles className="h-4 w-4" />
-          System Prompts
+          {t("prompts_system")}
           {systemPrompts.length > 0 && (
             <Badge variant="secondary" className="ml-1 h-5 px-1.5">
               {systemPrompts.length}
@@ -190,7 +195,7 @@ function PromptsTabsSection({ orgId }: { orgId: string }) {
         </TabsTrigger>
         <TabsTrigger variant="underline" value="templates" className="gap-2">
           <MessageSquare className="h-4 w-4" />
-          Templates
+          {t("prompts_templates")}
           {templatePrompts.length > 0 && (
             <Badge variant="secondary" className="ml-1 h-5 px-1.5">
               {templatePrompts.length}
@@ -203,8 +208,8 @@ function PromptsTabsSection({ orgId }: { orgId: string }) {
         {systemPrompts.length === 0 ? (
           <EmptyState
             icon={Sparkles}
-            title="No system prompts"
-            description="System prompts configure the AI's behavior for all conversations in this organization."
+            title={t("prompts_no_system")}
+            description={t("prompts_system_desc")}
           />
         ) : (
           systemPrompts.map((prompt) => (
@@ -217,8 +222,8 @@ function PromptsTabsSection({ orgId }: { orgId: string }) {
         {templatePrompts.length === 0 ? (
           <EmptyState
             icon={MessageSquare}
-            title="No templates"
-            description="Templates are reusable text snippets that members can insert into their messages."
+            title={t("prompts_no_templates")}
+            description={t("prompts_templates_desc")}
           />
         ) : (
           templatePrompts.map((prompt) => (
@@ -249,6 +254,7 @@ function EmptyState({
 }
 
 function PromptCard({ prompt, orgId }: { prompt: Prompt; orgId: string }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const activateMutation = useMutation({
@@ -281,7 +287,7 @@ function PromptCard({ prompt, orgId }: { prompt: Prompt; orgId: string }) {
                     className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0"
                   >
                     <Check className="mr-1 h-3 w-3" />
-                    Active
+                    {t("prompts_active")}
                   </Badge>
                 )}
               </CardTitle>
@@ -303,13 +309,13 @@ function PromptCard({ prompt, orgId }: { prompt: Prompt; orgId: string }) {
                 ) : (
                   <Power className="mr-2 h-4 w-4" />
                 )}
-                Activate
+                {t("prompts_activate")}
               </Button>
             )}
             {isSystem && prompt.is_active && (
               <Badge variant="outline" className="text-muted-foreground">
                 <PowerOff className="mr-1 h-3 w-3" />
-                In Use
+                {t("prompts_in_use")}
               </Badge>
             )}
             <EditPromptDialog prompt={prompt} orgId={orgId} />
@@ -331,6 +337,7 @@ function PromptCard({ prompt, orgId }: { prompt: Prompt; orgId: string }) {
 }
 
 function CreatePromptDialog({ orgId }: { orgId: string }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -347,7 +354,7 @@ function CreatePromptDialog({ orgId }: { orgId: string }) {
     },
     onError: (err: ApiError) => {
       setError(
-        (err.body as { detail?: string })?.detail || "Failed to create prompt",
+        (err.body as { detail?: string })?.detail || t("prompts_failed_create"),
       );
     },
   });
@@ -364,7 +371,7 @@ function CreatePromptDialog({ orgId }: { orgId: string }) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !content.trim()) {
-      setError("Name and content are required");
+      setError(t("prompts_name_content_required"));
       return;
     }
     createMutation.mutate({
@@ -380,20 +387,18 @@ function CreatePromptDialog({ orgId }: { orgId: string }) {
       <DialogTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
-          Create Prompt
+          {t("prompts_create")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create Prompt</DialogTitle>
-          <DialogDescription>
-            Create a new prompt for your organization.
-          </DialogDescription>
+          <DialogTitle>{t("prompts_create")}</DialogTitle>
+          <DialogDescription>{t("prompts_create_desc")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="prompt-type">Type</Label>
+              <Label htmlFor="prompt-type">{t("prompts_type")}</Label>
               <Select
                 value={promptType}
                 onValueChange={(v) => setPromptType(v as PromptType)}
@@ -405,25 +410,25 @@ function CreatePromptDialog({ orgId }: { orgId: string }) {
                   <SelectItem value="template">
                     <div className="flex items-center gap-2">
                       <MessageSquare className="h-4 w-4" />
-                      Template
+                      {t("prompts_type_template")}
                     </div>
                   </SelectItem>
                   <SelectItem value="system">
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-4 w-4" />
-                      System Prompt
+                      {t("prompts_type_system")}
                     </div>
                   </SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
                 {promptType === "system"
-                  ? "System prompts configure the AI's behavior"
-                  : "Templates are text snippets users can insert"}
+                  ? t("prompts_type_system_desc")
+                  : t("prompts_type_template_desc")}
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">{t("com_name")}</Label>
               <Input
                 id="name"
                 value={name}
@@ -431,20 +436,22 @@ function CreatePromptDialog({ orgId }: { orgId: string }) {
                   setName(e.target.value);
                   setError(null);
                 }}
-                placeholder="e.g., Code Review Assistant"
+                placeholder={t("prompts_name_placeholder")}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Description (optional)</Label>
+              <Label htmlFor="description">
+                {t("org_description_optional")}
+              </Label>
               <Input
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief description of this prompt"
+                placeholder={t("prompts_description_placeholder")}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="content">Content</Label>
+              <Label htmlFor="content">{t("com_content")}</Label>
               <Textarea
                 id="content"
                 value={content}
@@ -454,8 +461,8 @@ function CreatePromptDialog({ orgId }: { orgId: string }) {
                 }}
                 placeholder={
                   promptType === "system"
-                    ? "You are a helpful assistant that..."
-                    : "Enter the template text..."
+                    ? t("prompts_content_system_placeholder")
+                    : t("prompts_content_template_placeholder")
                 }
                 rows={6}
                 className="font-mono text-sm"
@@ -465,13 +472,13 @@ function CreatePromptDialog({ orgId }: { orgId: string }) {
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={resetForm}>
-              Cancel
+              {t("com_cancel")}
             </Button>
             <Button type="submit" disabled={createMutation.isPending}>
               {createMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Create
+              {t("com_create")}
             </Button>
           </DialogFooter>
         </form>
@@ -487,6 +494,7 @@ function EditPromptDialog({
   prompt: Prompt;
   orgId: string;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(prompt.name);
   const [description, setDescription] = useState(prompt.description ?? "");
@@ -504,7 +512,7 @@ function EditPromptDialog({
     },
     onError: (err: ApiError) => {
       setError(
-        (err.body as { detail?: string })?.detail || "Failed to update prompt",
+        (err.body as { detail?: string })?.detail || t("prompts_failed_update"),
       );
     },
   });
@@ -512,7 +520,7 @@ function EditPromptDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !content.trim()) {
-      setError("Name and content are required");
+      setError(t("prompts_name_content_required"));
       return;
     }
     updateMutation.mutate({
@@ -544,13 +552,13 @@ function EditPromptDialog({
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit Prompt</DialogTitle>
-          <DialogDescription>Update the prompt details.</DialogDescription>
+          <DialogTitle>{t("prompts_edit")}</DialogTitle>
+          <DialogDescription>{t("prompts_edit_desc")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-name">Name</Label>
+              <Label htmlFor="edit-name">{t("com_name")}</Label>
               <Input
                 id="edit-name"
                 value={name}
@@ -561,7 +569,9 @@ function EditPromptDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-description">Description (optional)</Label>
+              <Label htmlFor="edit-description">
+                {t("org_description_optional")}
+              </Label>
               <Input
                 id="edit-description"
                 value={description}
@@ -569,7 +579,7 @@ function EditPromptDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-content">Content</Label>
+              <Label htmlFor="edit-content">{t("com_content")}</Label>
               <Textarea
                 id="edit-content"
                 value={content}
@@ -589,13 +599,13 @@ function EditPromptDialog({
               variant="outline"
               onClick={() => setOpen(false)}
             >
-              Cancel
+              {t("com_cancel")}
             </Button>
             <Button type="submit" disabled={updateMutation.isPending}>
               {updateMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Save Changes
+              {t("com_save_changes")}
             </Button>
           </DialogFooter>
         </form>
@@ -611,6 +621,7 @@ function DeletePromptButton({
   prompt: Prompt;
   orgId: string;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
@@ -633,14 +644,13 @@ function DeletePromptButton({
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Prompt</AlertDialogTitle>
+          <AlertDialogTitle>{t("prompts_delete")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete "{prompt.name}"? This action cannot
-            be undone.
+            {t("prompts_delete_confirm", { promptName: prompt.name })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t("com_cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={() => deleteMutation.mutate()}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -648,10 +658,10 @@ function DeletePromptButton({
             {deleteMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {t("prompts_deleting")}
               </>
             ) : (
-              "Delete"
+              t("com_delete")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

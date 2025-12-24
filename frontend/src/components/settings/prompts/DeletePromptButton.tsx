@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Loader2, Trash2 } from "lucide-react";
 import type { Prompt } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ export function DeletePromptButton({
   scope,
   compact = false,
 }: DeletePromptButtonProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
@@ -48,14 +50,13 @@ export function DeletePromptButton({
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Prompt</AlertDialogTitle>
+          <AlertDialogTitle>{t("prompts_delete")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete "{prompt.name}"? This action cannot
-            be undone.
+            {t("prompts_delete_confirm_msg", { name: prompt.name })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t("com_cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={() => deleteMutation.mutate()}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -63,10 +64,10 @@ export function DeletePromptButton({
             {deleteMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 size-4 animate-spin" />
-                Deleting...
+                {t("prompts_deleting")}
               </>
             ) : (
-              "Delete"
+              t("com_delete")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

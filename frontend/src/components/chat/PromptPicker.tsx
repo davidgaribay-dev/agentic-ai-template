@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import {
   FileText,
@@ -32,6 +33,7 @@ export function PromptPicker({
   onSelect,
   disabled = false,
 }: PromptPickerProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -63,7 +65,7 @@ export function PromptPicker({
     // Add org prompts if available
     if (availablePrompts?.org_prompts?.length) {
       groups.push({
-        label: "Organization",
+        label: t("com_organization"),
         icon: <Building2 className="h-4 w-4" />,
         prompts: availablePrompts.org_prompts,
       });
@@ -72,7 +74,7 @@ export function PromptPicker({
     // Add team prompts if available
     if (availablePrompts?.team_prompts?.length) {
       groups.push({
-        label: "Team",
+        label: t("com_team"),
         icon: <Users className="h-4 w-4" />,
         prompts: availablePrompts.team_prompts,
       });
@@ -83,14 +85,14 @@ export function PromptPicker({
       availablePrompts?.user_prompts ?? userPrompts?.data ?? [];
     if (personalPrompts.length) {
       groups.push({
-        label: "Personal",
+        label: t("prompts_personal_info"),
         icon: <User className="h-4 w-4" />,
         prompts: personalPrompts,
       });
     }
 
     return groups;
-  }, [availablePrompts, userPrompts]);
+  }, [availablePrompts, userPrompts, t]);
 
   // Filter prompts based on search
   const filteredGroups = useMemo(() => {
@@ -128,7 +130,7 @@ export function PromptPicker({
           size="icon"
           disabled={disabled}
           className="h-8 w-8 rounded-md hover:bg-muted transition-colors"
-          aria-label="Insert template"
+          aria-label={t("aria_insert_template")}
         >
           <FileText className="h-4 w-4" />
         </Button>
@@ -142,9 +144,11 @@ export function PromptPicker({
         <div className="flex flex-col">
           {/* Header */}
           <div className="border-b px-3 py-2">
-            <h4 className="text-sm font-medium">Insert Template</h4>
+            <h4 className="text-sm font-medium">
+              {t("prompts_insert_template")}
+            </h4>
             <p className="text-xs text-muted-foreground">
-              Choose a prompt template to insert
+              {t("prompts_choose_template")}
             </p>
           </div>
 
@@ -153,7 +157,7 @@ export function PromptPicker({
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search templates..."
+                placeholder={t("prompts_search_templates")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-8 pl-8 text-sm"
@@ -171,16 +175,16 @@ export function PromptPicker({
               <div className="py-8 text-center">
                 <FileText className="mx-auto h-8 w-8 text-muted-foreground/50" />
                 <p className="mt-2 text-sm text-muted-foreground">
-                  No templates available
+                  {t("prompts_no_templates_available")}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Create templates in settings
+                  {t("prompts_create_in_settings")}
                 </p>
               </div>
             ) : filteredGroups.length === 0 ? (
               <div className="py-8 text-center">
                 <p className="text-sm text-muted-foreground">
-                  No templates match "{search}"
+                  {t("tools_no_match", { search })}
                 </p>
               </div>
             ) : (

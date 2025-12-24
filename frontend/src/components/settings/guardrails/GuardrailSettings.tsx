@@ -3,6 +3,7 @@
  */
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Info, AlertTriangle, Shield } from "lucide-react";
 
 import type { GuardrailAction, OrganizationGuardrailsUpdate } from "@/lib/api";
@@ -41,6 +42,7 @@ import { PIITypeSelector } from "./PIITypeSelector";
 import { GuardrailTestPanel } from "./GuardrailTestPanel";
 
 export function GuardrailSettings(props: GuardrailSettingsProps) {
+  const { t } = useTranslation();
   const {
     guardrailsEnabled,
     inputBlockedKeywords,
@@ -66,8 +68,8 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
   const [piiOpen, setPiiOpen] = useState(true);
 
   const getTooltipMessage = (): string | null => {
-    if (disabledBy === "org") return "Disabled by organization settings";
-    if (disabledBy === "team") return "Disabled by team settings";
+    if (disabledBy === "org") return t("guardrails_disabled_by_org");
+    if (disabledBy === "team") return t("guardrails_disabled_by_team");
     return null;
   };
 
@@ -88,7 +90,7 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
               htmlFor="guardrails-enabled"
               className={cn(isDisabledByHigherLevel && "text-muted-foreground")}
             >
-              Guardrails Enabled
+              {t("guardrails_enabled")}
             </Label>
             {isDisabledByHigherLevel && tooltipMessage && (
               <TooltipProvider>
@@ -104,7 +106,7 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Enable AI content filtering for input and output messages
+            {t("guardrails_enable_desc")}
           </p>
         </div>
         <Switch
@@ -120,11 +122,13 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
       {/* Org-level override controls */}
       {level === "org" && (
         <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
-          <div className="text-sm font-medium">Override Settings</div>
+          <div className="text-sm font-medium">
+            {t("guardrails_override_settings")}
+          </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="allow-team-override" className="text-sm">
-                Allow team override
+                {t("guardrails_allow_team_override")}
               </Label>
               <Switch
                 id="allow-team-override"
@@ -137,7 +141,7 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
             </div>
             <div className="flex items-center justify-between">
               <Label htmlFor="allow-user-override" className="text-sm">
-                Allow user override
+                {t("guardrails_allow_user_override")}
               </Label>
               <Switch
                 id="allow-user-override"
@@ -156,14 +160,17 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
       <Collapsible open={inputOpen} onOpenChange={setInputOpen}>
         <CollapsibleTrigger className="flex items-center gap-2 w-full py-2 text-sm font-medium hover:text-foreground/80">
           <Shield className="size-4" />
-          Input Guardrails
+          {t("guardrails_input")}
           <Badge variant="secondary" className="ml-auto text-xs">
-            {inputBlockedKeywords.length + inputBlockedPatterns.length} rules
+            {inputBlockedKeywords.length + inputBlockedPatterns.length}{" "}
+            {t("guardrails_rules")}
           </Badge>
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-3 pt-2">
           <div className="flex items-center gap-3">
-            <Label className="text-sm w-32">Action on match:</Label>
+            <Label className="text-sm w-32">
+              {t("guardrails_action_on_match")}
+            </Label>
             <Select
               value={inputAction}
               onValueChange={(v) =>
@@ -177,16 +184,23 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
               <SelectContent>
                 {ACTION_OPTIONS.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
+                    {t(
+                      opt.labelKey as
+                        | "guardrails_action_block"
+                        | "guardrails_action_warn"
+                        | "guardrails_action_redact",
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label className="text-sm">Blocked Keywords</Label>
+            <Label className="text-sm">
+              {t("guardrails_blocked_keywords")}
+            </Label>
             <p className="text-xs text-muted-foreground mb-2">
-              Case-insensitive exact word matches
+              {t("guardrails_blocked_keywords_desc")}
             </p>
             <KeywordInput
               keywords={inputBlockedKeywords}
@@ -195,9 +209,11 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
             />
           </div>
           <div>
-            <Label className="text-sm">Blocked Patterns (Regex)</Label>
+            <Label className="text-sm">
+              {t("guardrails_blocked_patterns")}
+            </Label>
             <p className="text-xs text-muted-foreground mb-2">
-              Regular expressions to match against input
+              {t("guardrails_blocked_patterns_input_desc")}
             </p>
             <PatternInput
               patterns={inputBlockedPatterns}
@@ -214,14 +230,17 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
       <Collapsible open={outputOpen} onOpenChange={setOutputOpen}>
         <CollapsibleTrigger className="flex items-center gap-2 w-full py-2 text-sm font-medium hover:text-foreground/80">
           <Shield className="size-4" />
-          Output Guardrails
+          {t("guardrails_output")}
           <Badge variant="secondary" className="ml-auto text-xs">
-            {outputBlockedKeywords.length + outputBlockedPatterns.length} rules
+            {outputBlockedKeywords.length + outputBlockedPatterns.length}{" "}
+            {t("guardrails_rules")}
           </Badge>
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-3 pt-2">
           <div className="flex items-center gap-3">
-            <Label className="text-sm w-32">Action on match:</Label>
+            <Label className="text-sm w-32">
+              {t("guardrails_action_on_match")}
+            </Label>
             <Select
               value={outputAction}
               onValueChange={(v) =>
@@ -235,16 +254,23 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
               <SelectContent>
                 {ACTION_OPTIONS.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
+                    {t(
+                      opt.labelKey as
+                        | "guardrails_action_block"
+                        | "guardrails_action_warn"
+                        | "guardrails_action_redact",
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label className="text-sm">Blocked Keywords</Label>
+            <Label className="text-sm">
+              {t("guardrails_blocked_keywords")}
+            </Label>
             <p className="text-xs text-muted-foreground mb-2">
-              Case-insensitive exact word matches
+              {t("guardrails_blocked_keywords_desc")}
             </p>
             <KeywordInput
               keywords={outputBlockedKeywords}
@@ -253,9 +279,11 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
             />
           </div>
           <div>
-            <Label className="text-sm">Blocked Patterns (Regex)</Label>
+            <Label className="text-sm">
+              {t("guardrails_blocked_patterns")}
+            </Label>
             <p className="text-xs text-muted-foreground mb-2">
-              Regular expressions to match against output
+              {t("guardrails_blocked_patterns_output_desc")}
             </p>
             <PatternInput
               patterns={outputBlockedPatterns}
@@ -272,10 +300,10 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
       <Collapsible open={piiOpen} onOpenChange={setPiiOpen}>
         <CollapsibleTrigger className="flex items-center gap-2 w-full py-2 text-sm font-medium hover:text-foreground/80">
           <AlertTriangle className="size-4" />
-          PII Detection
+          {t("guardrails_pii")}
           {piiDetectionEnabled && (
             <Badge variant="secondary" className="ml-auto text-xs">
-              {piiTypes.length} types
+              {piiTypes.length} {t("guardrails_pii_types")}
             </Badge>
           )}
         </CollapsibleTrigger>
@@ -283,10 +311,10 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="pii-enabled" className="text-sm">
-                Enable PII Detection
+                {t("guardrails_pii_enable")}
               </Label>
               <p className="text-xs text-muted-foreground">
-                Automatically detect personal identifiable information
+                {t("guardrails_pii_desc")}
               </p>
             </div>
             <Switch
@@ -301,7 +329,9 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
           {piiDetectionEnabled && (
             <>
               <div className="flex items-center gap-3">
-                <Label className="text-sm w-32">Action on match:</Label>
+                <Label className="text-sm w-32">
+                  {t("guardrails_action_on_match")}
+                </Label>
                 <Select
                   value={piiAction}
                   onValueChange={(v) =>
@@ -315,14 +345,21 @@ export function GuardrailSettings(props: GuardrailSettingsProps) {
                   <SelectContent>
                     {ACTION_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
+                        {t(
+                          opt.labelKey as
+                            | "guardrails_action_block"
+                            | "guardrails_action_warn"
+                            | "guardrails_action_redact",
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label className="text-sm mb-2 block">Detect:</Label>
+                <Label className="text-sm mb-2 block">
+                  {t("guardrails_detect")}
+                </Label>
                 <PIITypeSelector
                   selectedTypes={piiTypes}
                   onChange={(types) => handleUpdate({ pii_types: types })}

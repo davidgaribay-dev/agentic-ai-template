@@ -17,6 +17,7 @@ import {
   type UseMutationResult,
 } from "@tanstack/react-query";
 import type { User, Token } from "./api";
+import i18n from "@/locales/i18n";
 
 export type { User };
 
@@ -155,7 +156,7 @@ async function fetchWithAuth<T>(
       if (!retryResponse.ok) {
         const error = await retryResponse
           .json()
-          .catch(() => ({ detail: "Request failed" }));
+          .catch(() => ({ detail: i18n.t("error_request_failed") }));
         throw new Error(error.detail || `HTTP ${retryResponse.status}`);
       }
       return retryResponse.json();
@@ -165,7 +166,7 @@ async function fetchWithAuth<T>(
   if (!response.ok) {
     const error = await response
       .json()
-      .catch(() => ({ detail: "Request failed" }));
+      .catch(() => ({ detail: i18n.t("error_request_failed") }));
     throw new Error(error.detail || `HTTP ${response.status}`);
   }
 
@@ -186,8 +187,8 @@ async function loginApi(credentials: LoginCredentials): Promise<Token> {
   if (!response.ok) {
     const error = await response
       .json()
-      .catch(() => ({ detail: "Login failed" }));
-    throw new Error(error.detail || "Invalid credentials");
+      .catch(() => ({ detail: i18n.t("error_login_failed") }));
+    throw new Error(error.detail || i18n.t("error_invalid_credentials"));
   }
 
   return response.json();
@@ -377,7 +378,7 @@ export function useRegisterWithInvitation() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to login after registration");
+        throw new Error(i18n.t("error_login_after_register"));
       }
 
       const tokenData: Token = await response.json();

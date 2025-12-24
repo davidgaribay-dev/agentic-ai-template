@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useCallback, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { MessageSquareOff } from "lucide-react";
 
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/chat")({
 });
 
 function ChatPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const chatRef = useRef<ChatHandle>(null);
   const { currentOrg, currentTeam } = useWorkspace();
@@ -108,10 +110,10 @@ function ChatPage() {
     const disabledBy = effectiveSettings.chat_disabled_by;
     const message =
       disabledBy === "org"
-        ? "Chat has been disabled by your organization."
+        ? t("chat_disabled_by_org")
         : disabledBy === "team"
-          ? "Chat has been disabled by your team."
-          : "Chat is currently disabled.";
+          ? t("chat_disabled_by_team")
+          : t("chat_disabled");
 
     return (
       <div className="flex h-full items-center justify-center">
@@ -121,10 +123,12 @@ function ChatPage() {
               <MessageSquareOff className="size-8 text-muted-foreground" />
             </div>
           </div>
-          <h1 className="text-xl font-semibold mb-2">Chat Unavailable</h1>
+          <h1 className="text-xl font-semibold mb-2">
+            {t("chat_unavailable")}
+          </h1>
           <p className="text-muted-foreground">{message}</p>
           <p className="text-sm text-muted-foreground mt-4">
-            Contact your administrator if you need access to this feature.
+            {t("chat_contact_admin")}
           </p>
         </div>
       </div>

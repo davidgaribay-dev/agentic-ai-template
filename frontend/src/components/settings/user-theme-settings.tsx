@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   CardContent,
@@ -20,6 +21,7 @@ import { useWorkspace } from "@/lib/workspace";
 import type { UserThemeSettingsUpdate } from "@/lib/api";
 
 export function UserThemeSettings() {
+  const { t } = useTranslation();
   const { currentOrg, currentTeam } = useWorkspace();
   const { data: userSettings, isLoading: isLoadingSettings } =
     useUserThemeSettings();
@@ -103,7 +105,7 @@ export function UserThemeSettings() {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>Failed to load theme options.</AlertDescription>
+        <AlertDescription>{t("theme_failed_load")}</AlertDescription>
       </Alert>
     );
   }
@@ -151,21 +153,18 @@ export function UserThemeSettings() {
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Theme customization is disabled by your{" "}
-            {customizationDisabledBy === "org" ? "organization" : "team"}. You
-            are using the{" "}
-            {customizationDisabledBy === "org" ? "organization" : "team"}{" "}
-            default theme.
+            {t("theme_disabled_by_org_team", {
+              level:
+                customizationDisabledBy === "org" ? "organization" : "team",
+            })}
           </AlertDescription>
         </Alert>
       )}
 
       <Card>
         <CardHeader>
-          <CardTitle>Theme Mode</CardTitle>
-          <CardDescription>
-            Choose how your theme adapts to light and dark modes
-          </CardDescription>
+          <CardTitle>{t("theme_mode_label")}</CardTitle>
+          <CardDescription>{t("theme_mode_desc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ThemeModeSelector
@@ -178,10 +177,8 @@ export function UserThemeSettings() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Light Theme</CardTitle>
-          <CardDescription>
-            Theme used in light mode (or when system is in light mode)
-          </CardDescription>
+          <CardTitle>{t("theme_light_theme")}</CardTitle>
+          <CardDescription>{t("theme_light_theme_desc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ThemeGrid
@@ -195,10 +192,8 @@ export function UserThemeSettings() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Dark Theme</CardTitle>
-          <CardDescription>
-            Theme used in dark mode (or when system is in dark mode)
-          </CardDescription>
+          <CardTitle>{t("theme_dark_theme")}</CardTitle>
+          <CardDescription>{t("theme_dark_theme_desc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ThemeGrid
@@ -217,13 +212,13 @@ export function UserThemeSettings() {
             onClick={handleReset}
             disabled={updateMutation.isPending}
           >
-            Reset
+            {t("com_reset")}
           </Button>
           <Button onClick={handleSave} disabled={updateMutation.isPending}>
             {updateMutation.isPending && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
-            Save Changes
+            {t("com_save_changes")}
           </Button>
         </div>
       )}
@@ -231,9 +226,7 @@ export function UserThemeSettings() {
       {updateMutation.isError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Failed to save theme settings. Please try again.
-          </AlertDescription>
+          <AlertDescription>{t("theme_failed_save")}</AlertDescription>
         </Alert>
       )}
     </div>

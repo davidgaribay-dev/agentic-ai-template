@@ -5,6 +5,7 @@
  */
 
 import { apiClient, getAuthHeader, API_BASE, ApiError } from "./client";
+import i18n from "@/locales/i18n";
 
 export interface ChatRequest {
   message: string;
@@ -200,7 +201,7 @@ export const agentApi = {
 
     const reader = response.body?.getReader();
     if (!reader) {
-      throw new Error("No response body");
+      throw new Error(i18n.t("error_no_response_body"));
     }
 
     const decoder = new TextDecoder();
@@ -239,7 +240,7 @@ export const agentApi = {
                 yield {
                   type: "error",
                   data: String(
-                    parsed.error || parsed.message || "Unknown error",
+                    parsed.error || parsed.message || i18n.t("error_unknown"),
                   ),
                 } satisfies StreamErrorEvent;
               } else if (currentEvent === "done") {
@@ -352,7 +353,7 @@ export const agentApi = {
 
     const reader = response.body?.getReader();
     if (!reader) {
-      throw new Error("No response body");
+      throw new Error(i18n.t("error_no_response_body"));
     }
 
     const decoder = new TextDecoder();
@@ -383,7 +384,7 @@ export const agentApi = {
                 yield {
                   type: "error",
                   data: String(
-                    parsed.error || parsed.message || "Unknown error",
+                    parsed.error || parsed.message || i18n.t("error_unknown"),
                   ),
                 } satisfies StreamErrorEvent;
               } else if (currentEvent === "done") {

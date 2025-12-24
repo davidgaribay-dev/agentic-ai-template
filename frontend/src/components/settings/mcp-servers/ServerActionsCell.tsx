@@ -3,6 +3,7 @@
  */
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   MoreHorizontal,
   ExternalLink,
@@ -51,6 +52,7 @@ export function ServerActionsCell({
   onDelete,
   isToggling,
 }: ServerActionsCellProps) {
+  const { t } = useTranslation();
   const [testDialogOpen, setTestDialogOpen] = useState(false);
 
   return (
@@ -64,12 +66,12 @@ export function ServerActionsCell({
         <DropdownMenuContent align="end" className="w-44">
           <DropdownMenuItem onSelect={() => setTestDialogOpen(true)}>
             <PlayCircle className="mr-2 size-3.5" />
-            Test Connection
+            {t("mcp_test_connection")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => window.open(server.url, "_blank")}>
             <ExternalLink className="mr-2 size-3.5" />
-            Open URL
+            {t("mcp_open_url")}
           </DropdownMenuItem>
           <EditServerDialog server={server} scope={scope} />
           <DropdownMenuSeparator />
@@ -80,12 +82,12 @@ export function ServerActionsCell({
             {server.enabled ? (
               <>
                 <PowerOff className="mr-2 size-3.5" />
-                Disable
+                {t("mcp_disable")}
               </>
             ) : (
               <>
                 <Power className="mr-2 size-3.5" />
-                Enable
+                {t("mcp_enable")}
               </>
             )}
           </DropdownMenuItem>
@@ -97,24 +99,25 @@ export function ServerActionsCell({
                 onSelect={(e) => e.preventDefault()}
               >
                 <Trash2 className="mr-2 size-3.5" />
-                Delete
+                {t("com_delete")}
               </DropdownMenuItem>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete MCP Server</AlertDialogTitle>
+                <AlertDialogTitle>
+                  {t("mcp_delete_server_title")}
+                </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to delete "{server.name}"? This action
-                  cannot be undone.
+                  {t("mcp_delete_server_confirm", { name: server.name })}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{t("com_cancel")}</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={onDelete}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  Delete
+                  {t("com_delete")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

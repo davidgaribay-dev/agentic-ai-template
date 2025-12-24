@@ -9,6 +9,7 @@
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Building2,
@@ -47,6 +48,7 @@ export const Route = createFileRoute("/invite")({
 });
 
 function InvitePage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { token } = Route.useSearch();
   const { data: currentUser, isLoading: isLoadingUser } = useCurrentUser();
@@ -86,17 +88,17 @@ function InvitePage() {
     setLocalError(null);
 
     if (password !== confirmPassword) {
-      setLocalError("Passwords do not match");
+      setLocalError(t("auth_passwords_no_match"));
       return;
     }
 
     if (password.length < 8) {
-      setLocalError("Password must be at least 8 characters");
+      setLocalError(t("auth_password_min_length"));
       return;
     }
 
     if (!invitationInfo?.email) {
-      setLocalError("Invalid invitation");
+      setLocalError(t("error_invalid_invitation"));
       return;
     }
 
@@ -133,7 +135,7 @@ function InvitePage() {
           <CardContent className="py-12">
             <div className="flex flex-col items-center gap-4">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-              <p className="text-muted-foreground">Loading invitation...</p>
+              <p className="text-muted-foreground">{t("invite_loading")}</p>
             </div>
           </CardContent>
         </Card>
@@ -143,7 +145,7 @@ function InvitePage() {
 
   if (invitationError || !invitationInfo) {
     const errorMessage =
-      (invitationError as Error)?.message || "Invalid or expired invitation";
+      (invitationError as Error)?.message || t("invite_expired_desc");
     return (
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-background via-background to-muted p-4">
         {/* Background decoration */}
@@ -157,7 +159,7 @@ function InvitePage() {
               <AlertCircle className="h-7 w-7 text-destructive" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight">
-              Invalid Invitation
+              {t("invite_invalid")}
             </h1>
             <p className="mt-1 text-muted-foreground">{errorMessage}</p>
           </div>
@@ -168,7 +170,7 @@ function InvitePage() {
                 className="w-full shadow-lg shadow-primary/25"
                 size="lg"
               >
-                <Link to="/">Go to Home</Link>
+                <Link to="/">{t("error_go_home")}</Link>
               </Button>
             </CardContent>
           </Card>
@@ -193,11 +195,10 @@ function InvitePage() {
               <Clock className="h-7 w-7 text-amber-500" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight">
-              Invitation Expired
+              {t("invite_expired")}
             </h1>
             <p className="mt-1 text-muted-foreground">
-              This invitation has expired. Please contact the organization admin
-              for a new invitation.
+              {t("invite_expired_desc")}
             </p>
           </div>
           <Card className="border-border/50 bg-card/80 shadow-xl shadow-black/5 backdrop-blur-sm">
@@ -207,7 +208,7 @@ function InvitePage() {
                 className="w-full shadow-lg shadow-primary/25"
                 size="lg"
               >
-                <Link to="/">Go to Home</Link>
+                <Link to="/">{t("error_go_home")}</Link>
               </Button>
             </CardContent>
           </Card>
@@ -235,21 +236,23 @@ function InvitePage() {
               <Building2 className="h-7 w-7 text-primary-foreground" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight">
-              Join {invitationInfo.organization_name}
+              {t("invite_join_org", {
+                orgName: invitationInfo.organization_name,
+              })}
             </h1>
             <p className="mt-1 text-muted-foreground">
               {invitationInfo.invited_by_name
-                ? `${invitationInfo.invited_by_name} invited you`
-                : "You've been invited to join"}
+                ? t("invite_invited_by", {
+                    name: invitationInfo.invited_by_name,
+                  })
+                : t("invite_been_invited")}
             </p>
           </div>
 
           <Card className="border-border/50 bg-card/80 shadow-xl shadow-black/5 backdrop-blur-sm">
             <CardHeader className="pb-4">
-              <CardTitle className="text-xl">Accept Invitation</CardTitle>
-              <CardDescription>
-                Review the details and join the organization
-              </CardDescription>
+              <CardTitle className="text-xl">{t("invite_accept")}</CardTitle>
+              <CardDescription>{t("invite_review_join")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Invitation details */}
@@ -260,7 +263,7 @@ function InvitePage() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">
-                      Organization
+                      {t("invite_organization")}
                     </p>
                     <p className="font-medium">
                       {invitationInfo.organization_name}
@@ -273,7 +276,9 @@ function InvitePage() {
                       <Users className="h-4 w-4 text-primary" />
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Team</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("invite_team")}
+                      </p>
                       <p className="font-medium">
                         {invitationInfo.team_name}{" "}
                         <span className="text-muted-foreground">
@@ -288,7 +293,9 @@ function InvitePage() {
                     <User className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Your Role</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("invite_your_role")}
+                    </p>
                     <p className="font-medium capitalize">
                       {invitationInfo.org_role}
                     </p>
@@ -299,21 +306,19 @@ function InvitePage() {
               {!isCorrectEmail && (
                 <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
                   <p>
-                    This invitation was sent to{" "}
-                    <strong>{invitationInfo.email}</strong>, but you are logged
-                    in as <strong>{currentUser.email}</strong>.
+                    {t("invite_email_mismatch", {
+                      inviteEmail: invitationInfo.email,
+                      currentEmail: currentUser.email,
+                    })}
                   </p>
-                  <p className="mt-2">
-                    Please log out and sign up with the correct email, or
-                    contact the admin.
-                  </p>
+                  <p className="mt-2">{t("invite_email_mismatch_action")}</p>
                 </div>
               )}
 
               {acceptInvitation.error && (
                 <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
                   {(acceptInvitation.error as Error).message ||
-                    "Failed to accept invitation"}
+                    t("invite_failed_accept")}
                 </div>
               )}
             </CardContent>
@@ -325,17 +330,17 @@ function InvitePage() {
                 disabled={!isCorrectEmail || acceptInvitation.isPending}
               >
                 {acceptInvitation.isPending ? (
-                  "Joining..."
+                  t("invite_joining")
                 ) : (
                   <>
                     <CheckCircle className="h-4 w-4" />
-                    Accept Invitation
+                    {t("invite_accept")}
                   </>
                 )}
               </Button>
               {!isCorrectEmail && (
                 <Button variant="outline" className="w-full" size="lg" asChild>
-                  <Link to="/login">Log in with different account</Link>
+                  <Link to="/login">{t("invite_login_different")}</Link>
                 </Button>
               )}
             </CardFooter>
@@ -363,19 +368,21 @@ function InvitePage() {
             <UserPlus className="h-7 w-7 text-primary-foreground" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Join {invitationInfo.organization_name}
+            {t("invite_join_org", {
+              orgName: invitationInfo.organization_name,
+            })}
           </h1>
           <p className="mt-1 text-muted-foreground">
-            Create your account to get started
+            {t("invite_create_account")}
           </p>
         </div>
 
         <Card className="border-border/50 bg-card/80 shadow-xl shadow-black/5 backdrop-blur-sm">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl">Create your account</CardTitle>
-            <CardDescription>
-              Complete the form below to join the organization
-            </CardDescription>
+            <CardTitle className="text-xl">
+              {t("invite_create_title")}
+            </CardTitle>
+            <CardDescription>{t("invite_create_desc")}</CardDescription>
           </CardHeader>
           <form onSubmit={handleNewUserSubmit}>
             <CardContent className="space-y-4">
@@ -392,7 +399,9 @@ function InvitePage() {
                     <Mail className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Your Email</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("invite_your_email")}
+                    </p>
                     <p className="font-medium">{invitationInfo.email}</p>
                   </div>
                 </div>
@@ -402,7 +411,7 @@ function InvitePage() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">
-                      Organization
+                      {t("invite_organization")}
                     </p>
                     <p className="font-medium">
                       {invitationInfo.organization_name}
@@ -415,7 +424,9 @@ function InvitePage() {
                       <Users className="h-4 w-4 text-primary" />
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Team</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("invite_team")}
+                      </p>
                       <p className="font-medium">{invitationInfo.team_name}</p>
                     </div>
                   </div>
@@ -425,7 +436,9 @@ function InvitePage() {
                     <User className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Your Role</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("invite_your_role")}
+                    </p>
                     <p className="font-medium capitalize">
                       {invitationInfo.org_role}
                     </p>
@@ -435,15 +448,14 @@ function InvitePage() {
 
               <div className="space-y-2">
                 <Label htmlFor="fullName">
-                  Full Name{" "}
-                  <span className="text-muted-foreground">(optional)</span>
+                  {t("invite_full_name_optional")}
                 </Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="fullName"
                     type="text"
-                    placeholder="John Doe"
+                    placeholder={t("invite_full_name_placeholder")}
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     autoComplete="name"
@@ -452,13 +464,13 @@ function InvitePage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t("invite_password_label")}</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="password"
                     type="password"
-                    placeholder="At least 8 characters"
+                    placeholder={t("auth_password_min_chars")}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -469,13 +481,15 @@ function InvitePage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword">
+                  {t("invite_confirm_password")}
+                </Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="confirmPassword"
                     type="password"
-                    placeholder="Confirm your password"
+                    placeholder={t("invite_confirm_placeholder")}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
@@ -494,25 +508,27 @@ function InvitePage() {
                 disabled={registerWithInvitation.isPending}
               >
                 {registerWithInvitation.isPending
-                  ? "Creating account..."
-                  : "Create Account & Join"}
+                  ? t("auth_creating_account")
+                  : t("invite_create_join")}
               </Button>
               <div className="relative w-full">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">or</span>
+                  <span className="bg-card px-2 text-muted-foreground">
+                    {t("com_or")}
+                  </span>
                 </div>
               </div>
               <p className="text-center text-sm text-muted-foreground">
-                Already have an account?{" "}
+                {t("auth_have_account")}{" "}
                 <Link
                   to="/login"
                   search={{ redirect: `/invite?token=${token}` }}
                   className="font-medium text-primary transition-colors hover:text-primary/80"
                 >
-                  Sign in
+                  {t("auth_sign_in")}
                 </Link>
               </p>
             </CardFooter>

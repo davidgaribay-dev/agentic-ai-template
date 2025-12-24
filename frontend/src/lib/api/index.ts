@@ -242,7 +242,7 @@ export {
 export {
   guardrailsApi,
   PII_TYPES,
-  PII_TYPE_LABELS,
+  PII_TYPE_LABEL_KEYS,
   type GuardrailAction,
   type PIIType,
   type GuardrailSettingsBase,

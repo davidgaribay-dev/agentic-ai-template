@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useRef, useCallback, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowUp, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ interface ChatInputProps {
 export function ChatInput({
   onSubmit,
   onStop,
-  placeholder = "Type a message...",
+  placeholder,
   disabled = false,
   isStreaming = false,
   className,
@@ -43,9 +44,11 @@ export function ChatInput({
   teamId,
   enableAttachments = true,
 }: ChatInputProps) {
+  const { t } = useTranslation();
   const [value, setValue] = useState("");
   const [isPending, setIsPending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const defaultPlaceholder = t("chat_placeholder");
 
   // Media upload hook (for inline attachments - images and documents)
   const mediaUpload = useMediaUpload({
@@ -152,12 +155,12 @@ export function ChatInput({
           );
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : "Upload failed";
+            error instanceof Error ? error.message : t("docs_upload_failed");
           console.error(`Failed to upload ${file.name}: ${message}`);
         }
       }
     },
-    [organizationId, teamId],
+    [organizationId, teamId, t],
   );
 
   // Handle paste events for files
@@ -241,7 +244,7 @@ export function ChatInput({
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
-        placeholder={placeholder}
+        placeholder={placeholder ?? defaultPlaceholder}
         disabled={disabled}
         className="flex-1 border-0 focus-visible:ring-0 focus-visible:border-0 resize-none px-3 pt-3 pb-0 !min-h-0 bg-transparent max-h-[7.5rem] [field-sizing:content]"
         rows={2}
@@ -275,7 +278,7 @@ export function ChatInput({
               onClick={onStop}
               variant="outline"
               size="icon"
-              aria-label="Stop generating"
+              aria-label={t("chat_stop")}
               className="rounded-full"
             >
               <Square className="size-3 fill-current" />
@@ -285,7 +288,7 @@ export function ChatInput({
               onClick={handleSubmit}
               disabled={!canSubmit}
               size="icon"
-              aria-label={isPending ? "Sending..." : "Send message"}
+              aria-label={isPending ? t("chat_sending") : t("chat_send")}
               className="rounded-full"
             >
               <ArrowUp className="size-4" />

@@ -3,6 +3,7 @@
  */
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,9 +42,9 @@ import type { Scope } from "./types";
 import { getQueryKeyForScope } from "./hooks";
 
 const addServerSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "prompts_name_required"),
   description: z.string().optional(),
-  url: z.string().url("Must be a valid URL"),
+  url: z.string().url("error_invalid_url"),
   transport: z.enum(["http", "sse", "streamable_http"]),
   auth_type: z.enum(["none", "bearer", "api_key"]),
   auth_header_name: z.string().optional(),
@@ -59,6 +60,7 @@ interface AddServerDialogProps {
 }
 
 export function AddServerDialog({ scope }: AddServerDialogProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -93,7 +95,7 @@ export function AddServerDialog({ scope }: AddServerDialogProps) {
       resetForm();
     },
     onError: (err: unknown) => {
-      setError(getApiErrorMessage(err, "Failed to create server"));
+      setError(getApiErrorMessage(err, t("mcp_failed_create")));
     },
   });
 
@@ -115,35 +117,36 @@ export function AddServerDialog({ scope }: AddServerDialogProps) {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <Plus className="size-4 mr-1.5" />
-          Add Server
+          {t("mcp_add_server")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add MCP Server</DialogTitle>
-          <DialogDescription>
-            Connect to a remote MCP server to enable additional tools.
-          </DialogDescription>
+          <DialogTitle>{t("mcp_add_server_title")}</DialogTitle>
+          <DialogDescription>{t("mcp_add_server_desc")}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name">{t("com_name")}</Label>
                 <Input
                   id="name"
                   {...form.register("name")}
-                  placeholder="My MCP Server"
+                  placeholder={t("mcp_server_name_placeholder")}
                 />
-                {form.formState.errors.name && (
+                {form.formState.errors.name?.message && (
                   <p className="text-sm text-destructive">
-                    {form.formState.errors.name.message}
+                    {t(
+                      form.formState.errors.name
+                        .message as "prompts_name_required",
+                    )}
                   </p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="transport">Transport</Label>
+                <Label htmlFor="transport">{t("mcp_transport")}</Label>
                 <Select
                   value={form.watch("transport")}
                   onValueChange={(v) =>
@@ -154,10 +157,14 @@ export function AddServerDialog({ scope }: AddServerDialogProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="http">HTTP</SelectItem>
-                    <SelectItem value="sse">SSE</SelectItem>
+                    <SelectItem value="http">
+                      {t("mcp_transport_http")}
+                    </SelectItem>
+                    <SelectItem value="sse">
+                      {t("mcp_transport_sse")}
+                    </SelectItem>
                     <SelectItem value="streamable_http">
-                      Streamable HTTP
+                      {t("mcp_transport_streamable")}
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -165,33 +172,35 @@ export function AddServerDialog({ scope }: AddServerDialogProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="url">URL</Label>
+              <Label htmlFor="url">{t("mcp_url")}</Label>
               <Input
                 id="url"
                 type="url"
                 {...form.register("url")}
-                placeholder="https://mcp.example.com"
+                placeholder={t("mcp_server_url_placeholder")}
               />
-              {form.formState.errors.url && (
+              {form.formState.errors.url?.message && (
                 <p className="text-sm text-destructive">
-                  {form.formState.errors.url.message}
+                  {t(form.formState.errors.url.message as "error_invalid_url")}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description (optional)</Label>
+              <Label htmlFor="description">
+                {t("prompts_description_optional")}
+              </Label>
               <Textarea
                 id="description"
                 {...form.register("description")}
-                placeholder="What tools does this server provide?"
+                placeholder={t("mcp_server_description_placeholder")}
                 rows={2}
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="auth_type">Authentication</Label>
+                <Label htmlFor="auth_type">{t("mcp_authentication")}</Label>
                 <Select
                   value={authType}
                   onValueChange={(v) =>
@@ -202,20 +211,28 @@ export function AddServerDialog({ scope }: AddServerDialogProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="bearer">Bearer Token</SelectItem>
-                    <SelectItem value="api_key">API Key</SelectItem>
+                    <SelectItem value="none">{t("mcp_auth_none")}</SelectItem>
+                    <SelectItem value="bearer">
+                      {t("mcp_auth_bearer")}
+                    </SelectItem>
+                    <SelectItem value="api_key">
+                      {t("mcp_auth_api_key")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               {authType !== "none" && (
                 <div className="space-y-2">
-                  <Label htmlFor="auth_header_name">Header Name</Label>
+                  <Label htmlFor="auth_header_name">
+                    {t("mcp_header_name")}
+                  </Label>
                   <Input
                     id="auth_header_name"
                     {...form.register("auth_header_name")}
                     placeholder={
-                      authType === "bearer" ? "Authorization" : "X-API-Key"
+                      authType === "bearer"
+                        ? t("mcp_auth_header_authorization")
+                        : t("mcp_auth_header_api_key")
                     }
                   />
                 </div>
@@ -225,7 +242,9 @@ export function AddServerDialog({ scope }: AddServerDialogProps) {
             {authType !== "none" && (
               <div className="space-y-2">
                 <Label htmlFor="auth_secret">
-                  {authType === "bearer" ? "Bearer Token" : "API Key"}
+                  {authType === "bearer"
+                    ? t("mcp_auth_bearer")
+                    : t("mcp_auth_api_key")}
                 </Label>
                 <Input
                   id="auth_secret"
@@ -233,21 +252,21 @@ export function AddServerDialog({ scope }: AddServerDialogProps) {
                   {...form.register("auth_secret")}
                   placeholder={
                     authType === "bearer"
-                      ? "Enter bearer token"
-                      : "Enter API key"
+                      ? t("mcp_secret_placeholder_bearer")
+                      : t("mcp_secret_placeholder_api_key")
                   }
                 />
                 <p className="text-xs text-muted-foreground">
-                  This will be securely stored and never displayed again.
+                  {t("mcp_secret_stored")}
                 </p>
               </div>
             )}
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="tool_prefix">Prefix Tool Names</Label>
+                <Label htmlFor="tool_prefix">{t("mcp_prefix_tools")}</Label>
                 <p className="text-xs text-muted-foreground">
-                  Add server name as prefix to tool names
+                  {t("mcp_prefix_tools_desc")}
                 </p>
               </div>
               <Switch
@@ -264,7 +283,7 @@ export function AddServerDialog({ scope }: AddServerDialogProps) {
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={resetForm}>
-              Cancel
+              {t("com_cancel")}
             </Button>
             <Button
               type="submit"
@@ -273,7 +292,7 @@ export function AddServerDialog({ scope }: AddServerDialogProps) {
               {createMutation.isPending && (
                 <Loader2 className="mr-2 size-4 animate-spin" />
               )}
-              Add Server
+              {t("mcp_add_server")}
             </Button>
           </DialogFooter>
         </form>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -26,12 +27,15 @@ export function MCPSettings({
   disabledBy,
   customServersDisabledBy,
 }: MCPSettingsProps) {
+  const { t } = useTranslation();
   const isDisabledByHigherLevel = !!disabledBy;
   const customServersDisabledByHigher = !!customServersDisabledBy;
 
   const getDisabledByText = (disabledByLevel: "org" | "team" | null) => {
     if (!disabledByLevel) return null;
-    return disabledByLevel === "org" ? "organization" : "team";
+    return disabledByLevel === "org"
+      ? t("mcp_disabled_by_org")
+      : t("mcp_disabled_by_team");
   };
 
   return (
@@ -39,10 +43,10 @@ export function MCPSettings({
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
           <Label htmlFor="mcp-enabled" className="text-sm font-medium">
-            MCP Tools
+            {t("mcp_title")}
           </Label>
           <p className="text-xs text-muted-foreground">
-            Enable Model Context Protocol tool integrations
+            {t("mcp_enable_desc")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -52,7 +56,7 @@ export function MCPSettings({
               className="text-xs bg-amber-500/15 text-amber-600 dark:text-amber-400 border-0"
             >
               <AlertTriangle className="mr-1 size-3" />
-              Disabled by {getDisabledByText(disabledBy)}
+              {getDisabledByText(disabledBy)}
             </Badge>
           )}
           {isLoading ? (
@@ -72,12 +76,12 @@ export function MCPSettings({
         <div className="flex items-center justify-between pl-4 border-l-2 border-muted">
           <div className="space-y-0.5">
             <Label htmlFor="mcp-custom-servers" className="text-sm font-medium">
-              Allow Custom Servers
+              {t("mcp_allow_custom")}
             </Label>
             <p className="text-xs text-muted-foreground">
               {level === "org"
-                ? "Allow teams and users to add their own MCP servers"
-                : "Allow users to add their own MCP servers"}
+                ? t("mcp_allow_custom_org_desc")
+                : t("mcp_allow_custom_team_desc")}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -87,7 +91,7 @@ export function MCPSettings({
                 className="text-xs bg-amber-500/15 text-amber-600 dark:text-amber-400 border-0"
               >
                 <AlertTriangle className="mr-1 size-3" />
-                Disabled by {getDisabledByText(customServersDisabledBy)}
+                {getDisabledByText(customServersDisabledBy)}
               </Badge>
             )}
             {isLoading ? (

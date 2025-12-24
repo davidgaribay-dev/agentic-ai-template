@@ -5,6 +5,7 @@ import {
   Link,
   useNavigate,
 } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef, Row } from "@tanstack/react-table";
 import {
@@ -65,6 +66,7 @@ export const Route = createFileRoute("/organizations")({
 });
 
 function OrganizationsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const {
@@ -101,13 +103,14 @@ function OrganizationsPage() {
               <AlertTriangle className="h-8 w-8 text-destructive" />
             </div>
             <h1 className="text-2xl font-semibold tracking-tight mb-2">
-              Access Denied
+              {t("error_access_denied")}
             </h1>
             <p className="text-muted-foreground mb-6 max-w-md">
-              You don't have permission to view organization settings. Only
-              organization owners and admins can access this page.
+              {t("error_no_permission_org_settings")}
             </p>
-            <Button onClick={() => navigate({ to: "/" })}>Go to Home</Button>
+            <Button onClick={() => navigate({ to: "/" })}>
+              {t("error_go_home")}
+            </Button>
           </div>
         </div>
       </div>
@@ -124,11 +127,9 @@ function OrganizationsPage() {
               <Building2 className="size-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold">Organizations</h1>
+              <h1 className="text-xl font-semibold">{t("org_title")}</h1>
               <p className="text-sm text-muted-foreground">
-                {isPlatformAdmin
-                  ? "Manage your organizations"
-                  : "View and switch between your organizations"}
+                {isPlatformAdmin ? t("org_manage") : t("org_view_switch")}
               </p>
             </div>
           </div>
@@ -147,10 +148,9 @@ function OrganizationsPage() {
             <div className="flex size-14 items-center justify-center rounded-full bg-muted mb-4">
               <Building2 className="size-7 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-medium">No organizations yet</h3>
+            <h3 className="text-lg font-medium">{t("org_no_orgs")}</h3>
             <p className="text-sm text-muted-foreground mt-1 mb-6 max-w-sm">
-              Create your first organization to start collaborating with your
-              team.
+              {t("org_create_first")}
             </p>
             <CreateOrganizationDialog onSuccess={refresh} />
           </div>
@@ -180,6 +180,7 @@ function OrganizationsDataTable({
   isCurrentOrgAdmin,
   onSwitch,
 }: OrganizationsDataTableProps) {
+  const { t } = useTranslation();
   const columns: ColumnDef<Organization>[] = useMemo(
     () => [
       {
@@ -193,7 +194,7 @@ function OrganizationsDataTable({
                 column.toggleSorting(column.getIsSorted() === "asc")
               }
             >
-              Organization
+              {t("org_title")}
               <ArrowUpDown className="ml-2 size-4" />
             </Button>
           );
@@ -220,7 +221,7 @@ function OrganizationsDataTable({
       },
       {
         accessorKey: "description",
-        header: "Description",
+        header: t("com_description"),
         cell: ({ row }) => {
           const description = row.getValue("description") as string | null;
           return description ? (
@@ -229,14 +230,14 @@ function OrganizationsDataTable({
             </span>
           ) : (
             <span className="text-muted-foreground/50 italic">
-              No description
+              {t("com_no_description")}
             </span>
           );
         },
       },
       {
         id: "status",
-        header: "Status",
+        header: t("com_status"),
         cell: ({ row }) => {
           const isCurrentOrg = row.original.id === currentOrgId;
           return isCurrentOrg ? (
@@ -245,18 +246,18 @@ function OrganizationsDataTable({
               className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0"
             >
               <Check className="mr-1 size-3" />
-              Active
+              {t("com_active")}
             </Badge>
           ) : (
             <Badge variant="outline" className="text-muted-foreground">
-              Inactive
+              {t("com_inactive")}
             </Badge>
           );
         },
       },
       {
         id: "actions",
-        header: () => <div className="text-right">Actions</div>,
+        header: () => <div className="text-right">{t("com_actions")}</div>,
         cell: ({ row }) => {
           const org = row.original;
           const isCurrentOrg = org.id === currentOrgId;
@@ -266,20 +267,20 @@ function OrganizationsDataTable({
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="size-8">
                     <MoreHorizontal className="size-4" />
-                    <span className="sr-only">Open menu</span>
+                    <span className="sr-only">{t("com_open_menu")}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
                   {!isCurrentOrg && (
                     <DropdownMenuItem onClick={() => onSwitch(org.id)}>
                       <ArrowRightLeft className="mr-2 size-4" />
-                      Switch to this org
+                      {t("org_switch_to")}
                     </DropdownMenuItem>
                   )}
                   {isCurrentOrg && (
                     <DropdownMenuItem disabled>
                       <Check className="mr-2 size-4" />
-                      Current organization
+                      {t("org_current")}
                     </DropdownMenuItem>
                   )}
                   {isCurrentOrgAdmin && isCurrentOrg && (
@@ -288,7 +289,7 @@ function OrganizationsDataTable({
                       <DropdownMenuItem asChild>
                         <Link to="/org/settings">
                           <Settings className="mr-2 size-4" />
-                          Settings
+                          {t("com_settings")}
                         </Link>
                       </DropdownMenuItem>
                     </>
@@ -300,7 +301,7 @@ function OrganizationsDataTable({
         },
       },
     ],
-    [currentOrgId, isCurrentOrgAdmin, onSwitch],
+    [currentOrgId, isCurrentOrgAdmin, onSwitch, t],
   );
 
   const renderMobileCard = useCallback(
@@ -338,14 +339,14 @@ function OrganizationsDataTable({
                 className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0 flex-shrink-0"
               >
                 <Check className="mr-1 size-3" />
-                Active
+                {t("com_active")}
               </Badge>
             ) : (
               <Badge
                 variant="outline"
                 className="text-muted-foreground flex-shrink-0"
               >
-                Inactive
+                {t("com_inactive")}
               </Badge>
             )}
           </div>
@@ -358,14 +359,14 @@ function OrganizationsDataTable({
                 onClick={() => onSwitch(org.id)}
               >
                 <ArrowRightLeft className="mr-2 size-3.5" />
-                Switch
+                {t("com_switch")}
               </Button>
             )}
             {isCurrentOrgAdmin && isCurrentOrg && (
               <Button variant="outline" size="sm" className="flex-1" asChild>
                 <Link to="/org/settings">
                   <Settings className="mr-2 size-3.5" />
-                  Settings
+                  {t("com_settings")}
                 </Link>
               </Button>
             )}
@@ -373,7 +374,7 @@ function OrganizationsDataTable({
         </div>
       );
     },
-    [currentOrgId, isCurrentOrgAdmin, onSwitch],
+    [currentOrgId, isCurrentOrgAdmin, onSwitch, t],
   );
 
   return (
@@ -381,7 +382,7 @@ function OrganizationsDataTable({
       columns={columns}
       data={data}
       searchKey="name"
-      searchPlaceholder="Search organizations..."
+      searchPlaceholder={t("org_search")}
       mobileCardView
       renderMobileCard={renderMobileCard}
     />
@@ -397,6 +398,7 @@ type OnboardingStep = "org" | "team";
 function CreateOrganizationDialog({
   onSuccess,
 }: CreateOrganizationDialogProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { switchOrganization, switchTeam } = useWorkspace();
   const [open, setOpen] = useState(false);
@@ -448,7 +450,7 @@ function CreateOrganizationDialog({
     },
     onError: (err: ApiError) => {
       const detail = (err.body as { detail?: string })?.detail;
-      setOrgError(detail || "Failed to create organization");
+      setOrgError(detail || t("entity_failed_update_org"));
     },
   });
 
@@ -480,7 +482,7 @@ function CreateOrganizationDialog({
     },
     onError: (err: ApiError) => {
       const detail = (err.body as { detail?: string })?.detail;
-      setTeamError(detail || "Failed to create team");
+      setTeamError(detail || t("team_failed_create"));
     },
   });
 
@@ -559,22 +561,20 @@ function CreateOrganizationDialog({
       <DialogTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
-          New Organization
+          {t("org_new")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         {step === "org" ? (
           <>
             <DialogHeader>
-              <DialogTitle>Create Organization</DialogTitle>
-              <DialogDescription>
-                Create a new organization to collaborate with your team.
-              </DialogDescription>
+              <DialogTitle>{t("org_create")}</DialogTitle>
+              <DialogDescription>{t("org_create_desc")}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               {/* Organization Logo Upload */}
               <div className="space-y-2">
-                <Label>Logo (optional)</Label>
+                <Label>{t("com_logo_optional")}</Label>
                 <div className="flex items-center gap-4">
                   <input
                     ref={orgFileInputRef}
@@ -587,12 +587,12 @@ function CreateOrganizationDialog({
                     type="button"
                     onClick={() => orgFileInputRef.current?.click()}
                     className="group relative size-16 rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    aria-label="Upload organization logo"
+                    aria-label={t("org_logo_upload_aria")}
                   >
                     {orgLogoPreview ? (
                       <img
                         src={orgLogoPreview}
-                        alt="Logo preview"
+                        alt={t("com_logo_preview")}
                         className="size-full rounded-lg object-cover"
                       />
                     ) : (
@@ -620,35 +620,37 @@ function CreateOrganizationDialog({
                         }}
                       >
                         <Trash2 className="mr-1 size-3" />
-                        Remove
+                        {t("com_remove")}
                       </Button>
                     </div>
                   )}
                   {!orgLogoFile && (
                     <span className="text-sm text-muted-foreground">
-                      Click to upload logo
+                      {t("com_click_upload_logo")}
                     </span>
                   )}
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="org-name">Organization Name</Label>
+                <Label htmlFor="org-name">{t("org_name_label")}</Label>
                 <Input
                   id="org-name"
                   value={orgName}
                   onChange={(e) => setOrgName(e.target.value)}
-                  placeholder="Acme Inc."
+                  placeholder={t("org_name_placeholder")}
                   autoFocus
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="org-description">Description (optional)</Label>
+                <Label htmlFor="org-description">
+                  {t("org_description_optional")}
+                </Label>
                 <Textarea
                   id="org-description"
                   value={orgDescription}
                   onChange={(e) => setOrgDescription(e.target.value)}
-                  placeholder="A brief description of your organization"
+                  placeholder={t("org_description_placeholder")}
                   rows={3}
                 />
               </div>
@@ -658,7 +660,7 @@ function CreateOrganizationDialog({
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={resetDialog}>
-                Cancel
+                {t("com_cancel")}
               </Button>
               <Button
                 onClick={handleCreateOrg}
@@ -667,23 +669,22 @@ function CreateOrganizationDialog({
                 {isCreatingOrg && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Continue
+                {t("com_continue")}
               </Button>
             </DialogFooter>
           </>
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Create Your First Team</DialogTitle>
+              <DialogTitle>{t("team_create_first_title")}</DialogTitle>
               <DialogDescription>
-                Teams help you organize work within your organization. Create
-                your first team to get started.
+                {t("team_create_first_desc")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               {/* Team Logo Upload */}
               <div className="space-y-2">
-                <Label>Logo (optional)</Label>
+                <Label>{t("com_logo_optional")}</Label>
                 <div className="flex items-center gap-4">
                   <input
                     ref={teamFileInputRef}
@@ -696,12 +697,12 @@ function CreateOrganizationDialog({
                     type="button"
                     onClick={() => teamFileInputRef.current?.click()}
                     className="group relative size-16 rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    aria-label="Upload team logo"
+                    aria-label={t("team_logo_upload_aria")}
                   >
                     {teamLogoPreview ? (
                       <img
                         src={teamLogoPreview}
-                        alt="Logo preview"
+                        alt={t("com_logo_preview")}
                         className="size-full rounded-lg object-cover"
                       />
                     ) : (
@@ -729,35 +730,37 @@ function CreateOrganizationDialog({
                         }}
                       >
                         <Trash2 className="mr-1 size-3" />
-                        Remove
+                        {t("com_remove")}
                       </Button>
                     </div>
                   )}
                   {!teamLogoFile && (
                     <span className="text-sm text-muted-foreground">
-                      Click to upload logo
+                      {t("com_click_upload_logo")}
                     </span>
                   )}
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="team-name">Team Name</Label>
+                <Label htmlFor="team-name">{t("team_name_label")}</Label>
                 <Input
                   id="team-name"
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
-                  placeholder="Engineering"
+                  placeholder={t("team_name_placeholder")}
                   autoFocus
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="team-description">Description (optional)</Label>
+                <Label htmlFor="team-description">
+                  {t("team_description_optional")}
+                </Label>
                 <Textarea
                   id="team-description"
                   value={teamDescription}
                   onChange={(e) => setTeamDescription(e.target.value)}
-                  placeholder="A brief description of this team"
+                  placeholder={t("team_description_placeholder")}
                   rows={3}
                 />
               </div>
@@ -767,7 +770,7 @@ function CreateOrganizationDialog({
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={handleSkipTeam}>
-                Skip for now
+                {t("com_skip")}
               </Button>
               <Button
                 onClick={handleCreateTeam}
@@ -776,7 +779,7 @@ function CreateOrganizationDialog({
                 {isCreatingTeam && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Create Team
+                {t("team_create")}
               </Button>
             </DialogFooter>
           </>

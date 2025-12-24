@@ -5,16 +5,11 @@
  */
 
 import { memo } from "react";
+import { useTranslation } from "react-i18next";
 import { X, Loader2, AlertCircle, FileText, File } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatFileSize } from "@/lib/api/media";
 import type { PendingUpload } from "@/hooks/useMediaUpload";
-
-/** Format file size for display */
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 /** Get icon for document type */
 function getDocumentIcon(mimeType: string) {
@@ -38,6 +33,7 @@ const ImagePreview = memo(function ImagePreview({
   onRemove,
   disabled = false,
 }: ImagePreviewProps) {
+  const { t } = useTranslation();
   const isLoading = upload.status === "uploading";
   const isError = upload.status === "error";
 
@@ -83,7 +79,7 @@ const ImagePreview = memo(function ImagePreview({
             "opacity-0 group-hover:opacity-100 transition-opacity",
             "hover:bg-destructive hover:text-destructive-foreground hover:border-destructive",
           )}
-          aria-label={`Remove ${upload.file.name}`}
+          aria-label={t("aria_remove_file", { filename: upload.file.name })}
         >
           <X className="size-3" />
         </button>
@@ -110,6 +106,7 @@ const DocumentPreview = memo(function DocumentPreview({
   onRemove,
   disabled = false,
 }: DocumentPreviewProps) {
+  const { t } = useTranslation();
   const isLoading = upload.status === "uploading";
   const isError = upload.status === "error";
 
@@ -153,7 +150,7 @@ const DocumentPreview = memo(function DocumentPreview({
             "hover:bg-destructive hover:text-destructive-foreground",
             "text-muted-foreground",
           )}
-          aria-label={`Remove ${upload.file.name}`}
+          aria-label={t("aria_remove_file", { filename: upload.file.name })}
         >
           <X className="size-3" />
         </button>

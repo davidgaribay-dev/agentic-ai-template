@@ -3,6 +3,7 @@
  */
 
 import { Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { Building2, ChevronUp, LogOut, Settings } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
@@ -24,6 +25,7 @@ import {
 import { cn, getInitials, isValidImageUrl } from "@/lib/utils";
 
 export function NavUser() {
+  const { t } = useTranslation();
   const { state, isMobile } = useSidebar();
   const { user, logout } = useAuth();
   const { currentOrgRole } = useWorkspace();
@@ -53,7 +55,9 @@ export function NavUser() {
                 {isValidImageUrl(user.profile_image_url) ? (
                   <img
                     src={user.profile_image_url}
-                    alt={`${user.full_name || user.email}'s profile photo`}
+                    alt={t("aria_profile_photo", {
+                      name: user.full_name || user.email,
+                    })}
                     loading="lazy"
                     className="size-full object-cover"
                   />
@@ -93,7 +97,9 @@ export function NavUser() {
                   {isValidImageUrl(user.profile_image_url) ? (
                     <img
                       src={user.profile_image_url}
-                      alt={`${user.full_name || user.email}'s profile photo`}
+                      alt={t("aria_profile_photo", {
+                        name: user.full_name || user.email,
+                      })}
                       loading="lazy"
                       className="size-full object-cover"
                     />
@@ -116,20 +122,20 @@ export function NavUser() {
               <DropdownMenuItem asChild>
                 <Link to="/organizations" className="cursor-pointer">
                   <Building2 className="mr-2 size-4" />
-                  Organizations
+                  {t("nav_organizations")}
                 </Link>
               </DropdownMenuItem>
             )}
             <DropdownMenuItem asChild>
               <Link to="/settings" className="cursor-pointer">
                 <Settings className="mr-2 size-4" />
-                Settings
+                {t("nav_settings")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout} className="cursor-pointer">
               <LogOut className="mr-2 size-4" />
-              Log out
+              {t("nav_log_out")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -3,6 +3,7 @@
  */
 
 import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -21,8 +22,10 @@ export function PatternInput({
   patterns,
   onChange,
   disabled,
-  placeholder = "Add regex pattern...",
+  placeholder,
 }: PatternInputProps) {
+  const { t } = useTranslation();
+  const placeholderText = placeholder ?? t("guardrails_add_pattern");
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -39,9 +42,9 @@ export function PatternInput({
         setError(null);
       }
     } catch {
-      setError("Invalid regex pattern");
+      setError(t("guardrails_invalid_regex"));
     }
-  }, [input, patterns, onChange]);
+  }, [input, patterns, onChange, t]);
 
   const handleRemove = useCallback(
     (pattern: string) => {
@@ -70,7 +73,7 @@ export function PatternInput({
             setError(null);
           }}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          placeholder={placeholderText}
           disabled={disabled}
           className={cn(
             "flex-1 font-mono text-sm",

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,8 @@ export function MemorySettings({
   isLoading = false,
   level,
 }: MemorySettingsProps) {
+  const { t } = useTranslation();
+
   const getDisabledBy = (): DisabledByLevel => {
     if (memoryDisabledByOrg) return "org";
     if (memoryDisabledByTeam && level !== "team") return "team";
@@ -36,8 +39,8 @@ export function MemorySettings({
   const isDisabledByHigherLevel = disabledBy === "org" || disabledBy === "team";
 
   const getTooltipMessage = (): string | null => {
-    if (disabledBy === "org") return "Disabled by organization settings";
-    if (disabledBy === "team") return "Disabled by team settings";
+    if (disabledBy === "org") return t("memory_disabled_by_org");
+    if (disabledBy === "team") return t("memory_disabled_by_team");
     return null;
   };
 
@@ -51,7 +54,7 @@ export function MemorySettings({
             htmlFor="memory-enabled"
             className={isDisabledByHigherLevel ? "text-muted-foreground" : ""}
           >
-            Memory Enabled
+            {t("memory_enabled")}
           </Label>
           {isDisabledByHigherLevel && tooltipMessage && (
             <TooltipProvider>
@@ -67,7 +70,7 @@ export function MemorySettings({
           )}
         </div>
         <p className="text-xs text-muted-foreground">
-          Remember information from conversations to personalize responses
+          {t("memory_enabled_desc")}
         </p>
       </div>
       <Switch

@@ -7,6 +7,7 @@
  */
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, ChevronDown, Users, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +24,7 @@ import { CreateTeamDialog } from "@/components/create-team-dialog";
 import { cn, isValidImageUrl, getInitials } from "@/lib/utils";
 
 export function WorkspaceSwitcher() {
+  const { t } = useTranslation();
   const {
     currentOrg,
     currentOrgRole,
@@ -43,7 +45,7 @@ export function WorkspaceSwitcher() {
     return (
       <Button variant="ghost" size="sm" disabled className="gap-2">
         <Users className="h-4 w-4" />
-        <span className="text-muted-foreground">Loading...</span>
+        <span className="text-muted-foreground">{t("com_loading")}</span>
       </Button>
     );
   }
@@ -66,7 +68,9 @@ export function WorkspaceSwitcher() {
             ) : (
               <Users className="h-4 w-4 shrink-0" />
             )}
-            <span className="truncate">{currentTeam?.name ?? "All Teams"}</span>
+            <span className="truncate">
+              {currentTeam?.name ?? t("nav_all_teams")}
+            </span>
             <span className="text-muted-foreground text-xs truncate">
               ({currentOrg.name})
             </span>
@@ -74,10 +78,12 @@ export function WorkspaceSwitcher() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-[240px]">
-          <DropdownMenuLabel>Teams in {currentOrg.name}</DropdownMenuLabel>
+          <DropdownMenuLabel>
+            {t("team_teams_in", { org: currentOrg.name })}
+          </DropdownMenuLabel>
           {isLoadingTeams ? (
             <DropdownMenuItem disabled>
-              <span className="text-muted-foreground">Loading teams...</span>
+              <span className="text-muted-foreground">{t("team_loading")}</span>
             </DropdownMenuItem>
           ) : (
             <>
@@ -89,7 +95,7 @@ export function WorkspaceSwitcher() {
                 className={cn("gap-2", !currentTeam && "bg-accent")}
               >
                 <Users className="h-4 w-4" />
-                <span className="flex-1">All Teams</span>
+                <span className="flex-1">{t("nav_all_teams")}</span>
                 {!currentTeam && <Check className="h-4 w-4 text-primary" />}
               </DropdownMenuItem>
               {teams.length > 0 && <DropdownMenuSeparator />}
@@ -123,7 +129,9 @@ export function WorkspaceSwitcher() {
               ))}
               {teams.length === 0 && (
                 <DropdownMenuItem disabled>
-                  <span className="text-muted-foreground">No teams yet</span>
+                  <span className="text-muted-foreground">
+                    {t("team_no_teams")}
+                  </span>
                 </DropdownMenuItem>
               )}
             </>
@@ -139,7 +147,9 @@ export function WorkspaceSwitcher() {
                 className="gap-2"
               >
                 <Plus className="h-4 w-4" />
-                <span className="text-muted-foreground">Create Team</span>
+                <span className="text-muted-foreground">
+                  {t("team_create")}
+                </span>
               </DropdownMenuItem>
             </>
           )}
@@ -157,6 +167,7 @@ export function WorkspaceSwitcher() {
  * Compact version of team switcher for mobile or small screens.
  */
 export function WorkspaceSwitcherCompact() {
+  const { t } = useTranslation();
   const {
     currentOrg,
     currentOrgRole,
@@ -207,7 +218,7 @@ export function WorkspaceSwitcherCompact() {
                 </AvatarFallback>
               </Avatar>
             )}
-            {currentTeam?.name ?? "All Teams"}
+            {currentTeam?.name ?? t("nav_all_teams")}
             <span className="text-xs text-muted-foreground">
               ({currentOrg.name})
             </span>
@@ -215,7 +226,7 @@ export function WorkspaceSwitcherCompact() {
           <DropdownMenuSeparator />
           {isLoadingTeams ? (
             <DropdownMenuItem disabled>
-              <span className="text-muted-foreground">Loading...</span>
+              <span className="text-muted-foreground">{t("com_loading")}</span>
             </DropdownMenuItem>
           ) : (
             <>
@@ -224,7 +235,7 @@ export function WorkspaceSwitcherCompact() {
                 className={cn("gap-2", !currentTeam && "bg-accent")}
               >
                 <Users className="h-4 w-4" />
-                <span className="truncate">All Teams</span>
+                <span className="truncate">{t("nav_all_teams")}</span>
                 {!currentTeam && <Check className="h-4 w-4 text-primary" />}
               </DropdownMenuItem>
               {teams.map((team) => (
@@ -262,7 +273,9 @@ export function WorkspaceSwitcherCompact() {
                 className="gap-2"
               >
                 <Plus className="h-4 w-4" />
-                <span className="text-muted-foreground">Create Team</span>
+                <span className="text-muted-foreground">
+                  {t("team_create")}
+                </span>
               </DropdownMenuItem>
             </>
           )}

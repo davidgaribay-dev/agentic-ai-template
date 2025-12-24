@@ -5,6 +5,7 @@
  */
 
 import { memo } from "react";
+import { useTranslation } from "react-i18next";
 import { X, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PendingUpload } from "@/hooks/useMediaUpload";
@@ -22,6 +23,7 @@ export const ImagePreview = memo(function ImagePreview({
   disabled = false,
   className,
 }: ImagePreviewProps) {
+  const { t } = useTranslation();
   const isLoading = upload.status === "uploading";
   const isError = upload.status === "error";
 
@@ -68,7 +70,7 @@ export const ImagePreview = memo(function ImagePreview({
             "opacity-0 group-hover:opacity-100 transition-opacity",
             "hover:bg-destructive hover:text-destructive-foreground hover:border-destructive",
           )}
-          aria-label={`Remove ${upload.file.name}`}
+          aria-label={t("aria_remove_file", { filename: upload.file.name })}
         >
           <X className="size-3" />
         </button>

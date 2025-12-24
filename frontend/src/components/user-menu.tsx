@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { LogOut, Settings } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
@@ -13,6 +14,7 @@ import {
 import { ModeToggle } from "@/components/mode-toggle";
 
 export function UserMenu() {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
 
   if (!user) return null;
@@ -24,12 +26,12 @@ export function UserMenu() {
       <DropdownMenuTrigger asChild>
         <button
           className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 overflow-hidden"
-          aria-label="User menu"
+          aria-label={t("com_open_menu")}
         >
           {isValidImageUrl(user.profile_image_url) ? (
             <img
               src={user.profile_image_url}
-              alt="Profile"
+              alt={t("settings_profile")}
               loading="lazy"
               className="size-full object-cover"
             />
@@ -55,7 +57,7 @@ export function UserMenu() {
         <DropdownMenuItem asChild>
           <Link to="/settings" className="cursor-pointer">
             <Settings className="mr-2" />
-            Settings
+            {t("nav_settings")}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
@@ -63,7 +65,7 @@ export function UserMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={logout} className="cursor-pointer">
           <LogOut className="mr-2" />
-          Log out
+          {t("nav_log_out")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

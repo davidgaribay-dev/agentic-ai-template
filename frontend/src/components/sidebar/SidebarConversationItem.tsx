@@ -3,6 +3,7 @@
  */
 
 import { useState, useCallback, memo } from "react";
+import { useTranslation } from "react-i18next";
 import { MoreHorizontal, Star, Pencil, Trash2 } from "lucide-react";
 
 import { type Conversation } from "@/lib/api";
@@ -34,6 +35,7 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
   onRename,
   onRequestDelete,
 }: SidebarConversationItemProps) {
+  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const starMutation = useStarConversation(teamId);
@@ -114,7 +116,7 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
                   setActionsOpen(true);
                 }
               }}
-              aria-label="Conversation actions"
+              aria-label={t("aria_conversation_actions")}
             >
               <MoreHorizontal className="size-4 text-muted-foreground" />
             </div>
@@ -127,11 +129,13 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
                   conversation.is_starred && "fill-yellow-400 text-yellow-400",
                 )}
               />
-              {conversation.is_starred ? "Unstar" : "Star"}
+              {conversation.is_starred
+                ? t("chat_history_unstar")
+                : t("chat_history_star")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleRename}>
               <Pencil className="mr-2 size-4" />
-              Rename
+              {t("sidebar_rename")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -139,7 +143,7 @@ export const SidebarConversationItem = memo(function SidebarConversationItem({
               className="text-destructive focus:text-destructive"
             >
               <Trash2 className="mr-2 size-4" />
-              Delete
+              {t("com_delete")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

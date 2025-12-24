@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   CardContent,
@@ -26,6 +27,7 @@ interface TeamThemeSettingsProps {
 }
 
 export function TeamThemeSettings({ orgId, teamId }: TeamThemeSettingsProps) {
+  const { t } = useTranslation();
   const { data: teamSettings, isLoading: isLoadingSettings } =
     useTeamThemeSettings(orgId, teamId);
   const { data: orgSettings } = useOrgThemeSettings(orgId);
@@ -132,7 +134,7 @@ export function TeamThemeSettings({ orgId, teamId }: TeamThemeSettingsProps) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>Failed to load theme options.</AlertDescription>
+        <AlertDescription>{t("theme_failed_load")}</AlertDescription>
       </Alert>
     );
   }
@@ -182,28 +184,23 @@ export function TeamThemeSettings({ orgId, teamId }: TeamThemeSettingsProps) {
       {!canCustomize && (
         <Alert>
           <Info className="h-4 w-4" />
-          <AlertDescription>
-            Theme customization is disabled by your organization. Teams must use
-            the organization default theme.
-          </AlertDescription>
+          <AlertDescription>{t("theme_disabled_by_org")}</AlertDescription>
         </Alert>
       )}
 
       <Card>
         <CardHeader>
-          <CardTitle>Theme Customization</CardTitle>
-          <CardDescription>
-            Control whether team members can customize themes
-          </CardDescription>
+          <CardTitle>{t("theme_customization")}</CardTitle>
+          <CardDescription>{t("theme_team_members_desc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="theme-customization">
-                Enable Theme Customization
+                {t("theme_enable_customization")}
               </Label>
               <div className="text-sm text-muted-foreground">
-                Allow theme customization for team members
+                {t("theme_team_members_allow")}
               </div>
             </div>
             <Switch
@@ -217,10 +214,10 @@ export function TeamThemeSettings({ orgId, teamId }: TeamThemeSettingsProps) {
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="user-customization">
-                Allow User Customization
+                {t("theme_allow_user")}
               </Label>
               <div className="text-sm text-muted-foreground">
-                Team members can set their own personal themes
+                {t("theme_team_members_personal")}
               </div>
             </div>
             <Switch
@@ -235,10 +232,8 @@ export function TeamThemeSettings({ orgId, teamId }: TeamThemeSettingsProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Default Theme Mode</CardTitle>
-          <CardDescription>
-            Team default theme mode (used when user customization is disabled)
-          </CardDescription>
+          <CardTitle>{t("theme_default_mode")}</CardTitle>
+          <CardDescription>{t("theme_team_default_mode_desc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ThemeModeSelector
@@ -251,8 +246,8 @@ export function TeamThemeSettings({ orgId, teamId }: TeamThemeSettingsProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Default Light Theme</CardTitle>
-          <CardDescription>Team default light theme</CardDescription>
+          <CardTitle>{t("theme_default_light")}</CardTitle>
+          <CardDescription>{t("theme_team_light_desc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ThemeGrid
@@ -266,8 +261,8 @@ export function TeamThemeSettings({ orgId, teamId }: TeamThemeSettingsProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Default Dark Theme</CardTitle>
-          <CardDescription>Team default dark theme</CardDescription>
+          <CardTitle>{t("theme_default_dark")}</CardTitle>
+          <CardDescription>{t("theme_team_dark_desc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ThemeGrid
@@ -286,13 +281,13 @@ export function TeamThemeSettings({ orgId, teamId }: TeamThemeSettingsProps) {
             onClick={handleReset}
             disabled={updateMutation.isPending}
           >
-            Reset
+            {t("com_reset")}
           </Button>
           <Button onClick={handleSave} disabled={updateMutation.isPending}>
             {updateMutation.isPending && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
-            Save Changes
+            {t("com_save_changes")}
           </Button>
         </div>
       )}
@@ -300,9 +295,7 @@ export function TeamThemeSettings({ orgId, teamId }: TeamThemeSettingsProps) {
       {updateMutation.isError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Failed to save theme settings. Please try again.
-          </AlertDescription>
+          <AlertDescription>{t("theme_failed_save")}</AlertDescription>
         </Alert>
       )}
     </div>

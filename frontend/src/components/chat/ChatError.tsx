@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { AlertCircle, Settings, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +32,8 @@ export function ChatError({
   organizationId,
   teamId,
 }: ChatErrorProps) {
-  const message = error.message || "An error occurred";
+  const { t } = useTranslation();
+  const message = error.message || t("error_occurred");
 
   // Check for API key configuration error
   const apiKeyMatch = message.match(ERROR_PATTERNS.API_KEY_MISSING.pattern);
@@ -52,8 +54,8 @@ export function ChatError({
     return (
       <ErrorCard
         icon={<AlertCircle className="size-4" />}
-        title="Rate limit exceeded"
-        description="Too many requests. Please wait a moment and try again."
+        title={t("error_rate_limit")}
+        description={t("error_rate_limit_desc")}
         className={className}
       />
     );
@@ -64,8 +66,8 @@ export function ChatError({
     return (
       <ErrorCard
         icon={<AlertCircle className="size-4" />}
-        title="Connection error"
-        description="Unable to connect to the server. Please check your internet connection."
+        title={t("error_connection")}
+        description={t("error_connection_desc")}
         className={className}
       />
     );
@@ -75,7 +77,7 @@ export function ChatError({
   return (
     <ErrorCard
       icon={<AlertCircle className="size-4" />}
-      title="Something went wrong"
+      title={t("error_something_wrong")}
       description={message}
       className={className}
     />
@@ -129,6 +131,8 @@ function ApiKeyError({
   teamId,
   className,
 }: ApiKeyErrorProps) {
+  const { t } = useTranslation();
+
   // Build the settings link based on available context
   const getSettingsLink = () => {
     if (organizationId && teamId) {
@@ -142,26 +146,26 @@ function ApiKeyError({
 
   const getSettingsLabel = () => {
     if (teamId) {
-      return "Team Settings";
+      return t("error_team_settings");
     }
     if (organizationId) {
-      return "Organization Settings";
+      return t("error_org_settings");
     }
-    return "Settings";
+    return t("com_settings");
   };
 
   return (
     <ErrorCard
       icon={<KeyRound className="size-4" />}
-      title={`${provider} API key not configured`}
-      description={`To use the chat, you need to configure your ${provider} API key in your team or organization settings.`}
+      title={t("error_api_key_not_configured", { provider })}
+      description={t("error_api_key_configure_prompt", { provider })}
       action={
         <Link
           to={getSettingsLink()}
           className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           <Settings className="size-3" />
-          Configure in {getSettingsLabel()}
+          {t("error_configure_in", { label: getSettingsLabel() })}
         </Link>
       }
       className={className}

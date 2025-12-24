@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Loader2,
@@ -46,6 +47,7 @@ export function OrgDangerZone({
   onLeave,
   onDelete,
 }: OrgDangerZoneProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [confirmName, setConfirmName] = useState("");
   const [dangerOpen, setDangerOpen] = useState(false);
@@ -75,16 +77,16 @@ export function OrgDangerZone({
           <ChevronRight className="size-3" />
         )}
         <AlertTriangle className="size-3" />
-        Danger Zone
+        {t("danger_zone")}
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-3 mt-2">
           {!isOwner && (
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium">Leave Organization</p>
+                <p className="text-xs font-medium">{t("danger_leave_org")}</p>
                 <p className="text-[10px] text-muted-foreground">
-                  You will lose access.
+                  {t("danger_leave_org_desc")}
                 </p>
               </div>
               <AlertDialog>
@@ -95,18 +97,18 @@ export function OrgDangerZone({
                     className="h-7 text-xs border-destructive/50 text-destructive hover:bg-destructive hover:text-white"
                   >
                     <LogOut className="mr-1.5 size-3" />
-                    Leave
+                    {t("danger_leave")}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Leave Organization</AlertDialogTitle>
+                    <AlertDialogTitle>{t("danger_leave_org")}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Leave {orgName}? You will lose access.
+                      {t("danger_leave_org_confirm", { name: orgName })}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>{t("com_cancel")}</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => leaveMutation.mutate()}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -114,7 +116,7 @@ export function OrgDangerZone({
                       {leaveMutation.isPending && (
                         <Loader2 className="mr-1.5 size-3 animate-spin" />
                       )}
-                      Leave
+                      {t("danger_leave")}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -125,9 +127,9 @@ export function OrgDangerZone({
           {isOwner && (
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium">Delete Organization</p>
+                <p className="text-xs font-medium">{t("danger_delete_org")}</p>
                 <p className="text-[10px] text-muted-foreground">
-                  Permanently delete everything.
+                  {t("danger_delete_org_desc")}
                 </p>
               </div>
               <AlertDialog>
@@ -138,24 +140,25 @@ export function OrgDangerZone({
                     className="h-7 text-xs"
                   >
                     <Trash2 className="mr-1.5 size-3" />
-                    Delete
+                    {t("com_delete")}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle className="flex items-center gap-2">
                       <AlertTriangle className="size-4 text-destructive" />
-                      Delete Organization
+                      {t("danger_delete_org")}
                     </AlertDialogTitle>
                     <AlertDialogDescription className="space-y-3">
                       <p>
-                        This will permanently delete <strong>{orgName}</strong>{" "}
-                        and remove {memberCount} member
-                        {memberCount !== 1 && "s"}.
+                        {t("danger_delete_org_confirm", {
+                          name: orgName,
+                          count: memberCount,
+                        })}
                       </p>
                       <div>
                         <p className="text-xs mb-1">
-                          Type <strong>{orgName}</strong> to confirm:
+                          {t("danger_type_confirm", { name: orgName })}
                         </p>
                         <Input
                           value={confirmName}
@@ -168,7 +171,7 @@ export function OrgDangerZone({
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel onClick={() => setConfirmName("")}>
-                      Cancel
+                      {t("com_cancel")}
                     </AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => deleteMutation.mutate()}
@@ -180,7 +183,7 @@ export function OrgDangerZone({
                       {deleteMutation.isPending && (
                         <Loader2 className="mr-1.5 size-3 animate-spin" />
                       )}
-                      Delete
+                      {t("com_delete")}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -212,6 +215,7 @@ export function TeamDangerZone({
   onLeave,
   onDelete,
 }: TeamDangerZoneProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [confirmName, setConfirmName] = useState("");
   const [dangerOpen, setDangerOpen] = useState(false);
@@ -244,15 +248,15 @@ export function TeamDangerZone({
           <ChevronRight className="size-3" />
         )}
         <AlertTriangle className="size-3" />
-        Danger Zone
+        {t("danger_zone")}
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-3 mt-2">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium">Leave Team</p>
+              <p className="text-xs font-medium">{t("danger_leave_team")}</p>
               <p className="text-[10px] text-muted-foreground">
-                You will lose access.
+                {t("danger_leave_team_desc")}
               </p>
             </div>
             <AlertDialog>
@@ -263,18 +267,18 @@ export function TeamDangerZone({
                   className="h-7 text-xs border-destructive/50 text-destructive hover:bg-destructive hover:text-white"
                 >
                   <LogOut className="mr-1.5 size-3" />
-                  Leave
+                  {t("danger_leave")}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Leave Team</AlertDialogTitle>
+                  <AlertDialogTitle>{t("danger_leave_team")}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Leave {teamName}? You will lose access.
+                    {t("danger_leave_team_confirm", { name: teamName })}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel>{t("com_cancel")}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => leaveMutation.mutate()}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -282,7 +286,7 @@ export function TeamDangerZone({
                     {leaveMutation.isPending && (
                       <Loader2 className="mr-1.5 size-3 animate-spin" />
                     )}
-                    Leave
+                    {t("danger_leave")}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -292,9 +296,9 @@ export function TeamDangerZone({
           {canDelete && (
             <div className="flex items-center justify-between border-t border-destructive/20 pt-3">
               <div>
-                <p className="text-xs font-medium">Delete Team</p>
+                <p className="text-xs font-medium">{t("danger_delete_team")}</p>
                 <p className="text-[10px] text-muted-foreground">
-                  Permanently delete everything.
+                  {t("danger_delete_team_desc")}
                 </p>
               </div>
               <AlertDialog>
@@ -305,24 +309,25 @@ export function TeamDangerZone({
                     className="h-7 text-xs"
                   >
                     <Trash2 className="mr-1.5 size-3" />
-                    Delete
+                    {t("com_delete")}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle className="flex items-center gap-2">
                       <AlertTriangle className="size-4 text-destructive" />
-                      Delete Team
+                      {t("danger_delete_team")}
                     </AlertDialogTitle>
                     <AlertDialogDescription className="space-y-3">
                       <p>
-                        This will permanently delete <strong>{teamName}</strong>{" "}
-                        and remove {memberCount} member
-                        {memberCount !== 1 && "s"}.
+                        {t("danger_delete_team_confirm", {
+                          name: teamName,
+                          count: memberCount,
+                        })}
                       </p>
                       <div>
                         <p className="text-xs mb-1">
-                          Type <strong>{teamName}</strong> to confirm:
+                          {t("danger_type_confirm", { name: teamName })}
                         </p>
                         <Input
                           value={confirmName}
@@ -335,7 +340,7 @@ export function TeamDangerZone({
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel onClick={() => setConfirmName("")}>
-                      Cancel
+                      {t("com_cancel")}
                     </AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => deleteMutation.mutate()}
@@ -347,7 +352,7 @@ export function TeamDangerZone({
                       {deleteMutation.isPending && (
                         <Loader2 className="mr-1.5 size-3 animate-spin" />
                       )}
-                      Delete
+                      {t("com_delete")}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

@@ -8,6 +8,7 @@ import {
   useEffect,
   useMemo,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, PanelRight } from "lucide-react";
 import { Chat, ChatHistoryDropdown, type ChatHandle } from "./chat";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ export function SidePanelProvider({ children }: { children: React.ReactNode }) {
   } = useSidePanelState();
 
   const [content, setContent] = useState<React.ReactNode>(null);
-  const [title, setTitle] = useState("Panel");
+  const [title, setTitle] = useState("");
   const [mode, setMode] = useState<PanelMode>("chat");
 
   const open = useCallback(() => setSidePanelOpen(true), [setSidePanelOpen]);
@@ -67,7 +68,7 @@ export function SidePanelProvider({ children }: { children: React.ReactNode }) {
 
   const openChat = useCallback(() => {
     setMode("chat");
-    setTitle("Chat");
+    setTitle("");
     setSidePanelOpen(true);
   }, [setSidePanelOpen]);
 
@@ -109,6 +110,7 @@ export function SidePanelProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function SidePanel() {
+  const { t } = useTranslation();
   const { isOpen, title, mode, toggle, content, setWidth } = useSidePanel();
   const { currentOrg, currentTeam } = useWorkspace();
   const { selectedConversationId } = useChatSelection();
@@ -228,13 +230,15 @@ export function SidePanel() {
     <div
       ref={panelRef}
       role="complementary"
-      aria-label={mode === "chat" ? "Chat panel" : title}
+      aria-label={
+        mode === "chat" ? t("panel_chat_label") : title || t("panel_title")
+      }
       className="relative flex h-full flex-col border-l bg-background overflow-hidden"
     >
       <div
         role="separator"
         aria-orientation="vertical"
-        aria-label="Resize panel"
+        aria-label={t("aria_resize_panel")}
         tabIndex={0}
         className="absolute left-0 top-0 z-10 h-full w-1 cursor-ew-resize hover:bg-primary/20 active:bg-primary/30"
         onMouseDown={startResizing}
@@ -256,7 +260,7 @@ export function SidePanel() {
                 size="sm"
                 className="h-7 w-7 p-0"
                 onClick={handleNewChat}
-                title="New chat"
+                title={t("panel_new_chat")}
               >
                 <Plus className="size-4" />
               </Button>
@@ -265,7 +269,7 @@ export function SidePanel() {
                 size="sm"
                 className="h-7 w-7 p-0"
                 onClick={toggle}
-                title="Close panel"
+                title={t("panel_close")}
               >
                 <PanelRight className="size-4" />
               </Button>
@@ -274,14 +278,14 @@ export function SidePanel() {
         ) : (
           <>
             <span className="px-2 text-xs font-medium uppercase tracking-wide">
-              {title}
+              {title || t("panel_title")}
             </span>
             <Button
               variant="ghost"
               size="sm"
               className="h-7 w-7 p-0"
               onClick={toggle}
-              title="Close panel"
+              title={t("panel_close")}
             >
               <PanelRight className="size-4" />
             </Button>
@@ -302,7 +306,7 @@ export function SidePanel() {
         <div className="flex-1 overflow-y-auto p-4">
           {content || (
             <p className="text-sm text-muted-foreground">
-              No content to display
+              {t("panel_no_content")}
             </p>
           )}
         </div>

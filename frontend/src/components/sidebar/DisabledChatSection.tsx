@@ -2,6 +2,7 @@
  * Placeholder section shown when chat is disabled.
  */
 
+import { useTranslation } from "react-i18next";
 import { MessageSquare, Info } from "lucide-react";
 
 import { useEffectiveSettings } from "@/lib/settings-context";
@@ -19,16 +20,17 @@ import {
 } from "@/components/ui/tooltip";
 
 export function DisabledChatSection() {
+  const { t } = useTranslation();
   const { state } = useSidebar();
   const effectiveSettings = useEffectiveSettings();
   const disabledBy = effectiveSettings.chat_disabled_by;
 
   const tooltipMessage =
     disabledBy === "org"
-      ? "Chat disabled by organization"
+      ? t("chat_disabled_by_org_short")
       : disabledBy === "team"
-        ? "Chat disabled by team"
-        : "Chat disabled";
+        ? t("chat_disabled_by_team_short")
+        : t("chat_disabled_short");
 
   if (state === "collapsed") {
     return (

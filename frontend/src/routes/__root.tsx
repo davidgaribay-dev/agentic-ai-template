@@ -3,6 +3,7 @@ import {
   Link,
   Outlet,
 } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import {
   SidePanelProvider,
   SidePanel,
@@ -25,6 +26,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 });
 
 function ChatToggleButton() {
+  const { t } = useTranslation();
   const { toggle, isOpen } = useSidePanel();
   const effectiveSettings = useEffectiveSettings();
   const isMobile = useIsMobile();
@@ -42,7 +44,7 @@ function ChatToggleButton() {
     <button
       onClick={toggle}
       className="fixed top-3 right-4 z-50 flex size-8 items-center justify-center rounded-md hover:bg-muted"
-      aria-label="Open panel"
+      aria-label={t("aria_open_panel")}
     >
       <PanelRight className="size-4" />
     </button>
@@ -83,6 +85,7 @@ function DesktopLayout() {
 }
 
 function MobileSidebarToggle() {
+  const { t } = useTranslation();
   const { toggleSidebar, openMobile } = useSidebar();
 
   // Hide when drawer is open
@@ -92,7 +95,7 @@ function MobileSidebarToggle() {
     <button
       onClick={toggleSidebar}
       className="fixed top-3 left-3 z-50 flex size-9 items-center justify-center rounded-md bg-background/60 backdrop-blur-sm hover:bg-background/80 active:bg-background/90 md:hidden"
-      aria-label="Open menu"
+      aria-label={t("aria_open_menu")}
     >
       <PanelLeft className="size-4" />
     </button>
@@ -166,12 +169,13 @@ function RootComponent() {
 }
 
 function NotFoundComponent() {
+  const { t } = useTranslation();
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4">
       <h1 className="text-4xl font-bold">404</h1>
-      <p className="text-muted-foreground">Page not found</p>
+      <p className="text-muted-foreground">{t("page_not_found")}</p>
       <Link to="/" className="text-primary hover:underline">
-        Go back home
+        {t("page_go_home")}
       </Link>
     </div>
   );

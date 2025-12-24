@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Copy, Download } from "lucide-react";
 import { codeToTokens, bundledLanguages, type BundledLanguage } from "shiki";
 import { cn } from "@/lib/utils";
@@ -69,6 +70,7 @@ interface HighlightResult {
 }
 
 function CopyButton({ code, className }: { code: string; className?: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -96,7 +98,7 @@ function CopyButton({ code, className }: { code: string; className?: string }) {
         "cursor-pointer p-1 text-muted-foreground transition-colors hover:text-foreground",
         className,
       )}
-      title="Copy code"
+      title={t("code_copy")}
       type="button"
     >
       {copied ? <Check size={14} /> : <Copy size={14} />}
@@ -115,6 +117,7 @@ function DownloadButton({
   filename?: string;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const handleDownload = useCallback(() => {
     const ext =
       language && languageExtensions[language]
@@ -139,7 +142,7 @@ function DownloadButton({
         "cursor-pointer p-1 text-muted-foreground transition-colors hover:text-foreground",
         className,
       )}
-      title="Download code"
+      title={t("code_download")}
       type="button"
     >
       <Download size={14} />

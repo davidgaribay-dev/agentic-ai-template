@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect, memo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import {
   ChevronDown,
@@ -75,6 +76,7 @@ const ConversationItem = memo(function ConversationItem({
   onRequestDelete,
   formatDate,
 }: ConversationItemProps) {
+  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const starMutation = useStarConversation(teamId);
@@ -152,7 +154,7 @@ const ConversationItem = memo(function ConversationItem({
               showActions ? "opacity-100" : "opacity-0",
             )}
             onClick={handleTriggerClick}
-            aria-label="Conversation actions"
+            aria-label={t("aria_conversation_actions")}
           >
             <MoreHorizontal className="size-4 text-muted-foreground" />
           </button>
@@ -165,11 +167,13 @@ const ConversationItem = memo(function ConversationItem({
                 conversation.is_starred && "fill-yellow-400 text-yellow-400",
               )}
             />
-            {conversation.is_starred ? "Unstar" : "Star"}
+            {conversation.is_starred
+              ? t("chat_history_unstar")
+              : t("chat_history_star")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleRename}>
             <Pencil className="mr-2 size-4" />
-            Rename
+            {t("sidebar_rename")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -177,7 +181,7 @@ const ConversationItem = memo(function ConversationItem({
             className="text-destructive focus:text-destructive"
           >
             <Trash2 className="mr-2 size-4" />
-            Delete
+            {t("com_delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -194,6 +198,7 @@ export function ChatHistoryDropdown({
   onConversationDeleted,
   className,
 }: ChatHistoryDropdownProps) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -320,8 +325,8 @@ export function ChatHistoryDropdown({
                 ? currentTitle ||
                   conversations.find((c) => c.id === currentConversationId)
                     ?.title ||
-                  "Chat"
-                : "New Chat"}
+                  t("panel_chat")
+                : t("chat_history_new")}
             </span>
             <ChevronDown
               className={cn(
@@ -336,7 +341,7 @@ export function ChatHistoryDropdown({
             <div className="relative flex-1">
               <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search conversations..."
+                placeholder={t("search_conversations_placeholder")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-7 pl-7 text-xs"
@@ -349,30 +354,30 @@ export function ChatHistoryDropdown({
               onClick={handleNewChat}
             >
               <Plus className="size-3.5" />
-              New
+              {t("sidebar_new_chat")}
             </Button>
           </div>
           <DropdownMenuSeparator />
           <div className="max-h-[60vh] overflow-y-auto p-1">
             {isLoading ? (
               <div className="py-4 text-center text-xs text-muted-foreground">
-                Loading...
+                {t("com_loading")}
               </div>
             ) : starred.length === 0 && recent.length === 0 ? (
               <div className="py-4 text-center text-xs text-muted-foreground">
-                {search ? "No conversations found" : "No conversations yet"}
+                {search ? t("chat_history_no_found") : t("chat_history_no_yet")}
               </div>
             ) : (
               <>
                 {starred.length > 0 && (
                   <>
                     <div className="mb-1 px-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Starred
+                      {t("chat_history_starred")}
                     </div>
                     {starred.map(renderConversationItem)}
                     {recent.length > 0 && (
                       <div className="mb-1 mt-3 px-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                        Recents
+                        {t("chat_history_recents")}
                       </div>
                     )}
                   </>
@@ -387,7 +392,7 @@ export function ChatHistoryDropdown({
       <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Rename chat</DialogTitle>
+            <DialogTitle>{t("chat_history_rename")}</DialogTitle>
           </DialogHeader>
           <Input
             ref={renameInputRef}
@@ -399,20 +404,20 @@ export function ChatHistoryDropdown({
                 handleRename();
               }
             }}
-            placeholder="Enter new title"
+            placeholder={t("search_enter_new_title")}
           />
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setRenameDialogOpen(false)}
             >
-              Cancel
+              {t("com_cancel")}
             </Button>
             <Button
               onClick={handleRename}
               disabled={!newTitle.trim() || updateMutation.isPending}
             >
-              {updateMutation.isPending ? "Saving..." : "Save"}
+              {updateMutation.isPending ? t("com_loading") : t("com_save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -421,20 +426,25 @@ export function ChatHistoryDropdown({
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t("chat_history_delete_confirm")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete "{conversationToDelete?.title}". This action
-              cannot be undone.
+              {t("chat_history_delete_desc", {
+                title: conversationToDelete?.title,
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("com_cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
               disabled={deleteMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteMutation.isPending
+                ? t("prompts_deleting")
+                : t("com_delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -3,6 +3,7 @@
  */
 
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Server, Loader2 } from "lucide-react";
@@ -29,6 +30,7 @@ export function MCPServersList({
   scope,
   allowCreate = true,
 }: MCPServersListProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const queryKey = getQueryKeyForScope(scope);
 
@@ -98,7 +100,7 @@ export function MCPServersList({
     () => [
       {
         accessorKey: "name",
-        header: "Server",
+        header: t("mcp_header_server"),
         cell: ({ row }) => {
           const server = row.original;
           return (
@@ -123,26 +125,32 @@ export function MCPServersList({
       },
       {
         accessorKey: "transport",
-        header: "Transport",
+        header: t("mcp_header_transport"),
         cell: ({ row }) => getTransportBadge(row.original.transport),
       },
       {
         accessorKey: "auth_type",
-        header: "Auth",
+        header: t("mcp_header_auth"),
         cell: ({ row }) =>
           getAuthBadge(
             row.original.auth_type,
             row.original.has_auth_secret,
-          ) ?? <span className="text-xs text-muted-foreground">None</span>,
+          ) ?? (
+            <span className="text-xs text-muted-foreground">
+              {t("mcp_auth_none_label")}
+            </span>
+          ),
       },
       {
         accessorKey: "enabled",
-        header: "Status",
+        header: t("mcp_header_status"),
         cell: ({ row }) => getStatusBadge(row.original.enabled),
       },
       {
         id: "actions",
-        header: () => <div className="text-right">Actions</div>,
+        header: () => (
+          <div className="text-right">{t("mcp_header_actions")}</div>
+        ),
         cell: ({ row }) => {
           const server = row.original;
           return (
@@ -159,7 +167,7 @@ export function MCPServersList({
         },
       },
     ],
-    [scope, toggleMutation, deleteMutation],
+    [scope, toggleMutation, deleteMutation, t],
   );
 
   if (isLoading) {
@@ -176,7 +184,12 @@ export function MCPServersList({
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Server className="size-4" />
           <span>
-            {servers.length} server{servers.length !== 1 ? "s" : ""}
+            {t(
+              servers.length === 1
+                ? "mcp_server_count"
+                : "mcp_server_count_plural",
+              { count: servers.length },
+            )}
           </span>
         </div>
         {allowCreate && <AddServerDialog scope={scope} />}
@@ -185,11 +198,9 @@ export function MCPServersList({
       {servers.length === 0 ? (
         <div className="text-center py-8 border rounded-lg">
           <Server className="size-10 mx-auto text-muted-foreground/50 mb-3" />
-          <p className="text-sm text-muted-foreground">
-            No MCP servers configured
-          </p>
+          <p className="text-sm text-muted-foreground">{t("mcp_no_servers")}</p>
           <p className="text-xs text-muted-foreground/70 mt-1">
-            Add a server to enable external tool integrations
+            {t("mcp_add_server_hint")}
           </p>
         </div>
       ) : (
@@ -197,7 +208,7 @@ export function MCPServersList({
           columns={columns}
           data={servers}
           searchKey="name"
-          searchPlaceholder="Search servers..."
+          searchPlaceholder={t("mcp_search_servers")}
         />
       )}
     </div>

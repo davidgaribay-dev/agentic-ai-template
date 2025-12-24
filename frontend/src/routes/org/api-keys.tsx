@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Key,
@@ -70,28 +71,34 @@ export const Route = createFileRoute("/org/api-keys")({
   component: OrgApiKeysPage,
 });
 
+type ProviderDescriptionKey =
+  | "api_keys_openai_desc"
+  | "api_keys_anthropic_desc"
+  | "api_keys_google_desc";
+
 const PROVIDER_INFO: Record<
   LLMProvider,
-  { name: string; description: string; icon: string }
+  { name: string; descriptionKey: ProviderDescriptionKey; icon: string }
 > = {
   openai: {
     name: "OpenAI",
-    description: "GPT-4o and other OpenAI models",
+    descriptionKey: "api_keys_openai_desc",
     icon: "O",
   },
   anthropic: {
     name: "Anthropic",
-    description: "Claude models for advanced reasoning",
+    descriptionKey: "api_keys_anthropic_desc",
     icon: "A",
   },
   google: {
     name: "Google",
-    description: "Gemini models from Google AI",
+    descriptionKey: "api_keys_google_desc",
     icon: "G",
   },
 };
 
 function OrgApiKeysPage() {
+  const { t } = useTranslation();
   const { currentOrg, currentOrgRole } = useWorkspace();
   const isAdmin = currentOrgRole === "owner" || currentOrgRole === "admin";
 
@@ -128,12 +135,14 @@ function OrgApiKeysPage() {
         <div className="mx-auto max-w-4xl px-4 py-8">
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center">
             <AlertTriangle className="mx-auto h-12 w-12 text-destructive" />
-            <h2 className="mt-4 text-xl font-semibold">Access Denied</h2>
+            <h2 className="mt-4 text-xl font-semibold">
+              {t("error_access_denied")}
+            </h2>
             <p className="mt-2 text-muted-foreground">
-              Only organization admins and owners can manage API keys.
+              {t("api_keys_access_denied")}
             </p>
             <Button asChild className="mt-4">
-              <Link to="/org/settings">Back to Settings</Link>
+              <Link to="/org/settings">{t("api_keys_back")}</Link>
             </Button>
           </div>
         </div>
@@ -149,7 +158,7 @@ function OrgApiKeysPage() {
           <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
             <Link to="/org/settings">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Settings
+              {t("api_keys_back")}
             </Link>
           </Button>
           <div className="flex items-center gap-3">
@@ -157,9 +166,9 @@ function OrgApiKeysPage() {
               <Key className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">API Keys</h1>
+              <h1 className="text-2xl font-bold">{t("api_keys_title")}</h1>
               <p className="text-sm text-muted-foreground">
-                Manage LLM provider API keys for {currentOrg.name}
+                {t("api_keys_manage", { orgName: currentOrg.name })}
               </p>
             </div>
           </div>
@@ -170,11 +179,9 @@ function OrgApiKeysPage() {
           <div className="flex gap-3">
             <Shield className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-medium">Secure Storage</p>
+              <p className="font-medium">{t("api_keys_secure_storage")}</p>
               <p className="text-muted-foreground">
-                API keys are stored securely in Infisical and never saved to the
-                database. Teams can override these defaults with their own keys
-                for cost tracking.
+                {t("api_keys_secure_desc")}
               </p>
             </div>
           </div>
@@ -182,7 +189,9 @@ function OrgApiKeysPage() {
 
         {/* Default Provider Selection */}
         <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-4">Default Provider</h2>
+          <h2 className="text-lg font-semibold mb-4">
+            {t("api_keys_default_provider")}
+          </h2>
           <DefaultProviderSelector
             orgId={currentOrg.id}
             currentProvider={defaultProvider?.provider}
@@ -192,7 +201,9 @@ function OrgApiKeysPage() {
 
         {/* API Key Cards */}
         <section>
-          <h2 className="text-lg font-semibold mb-4">Provider API Keys</h2>
+          <h2 className="text-lg font-semibold mb-4">
+            {t("api_keys_provider_keys")}
+          </h2>
           {isLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-32 w-full" />
@@ -233,6 +244,7 @@ function DefaultProviderSelector({
   currentProvider?: string;
   isLoading: boolean;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
@@ -248,7 +260,7 @@ function DefaultProviderSelector({
     onError: (err: ApiError) => {
       setError(
         (err.body as { detail?: string })?.detail ||
-          "Failed to update default provider",
+          t("api_keys_failed_update"),
       );
     },
   });
@@ -265,12 +277,12 @@ function DefaultProviderSelector({
         disabled={updateMutation.isPending}
       >
         <SelectTrigger className="w-48">
-          <SelectValue placeholder="Select provider" />
+          <SelectValue placeholder={t("api_keys_select_provider")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
-          <SelectItem value="openai">OpenAI (GPT-4)</SelectItem>
-          <SelectItem value="google">Google (Gemini)</SelectItem>
+          <SelectItem value="anthropic">{t("api_keys_anthropic")}</SelectItem>
+          <SelectItem value="openai">{t("api_keys_openai")}</SelectItem>
+          <SelectItem value="google">{t("api_keys_google")}</SelectItem>
         </SelectContent>
       </Select>
       {updateMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -288,6 +300,7 @@ function ProviderCard({
   status?: APIKeyStatus;
   orgId: string;
 }) {
+  const { t } = useTranslation();
   const info = PROVIDER_INFO[provider];
   const isConfigured = status?.is_configured || false;
   const level = status?.level;
@@ -303,7 +316,7 @@ function ProviderCard({
             <div>
               <CardTitle className="text-base">{info.name}</CardTitle>
               <CardDescription className="text-sm">
-                {info.description}
+                {t(info.descriptionKey)}
               </CardDescription>
             </div>
           </div>
@@ -317,18 +330,18 @@ function ProviderCard({
               level === "org" ? (
                 <span className="flex items-center gap-2">
                   <Building2 className="h-4 w-4" />
-                  Configured at organization level
+                  {t("api_keys_configured_org")}
                 </span>
               ) : level === "environment" ? (
                 <span className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4" />
-                  Using environment variable
+                  {t("api_keys_env_fallback")}
                 </span>
               ) : (
-                "Configured"
+                t("api_keys_configured")
               )
             ) : (
-              "Not configured"
+              t("api_keys_not_configured")
             )}
           </div>
           <div className="flex gap-2">
@@ -354,11 +367,13 @@ function StatusBadge({
   isConfigured: boolean;
   level?: string | null;
 }) {
+  const { t } = useTranslation();
+
   if (!isConfigured) {
     return (
       <Badge variant="outline" className="text-muted-foreground">
         <X className="mr-1 h-3 w-3" />
-        Not Set
+        {t("api_keys_not_set")}
       </Badge>
     );
   }
@@ -367,7 +382,7 @@ function StatusBadge({
     return (
       <Badge variant="secondary">
         <Sparkles className="mr-1 h-3 w-3" />
-        Env Fallback
+        {t("api_keys_env_fallback")}
       </Badge>
     );
   }
@@ -378,7 +393,7 @@ function StatusBadge({
       className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0"
     >
       <Check className="mr-1 h-3 w-3" />
-      Configured
+      {t("api_keys_configured")}
     </Badge>
   );
 }
@@ -392,6 +407,7 @@ function SetApiKeyDialog({
   orgId: string;
   hasKey: boolean;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
@@ -409,7 +425,7 @@ function SetApiKeyDialog({
     },
     onError: (err: ApiError) => {
       setError(
-        (err.body as { detail?: string })?.detail || "Failed to save API key",
+        (err.body as { detail?: string })?.detail || t("api_keys_failed_save"),
       );
     },
   });
@@ -417,7 +433,7 @@ function SetApiKeyDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!apiKey.trim()) {
-      setError("API key is required");
+      setError(t("api_keys_required"));
       return;
     }
     mutation.mutate();
@@ -427,23 +443,30 @@ function SetApiKeyDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant={hasKey ? "outline" : "default"} size="sm">
-          {hasKey ? "Update" : "Set Key"}
+          {hasKey ? t("api_keys_update") : t("api_keys_set_key")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {hasKey ? "Update" : "Set"} {PROVIDER_INFO[provider].name} API Key
+            {hasKey
+              ? t("api_keys_update_title", {
+                  providerName: PROVIDER_INFO[provider].name,
+                })
+              : t("api_keys_set_title", {
+                  providerName: PROVIDER_INFO[provider].name,
+                })}
           </DialogTitle>
           <DialogDescription>
-            Enter your {PROVIDER_INFO[provider].name} API key. It will be stored
-            securely in Infisical and never saved to the database.
+            {t("api_keys_set_desc", {
+              providerName: PROVIDER_INFO[provider].name,
+            })}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="api-key">API Key</Label>
+              <Label htmlFor="api-key">{t("api_keys_title")}</Label>
               <div className="relative">
                 <Input
                   id="api-key"
@@ -453,7 +476,9 @@ function SetApiKeyDialog({
                     setApiKey(e.target.value);
                     setError(null);
                   }}
-                  placeholder={`Enter your ${PROVIDER_INFO[provider].name} API key`}
+                  placeholder={t("api_keys_placeholder", {
+                    providerName: PROVIDER_INFO[provider].name,
+                  })}
                   className="pr-10"
                 />
                 <Button
@@ -479,16 +504,16 @@ function SetApiKeyDialog({
               variant="outline"
               onClick={() => setOpen(false)}
             >
-              Cancel
+              {t("com_cancel")}
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
               {mutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  {t("api_keys_saving")}
                 </>
               ) : (
-                "Save Key"
+                t("api_keys_save_key")
               )}
             </Button>
           </DialogFooter>
@@ -505,6 +530,7 @@ function DeleteApiKeyButton({
   provider: LLMProvider;
   orgId: string;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
@@ -522,20 +548,20 @@ function DeleteApiKeyButton({
           size="sm"
           className="text-destructive hover:text-destructive"
         >
-          Delete
+          {t("com_delete")}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete API Key</AlertDialogTitle>
+          <AlertDialogTitle>{t("api_keys_delete_title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete the {PROVIDER_INFO[provider].name}{" "}
-            API key? Teams using this organization's key will fall back to
-            environment variables.
+            {t("api_keys_delete_confirm", {
+              providerName: PROVIDER_INFO[provider].name,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t("com_cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={() => mutation.mutate()}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -543,10 +569,10 @@ function DeleteApiKeyButton({
             {mutation.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {t("api_keys_deleting")}
               </>
             ) : (
-              "Delete"
+              t("com_delete")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

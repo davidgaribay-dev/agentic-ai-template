@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Wrench,
   Building2,
@@ -34,19 +35,23 @@ interface ToolPickerProps {
   disabled?: boolean;
 }
 
-const scopeConfig = {
-  org: { label: "Organization", icon: Building2 },
-  team: { label: "Team", icon: Users },
-  user: { label: "Personal", icon: User },
-} as const;
-
 export function ToolPicker({
   organizationId,
   teamId,
   disabled = false,
 }: ToolPickerProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+
+  const scopeConfig = useMemo(
+    () => ({
+      org: { label: t("com_organization"), icon: Building2 },
+      team: { label: t("com_team"), icon: Users },
+      user: { label: t("prompts_personal_info"), icon: User },
+    }),
+    [t],
+  );
   const [expandedServers, setExpandedServers] = useState<Set<string>>(
     new Set(),
   );
@@ -114,7 +119,7 @@ export function ToolPicker({
     }
 
     return groups;
-  }, [toolsData]);
+  }, [toolsData, scopeConfig]);
 
   // Filter by search - filters both servers and tools within servers
   // Matches on tool name and description for better discoverability
@@ -215,7 +220,7 @@ export function ToolPicker({
           size="icon"
           disabled={disabled}
           className="h-8 w-8 rounded-md hover:bg-muted transition-colors"
-          aria-label="Configure tools"
+          aria-label={t("aria_configure_tools")}
         >
           <Wrench className="h-4 w-4" />
         </Button>
@@ -230,11 +235,11 @@ export function ToolPicker({
           {/* Header */}
           <div className="flex items-center justify-between border-b px-3 py-2">
             <span className="text-sm text-muted-foreground">
-              Select tools that are available to chat.
+              {t("tools_header_desc")}
             </span>
             {!mcpDisabled && totalTools > 0 && (
               <span className="text-sm font-medium">
-                {enabledToolsCount} Selected
+                {t("tools_selected", { count: enabledToolsCount })}
               </span>
             )}
           </div>
@@ -244,7 +249,7 @@ export function ToolPicker({
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search tools..."
+                placeholder={t("mcp_search_tools")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-8 pl-8 text-sm"
@@ -258,14 +263,14 @@ export function ToolPicker({
               <div className="py-8 text-center">
                 <ServerOff className="mx-auto h-8 w-8 text-muted-foreground/50" />
                 <p className="mt-2 text-sm text-muted-foreground">
-                  MCP tools are disabled
+                  {t("tools_disabled")}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {effectiveSettings?.mcp_disabled_by === "org"
-                    ? "Disabled by organization settings"
+                    ? t("tools_disabled_by_org")
                     : effectiveSettings?.mcp_disabled_by === "team"
-                      ? "Disabled by team settings"
-                      : "Enable in your settings"}
+                      ? t("tools_disabled_by_team")
+                      : t("tools_enable_in_settings")}
                 </p>
               </div>
             ) : isLoading ? (
@@ -276,16 +281,16 @@ export function ToolPicker({
               <div className="py-8 text-center">
                 <Wrench className="mx-auto h-8 w-8 text-muted-foreground/50" />
                 <p className="mt-2 text-sm text-muted-foreground">
-                  No MCP servers configured
+                  {t("tools_no_servers")}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Add servers in settings
+                  {t("tools_add_in_settings")}
                 </p>
               </div>
             ) : filteredGroups.length === 0 ? (
               <div className="py-8 text-center">
                 <p className="text-sm text-muted-foreground">
-                  No tools match "{search}"
+                  {t("tools_no_match", { search })}
                 </p>
               </div>
             ) : (
@@ -352,6 +357,7 @@ function ServerRow({
   onToolToggle,
   isUpdating,
 }: ServerRowProps) {
+  const { t } = useTranslation();
   const hasError = !!server.error;
   const hasTools = server.tools.length > 0;
 
@@ -401,7 +407,10 @@ function ServerRow({
           }}
           disabled={isUpdating}
           className="shrink-0"
-          aria-label={`${isServerEnabled ? "Disable" : "Enable"} ${server.server_name}`}
+          aria-label={t(
+            isServerEnabled ? "tools_action_disable" : "tools_action_enable",
+            { name: server.server_name },
+          )}
         />
 
         {/* Server icon */}
@@ -415,19 +424,22 @@ function ServerRow({
           )}
           title={server.server_name}
         >
-          MCP Server: {server.server_name}
+          {t("tools_server_prefix")} {server.server_name}
         </span>
 
         {/* Tool count */}
         {hasTools && isServerEnabled && (
           <span className="text-xs text-muted-foreground shrink-0">
-            {enabledToolCount}/{server.tools.length} tools
+            {t("tools_count", {
+              enabled: enabledToolCount,
+              total: server.tools.length,
+            })}
           </span>
         )}
 
         {/* Error indicator */}
         {hasError && (
-          <span title={`Connection error: ${server.error}`}>
+          <span title={t("tools_connection_error", { error: server.error })}>
             <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
           </span>
         )}
@@ -467,6 +479,7 @@ function ToolRow({
   isDisabledByServer,
   isUpdating,
 }: ToolRowProps) {
+  const { t } = useTranslation();
   return (
     <div
       className={cn(
@@ -482,7 +495,10 @@ function ToolRow({
         onCheckedChange={onToggle}
         disabled={isUpdating || isDisabledByServer}
         className="shrink-0"
-        aria-label={`${isEnabled ? "Disable" : "Enable"} ${tool.name}`}
+        aria-label={t(
+          isEnabled ? "tools_action_disable" : "tools_action_enable",
+          { name: tool.name },
+        )}
       />
 
       {/* Tool icon */}

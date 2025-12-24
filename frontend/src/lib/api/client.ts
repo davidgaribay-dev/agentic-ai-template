@@ -4,6 +4,8 @@
  * Provides base fetch wrapper with error handling and type-safe methods.
  */
 
+import i18n from "@/locales/i18n";
+
 export const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 /** Pydantic validation error item */
@@ -69,23 +71,21 @@ function formatDetailMessage(detail: string | ValidationErrorItem[]): string {
  * Extract a user-friendly error message from an API error.
  * Safely handles unknown error types and provides fallback messages.
  */
-export function getApiErrorMessage(
-  error: unknown,
-  fallback = "An error occurred",
-): string {
+export function getApiErrorMessage(error: unknown, fallback?: string): string {
+  const effectiveFallback = fallback ?? i18n.t("error_default");
   if (error instanceof ApiError) {
     if (isApiErrorBody(error.body)) {
       if (error.body.detail) {
         return formatDetailMessage(error.body.detail);
       }
-      return error.body.message || fallback;
+      return error.body.message || effectiveFallback;
     }
     return `${error.status}: ${error.statusText}`;
   }
   if (error instanceof Error) {
     return error.message;
   }
-  return fallback;
+  return effectiveFallback;
 }
 
 /**

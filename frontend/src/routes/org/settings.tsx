@@ -5,6 +5,7 @@ import {
   redirect,
   useNavigate,
 } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -146,6 +147,7 @@ export const Route = createFileRoute("/org/settings")({
 type OrgSettingsTab = z.infer<typeof orgSettingsSearchSchema>["tab"];
 
 function OrgSettingsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { tab: tabFromUrl } = Route.useSearch();
   const { currentOrg, currentOrgRole, teams, refresh, isLoadingTeams } =
@@ -168,13 +170,21 @@ function OrgSettingsPage() {
   const isAdmin = currentOrgRole === "owner" || currentOrgRole === "admin";
 
   const tabs = [
-    { value: "general", label: "General", icon: Building2 },
-    { value: "people", label: "People", icon: Users },
-    { value: "ai", label: "AI Configuration", icon: Sparkles },
-    { value: "preferences", label: "Preferences", icon: Settings2 },
-    { value: "theme", label: "Theme", icon: Palette },
-    { value: "rag", label: "Document Search", icon: FileSearch },
-    { value: "guardrails", label: "Guardrails", icon: ShieldAlert },
+    { value: "general", label: t("org_settings_general"), icon: Building2 },
+    { value: "people", label: t("org_settings_people"), icon: Users },
+    { value: "ai", label: t("org_settings_ai_config"), icon: Sparkles },
+    {
+      value: "preferences",
+      label: t("org_settings_preferences"),
+      icon: Settings2,
+    },
+    { value: "theme", label: t("org_settings_theme"), icon: Palette },
+    { value: "rag", label: t("org_settings_docs"), icon: FileSearch },
+    {
+      value: "guardrails",
+      label: t("org_settings_guardrails"),
+      icon: ShieldAlert,
+    },
   ];
 
   if (!currentOrg || currentOrgRole === null) {
@@ -210,12 +220,14 @@ function OrgSettingsPage() {
             <div className="flex size-14 items-center justify-center rounded-full bg-destructive/10 mb-4">
               <AlertTriangle className="size-7 text-destructive" />
             </div>
-            <h1 className="text-xl font-semibold mb-2">Access Denied</h1>
+            <h1 className="text-xl font-semibold mb-2">
+              {t("error_access_denied")}
+            </h1>
             <p className="text-sm text-muted-foreground mb-6 max-w-sm">
-              Only organization owners and admins can access settings.
+              {t("error_no_permission_org_settings")}
             </p>
             <Button size="sm" onClick={() => navigate({ to: "/" })}>
-              Go to Home
+              {t("error_go_home")}
             </Button>
           </div>
         </div>
@@ -227,7 +239,7 @@ function OrgSettingsPage() {
     <div className="bg-background min-h-screen">
       <div className="mx-auto max-w-5xl px-4 md:px-6 py-4 md:py-8">
         <h1 className="text-lg font-semibold mb-4 md:mb-6">
-          Organization Settings
+          {t("org_settings_title")}
         </h1>
         <Tabs
           value={currentTab}
@@ -347,6 +359,7 @@ function PeopleSection({
   isOwner,
   onUpdate,
 }: PeopleSectionProps) {
+  const { t } = useTranslation();
   const [membersOpen, setMembersOpen] = useState(true);
   const [teamsOpen, setTeamsOpen] = useState(true);
 
@@ -361,7 +374,7 @@ function PeopleSection({
               <ChevronRight className="size-4" />
             )}
             <Users className="size-4" />
-            Members
+            {t("org_members")}
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
               {members.length}
             </Badge>
@@ -391,7 +404,7 @@ function PeopleSection({
               <ChevronRight className="size-4" />
             )}
             <Users className="size-4" />
-            Teams
+            {t("org_teams")}
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
               {teams.length}
             </Badge>
@@ -419,6 +432,7 @@ function InviteMemberDialog({
   orgId: string;
   isOwner: boolean;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<OrgRole>("member");
@@ -436,7 +450,7 @@ function InviteMemberDialog({
     },
     onError: (err: ApiError) => {
       const detail = (err.body as { detail?: string })?.detail;
-      setError(detail || "Failed to send invitation");
+      setError(detail || t("error_failed_to_save"));
     },
   });
 
@@ -469,20 +483,22 @@ function InviteMemberDialog({
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="h-7 text-xs">
           <Plus className="size-3 mr-1" />
-          Invite
+          {t("org_invite")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base">Invite Member</DialogTitle>
+          <DialogTitle className="text-base">
+            {t("org_invite_member")}
+          </DialogTitle>
           <DialogDescription className="text-xs">
-            Send an invitation to join this organization.
+            {t("org_invite_desc")}
           </DialogDescription>
         </DialogHeader>
         {inviteLink ? (
           <div className="space-y-3 py-3">
             <p className="text-xs text-muted-foreground">
-              Share this link with {email}:
+              {t("org_invite_share_link", { email })}
             </p>
             <div className="flex gap-2">
               <Input value={inviteLink} readOnly className="h-8 text-xs" />
@@ -500,7 +516,7 @@ function InviteMemberDialog({
               </Button>
             </div>
             <Button size="sm" className="w-full" onClick={resetDialog}>
-              Done
+              {t("org_invite_done")}
             </Button>
           </div>
         ) : (
@@ -508,19 +524,19 @@ function InviteMemberDialog({
             <div className="space-y-3 py-3">
               <div className="space-y-1.5">
                 <Label htmlFor="invite-email" className="text-xs">
-                  Email
+                  {t("com_email")}
                 </Label>
                 <Input
                   id="invite-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="colleague@example.com"
+                  placeholder={t("org_invite_email_placeholder")}
                   className="h-8 text-sm"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Role</Label>
+                <Label className="text-xs">{t("com_role")}</Label>
                 <Select
                   value={role}
                   onValueChange={(v) => setRole(v as OrgRole)}
@@ -529,9 +545,15 @@ function InviteMemberDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="member">Member</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    {isOwner && <SelectItem value="owner">Owner</SelectItem>}
+                    <SelectItem value="member">
+                      {t("org_role_member")}
+                    </SelectItem>
+                    <SelectItem value="admin">{t("org_role_admin")}</SelectItem>
+                    {isOwner && (
+                      <SelectItem value="owner">
+                        {t("org_role_owner")}
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -539,7 +561,7 @@ function InviteMemberDialog({
             </div>
             <DialogFooter>
               <Button variant="ghost" size="sm" onClick={resetDialog}>
-                Cancel
+                {t("com_cancel")}
               </Button>
               <Button
                 size="sm"
@@ -549,7 +571,7 @@ function InviteMemberDialog({
                 {inviteMutation.isPending && (
                   <Loader2 className="mr-1.5 size-3 animate-spin" />
                 )}
-                Send Invitation
+                {t("org_send_invitation")}
               </Button>
             </DialogFooter>
           </>
@@ -574,6 +596,7 @@ function MembersTable({
   isOwner: boolean;
   onUpdate: () => void;
 }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -608,7 +631,7 @@ function MembersTable({
             className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-0 text-xs h-5"
           >
             <Crown className="mr-1 size-2.5" />
-            Owner
+            {t("org_role_owner")}
           </Badge>
         );
       case "admin":
@@ -618,7 +641,7 @@ function MembersTable({
             className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-0 text-xs h-5"
           >
             <Shield className="mr-1 size-2.5" />
-            Admin
+            {t("org_role_admin")}
           </Badge>
         );
       default:
@@ -628,7 +651,7 @@ function MembersTable({
             className="text-muted-foreground text-xs h-5"
           >
             <User className="mr-1 size-2.5" />
-            Member
+            {t("org_role_member")}
           </Badge>
         );
     }
@@ -638,7 +661,7 @@ function MembersTable({
     () => [
       {
         accessorKey: "user_full_name",
-        header: "Member",
+        header: t("org_role_member"),
         cell: ({ row }) => {
           const member = row.original;
           const isCurrentUser = member.user_id === user?.id;
@@ -661,7 +684,9 @@ function MembersTable({
                 <div className="text-sm font-medium truncate flex items-center gap-1">
                   {member.user_full_name || member.user_email}
                   {isCurrentUser && (
-                    <span className="text-xs text-muted-foreground">(you)</span>
+                    <span className="text-xs text-muted-foreground">
+                      ({t("com_you")})
+                    </span>
                   )}
                 </div>
                 {member.user_full_name && (
@@ -676,12 +701,12 @@ function MembersTable({
       },
       {
         accessorKey: "role",
-        header: "Role",
+        header: t("com_role"),
         cell: ({ row }) => getRoleBadge(row.original.role),
       },
       {
         id: "actions",
-        header: () => <div className="text-right">Actions</div>,
+        header: () => <div className="text-right">{t("com_actions")}</div>,
         cell: ({ row }) => {
           const member = row.original;
           const isCurrentUser = member.user_id === user?.id;
@@ -709,7 +734,7 @@ function MembersTable({
                     disabled={member.role === "member"}
                   >
                     <User className="mr-2 size-3.5" />
-                    Member
+                    {t("org_role_member")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() =>
@@ -721,7 +746,7 @@ function MembersTable({
                     disabled={member.role === "admin"}
                   >
                     <Shield className="mr-2 size-3.5" />
-                    Admin
+                    {t("org_role_admin")}
                   </DropdownMenuItem>
                   {isOwner && (
                     <DropdownMenuItem
@@ -734,7 +759,7 @@ function MembersTable({
                       disabled={member.role === "owner"}
                     >
                       <Crown className="mr-2 size-3.5" />
-                      Owner
+                      {t("org_role_owner")}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
@@ -745,24 +770,27 @@ function MembersTable({
                         onSelect={(e) => e.preventDefault()}
                       >
                         <UserMinus className="mr-2 size-3.5" />
-                        Remove
+                        {t("org_remove_member")}
                       </DropdownMenuItem>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Remove Member</AlertDialogTitle>
+                        <AlertDialogTitle>
+                          {t("org_remove_member_title")}
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
-                          Remove {member.user_full_name || member.user_email}{" "}
-                          from this organization?
+                          {t("org_remove_member_confirm", {
+                            name: member.user_full_name || member.user_email,
+                          })}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel>{t("com_cancel")}</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => removeMemberMutation.mutate(member.id)}
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                          Remove
+                          {t("org_remove_member")}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -774,7 +802,15 @@ function MembersTable({
         },
       },
     ],
-    [user?.id, isAdmin, isOwner, updateRoleMutation, removeMemberMutation],
+    [
+      user?.id,
+      isAdmin,
+      isOwner,
+      updateRoleMutation,
+      removeMemberMutation,
+      t,
+      getRoleBadge,
+    ],
   );
 
   if (isLoading) {
@@ -788,7 +824,7 @@ function MembersTable({
   if (members.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-4 text-center">
-        No members yet
+        {t("org_no_members")}
       </p>
     );
   }
@@ -798,7 +834,7 @@ function MembersTable({
       columns={columns}
       data={members}
       searchKey="user_full_name"
-      searchPlaceholder="Search members..."
+      searchPlaceholder={t("org_search_members")}
     />
   );
 }
@@ -810,6 +846,7 @@ function CreateTeamDialog({
   orgId: string;
   onUpdate: () => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -825,7 +862,7 @@ function CreateTeamDialog({
     },
     onError: (err: ApiError) => {
       const detail = (err.body as { detail?: string })?.detail;
-      setError(detail || "Failed to create team");
+      setError(detail || t("error_failed_to_save"));
     },
   });
 
@@ -848,38 +885,38 @@ function CreateTeamDialog({
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="h-7 text-xs">
           <Plus className="size-3 mr-1" />
-          Create
+          {t("com_create")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base">Create Team</DialogTitle>
+          <DialogTitle className="text-base">{t("team_create")}</DialogTitle>
           <DialogDescription className="text-xs">
-            Create a new team within this organization.
+            {t("team_create_desc")}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-3">
           <div className="space-y-1.5">
             <Label htmlFor="team-name" className="text-xs">
-              Name
+              {t("com_name")}
             </Label>
             <Input
               id="team-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Engineering"
+              placeholder={t("team_name_placeholder")}
               className="h-8 text-sm"
             />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="team-description" className="text-xs">
-              Description
+              {t("com_description")}
             </Label>
             <Textarea
               id="team-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
+              placeholder={t("team_description_placeholder")}
               rows={2}
               className="text-sm resize-none"
             />
@@ -888,7 +925,7 @@ function CreateTeamDialog({
         </div>
         <DialogFooter>
           <Button variant="ghost" size="sm" onClick={resetDialog}>
-            Cancel
+            {t("com_cancel")}
           </Button>
           <Button
             size="sm"
@@ -898,7 +935,7 @@ function CreateTeamDialog({
             {createMutation.isPending && (
               <Loader2 className="mr-1.5 size-3 animate-spin" />
             )}
-            Create
+            {t("com_create")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -919,6 +956,7 @@ function TeamsTable({
   isAdmin: boolean;
   onUpdate: () => void;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
@@ -933,7 +971,7 @@ function TeamsTable({
     () => [
       {
         accessorKey: "name",
-        header: "Team",
+        header: t("org_teams"),
         cell: ({ row }) => {
           const team = row.original;
           return (
@@ -956,7 +994,7 @@ function TeamsTable({
       },
       {
         accessorKey: "description",
-        header: "Description",
+        header: t("com_description"),
         cell: ({ row }) => {
           const description = row.getValue("description") as string | null;
           return description ? (
@@ -965,14 +1003,14 @@ function TeamsTable({
             </span>
           ) : (
             <span className="text-xs text-muted-foreground/50 italic">
-              No description
+              {t("com_no_description")}
             </span>
           );
         },
       },
       {
         id: "actions",
-        header: () => <div className="text-right">Actions</div>,
+        header: () => <div className="text-right">{t("com_actions")}</div>,
         cell: ({ row }) => {
           const team = row.original;
           return (
@@ -1000,18 +1038,18 @@ function TeamsTable({
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Team</AlertDialogTitle>
+                      <AlertDialogTitle>{t("team_delete")}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Delete "{team.name}"? This will remove all team members.
+                        {t("team_delete_confirm", { teamName: team.name })}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel>{t("com_cancel")}</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={() => deleteMutation.mutate(team.id)}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       >
-                        Delete
+                        {t("com_delete")}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -1022,7 +1060,7 @@ function TeamsTable({
         },
       },
     ],
-    [isAdmin, deleteMutation],
+    [isAdmin, deleteMutation, t],
   );
 
   if (isLoading) {
@@ -1036,7 +1074,7 @@ function TeamsTable({
   if (teams.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-4 text-center">
-        No teams yet
+        {t("team_no_teams")}
       </p>
     );
   }
@@ -1046,12 +1084,13 @@ function TeamsTable({
       columns={columns}
       data={teams}
       searchKey="name"
-      searchPlaceholder="Search teams..."
+      searchPlaceholder={t("team_search")}
     />
   );
 }
 
 function AIConfigurationSection({ orgId }: { orgId: string }) {
+  const { t } = useTranslation();
   const [promptsOpen, setPromptsOpen] = useState(true);
   const [apiKeysOpen, setApiKeysOpen] = useState(true);
 
@@ -1065,7 +1104,7 @@ function AIConfigurationSection({ orgId }: { orgId: string }) {
             <ChevronRight className="size-4" />
           )}
           <Sparkles className="size-4" />
-          Prompts & Templates
+          {t("prompts_and_templates")}
         </CollapsibleTrigger>
         <CollapsibleContent>
           <PromptsSection orgId={orgId} />
@@ -1082,7 +1121,7 @@ function AIConfigurationSection({ orgId }: { orgId: string }) {
             <ChevronRight className="size-4" />
           )}
           <Key className="size-4" />
-          API Keys
+          {t("api_keys_title")}
         </CollapsibleTrigger>
         <CollapsibleContent>
           <ApiKeysSection orgId={orgId} />
@@ -1093,6 +1132,7 @@ function AIConfigurationSection({ orgId }: { orgId: string }) {
 }
 
 function PromptsSection({ orgId }: { orgId: string }) {
+  const { t } = useTranslation();
   const { data: promptsData, isLoading } = useQuery({
     queryKey: ["org-prompts", orgId],
     queryFn: () => promptsApi.listOrgPrompts(orgId),
@@ -1117,7 +1157,7 @@ function PromptsSection({ orgId }: { orgId: string }) {
             ) : (
               <ChevronRight className="size-3" />
             )}
-            System Prompts
+            {t("prompts_system")}
             <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
               {systemPrompts.length}
             </Badge>
@@ -1131,7 +1171,7 @@ function PromptsSection({ orgId }: { orgId: string }) {
             </div>
           ) : systemPrompts.length === 0 ? (
             <p className="text-xs text-muted-foreground py-2 text-center">
-              No system prompts
+              {t("prompts_no_system")}
             </p>
           ) : (
             systemPrompts.map((prompt) => (
@@ -1154,7 +1194,7 @@ function PromptsSection({ orgId }: { orgId: string }) {
             ) : (
               <ChevronRight className="size-3" />
             )}
-            Templates
+            {t("prompts_templates")}
             <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
               {templatePrompts.length}
             </Badge>
@@ -1168,7 +1208,7 @@ function PromptsSection({ orgId }: { orgId: string }) {
             </div>
           ) : templatePrompts.length === 0 ? (
             <p className="text-xs text-muted-foreground py-2 text-center">
-              No templates
+              {t("prompts_no_templates")}
             </p>
           ) : (
             templatePrompts.map((prompt) => (
@@ -1187,6 +1227,7 @@ function PromptsSection({ orgId }: { orgId: string }) {
 }
 
 function ApiKeysSection({ orgId }: { orgId: string }) {
+  const { t } = useTranslation();
   const { data: apiKeyStatuses, isLoading } = useQuery({
     queryKey: ["org-api-keys", orgId],
     queryFn: () => apiKeysApi.listOrgKeys(orgId),
@@ -1201,7 +1242,9 @@ function ApiKeysSection({ orgId }: { orgId: string }) {
   return (
     <div className="pl-6 space-y-4">
       <div className="flex items-center gap-3">
-        <Label className="text-xs text-muted-foreground">Default:</Label>
+        <Label className="text-xs text-muted-foreground">
+          {t("api_keys_default_provider")}:
+        </Label>
         <DefaultProviderSelector
           scope={scope}
           currentProvider={defaultProvider?.provider}
@@ -1237,6 +1280,7 @@ function ApiKeysSection({ orgId }: { orgId: string }) {
 }
 
 function ChatFeaturesSection({ orgId }: { orgId: string }) {
+  const { t } = useTranslation();
   const { data: settings, isLoading } = useOrgChatSettings(orgId);
   const updateMutation = useUpdateOrgChatSettings(orgId);
 
@@ -1245,7 +1289,7 @@ function ChatFeaturesSection({ orgId }: { orgId: string }) {
       <div>
         <div className="flex items-center gap-2 py-2">
           <MessageSquare className="size-4" />
-          <span className="text-sm font-medium">Chat Features</span>
+          <span className="text-sm font-medium">{t("chat_features")}</span>
         </div>
         <ChatSettings
           settings={
@@ -1272,11 +1316,10 @@ function ChatFeaturesSection({ orgId }: { orgId: string }) {
       <div className="border-t pt-4">
         <div className="flex items-center gap-2 py-2">
           <Brain className="size-4" />
-          <span className="text-sm font-medium">Memory</span>
+          <span className="text-sm font-medium">{t("settings_memory")}</span>
         </div>
         <p className="text-xs text-muted-foreground mb-2">
-          When disabled, memory will be turned off for all teams and users in
-          this organization.
+          {t("memory_when_disabled_org")}
         </p>
         <MemorySettings
           memoryEnabled={settings?.memory_enabled ?? true}
@@ -1311,16 +1354,14 @@ function MCPSection({
   updateMutation: ReturnType<typeof useUpdateOrgChatSettings>;
   isLoading: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 py-2">
         <Plug className="size-4" />
-        <span className="text-sm font-medium">MCP Integration</span>
+        <span className="text-sm font-medium">{t("mcp_integration")}</span>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Configure Model Context Protocol (MCP) servers to extend AI capabilities
-        with external tools.
-      </p>
+      <p className="text-xs text-muted-foreground">{t("mcp_configure_desc")}</p>
 
       <MCPSettings
         mcpEnabled={settings?.mcp_enabled ?? true}
@@ -1343,6 +1384,7 @@ function MCPSection({
 }
 
 function OrgGuardrailsSection({ orgId }: { orgId: string }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const { data: guardrails, isLoading } = useQuery({
@@ -1370,12 +1412,9 @@ function OrgGuardrailsSection({ orgId }: { orgId: string }) {
     <div className="space-y-4">
       <div className="flex items-center gap-2 py-2">
         <ShieldAlert className="size-4" />
-        <span className="text-sm font-medium">AI Guardrails</span>
+        <span className="text-sm font-medium">{t("guardrails_title")}</span>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Configure content filtering rules that apply to all teams and users in
-        this organization.
-      </p>
+      <p className="text-xs text-muted-foreground">{t("guardrails_ai_desc")}</p>
       <GuardrailSettings
         level="org"
         orgId={orgId}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -61,6 +62,7 @@ interface TeamRAGSettingsProps {
 }
 
 export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
+  const { t } = useTranslation();
   const { data: teamSettings, isLoading: isLoadingSettings } =
     useTeamRAGSettings(orgId, teamId);
   const updateMutation = useUpdateTeamRAGSettings(orgId, teamId);
@@ -172,7 +174,7 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>Failed to load team RAG settings</AlertDescription>
+        <AlertDescription>{t("rag_failed_load")}</AlertDescription>
       </Alert>
     );
   }
@@ -185,18 +187,16 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
             <div className="space-y-1">
               <CardTitle className="flex items-center gap-2">
                 <FileSearch className="h-5 w-5" />
-                Team Document Search
+                {t("rag_team_title")}
               </CardTitle>
-              <CardDescription>
-                Customize document search settings for this team
-              </CardDescription>
+              <CardDescription>{t("rag_team_desc")}</CardDescription>
             </div>
             <Switch
               checked={ragEnabled}
               onCheckedChange={(checked) =>
                 setValue("rag_enabled", checked, { shouldDirty: true })
               }
-              aria-label="Enable RAG for team"
+              aria-label={t("rag_team_enable")}
             />
           </div>
         </CardHeader>
@@ -204,15 +204,17 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
         <CardContent className="space-y-6">
           {/* Customization Controls */}
           <div className="space-y-4">
-            <h4 className="text-sm font-medium">Customization Controls</h4>
+            <h4 className="text-sm font-medium">
+              {t("rag_customization_controls")}
+            </h4>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="rag-customization-enabled">
-                    Allow RAG Customization
+                    {t("rag_allow_customization")}
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Allow team members to customize their RAG settings
+                    {t("rag_team_user_desc")}
                   </p>
                 </div>
                 <Switch
@@ -230,10 +232,10 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="allow-user-customization">
-                    User Customization
+                    {t("rag_user_customization")}
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Allow users to customize their personal RAG preferences
+                    {t("rag_user_customization_desc")}
                   </p>
                 </div>
                 <Switch
@@ -252,7 +254,9 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
 
           {/* Processing Settings */}
           <div className="space-y-4">
-            <h4 className="text-sm font-medium">Processing Settings</h4>
+            <h4 className="text-sm font-medium">
+              {t("rag_processing_settings")}
+            </h4>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <TooltipProvider>
@@ -262,14 +266,12 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                         htmlFor="chunk-size"
                         className="flex items-center gap-1"
                       >
-                        Chunk Size
+                        {t("rag_chunk_size")}
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">
-                        Number of characters per chunk (100-4000)
-                      </p>
+                      <p className="max-w-xs">{t("rag_chunk_size_desc")}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -291,14 +293,12 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                         htmlFor="chunk-overlap"
                         className="flex items-center gap-1"
                       >
-                        Chunk Overlap
+                        {t("rag_chunk_overlap")}
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">
-                        Characters overlapping between chunks (0-1000)
-                      </p>
+                      <p className="max-w-xs">{t("rag_chunk_overlap_desc")}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -316,7 +316,7 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
 
           {/* Search Settings */}
           <div className="space-y-4">
-            <h4 className="text-sm font-medium">Search Settings</h4>
+            <h4 className="text-sm font-medium">{t("rag_search_settings")}</h4>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <TooltipProvider>
@@ -326,13 +326,13 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                         htmlFor="chunks-per-query"
                         className="flex items-center gap-1"
                       >
-                        Results Per Query
+                        {t("rag_results_per_query")}
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p className="max-w-xs">
-                        Number of chunks to return per search (1-20)
+                        {t("rag_results_per_query_desc")}
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -355,13 +355,13 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                         htmlFor="similarity-threshold"
                         className="flex items-center gap-1"
                       >
-                        Similarity Threshold
+                        {t("rag_similarity_threshold")}
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p className="max-w-xs">
-                        Minimum relevance score 0-1 (higher = more strict)
+                        {t("rag_similarity_threshold_desc")}
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -386,7 +386,7 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
               onClick={handleReset}
               disabled={!isDirty || updateMutation.isPending}
             >
-              Reset
+              {t("com_reset")}
             </Button>
             <Button
               onClick={handleSave}
@@ -395,7 +395,7 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
               {updateMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Save Changes
+              {t("com_save_changes")}
             </Button>
           </div>
 
@@ -405,16 +405,14 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
               <AlertDescription>
                 {updateMutation.error instanceof Error
                   ? updateMutation.error.message
-                  : "Failed to update team RAG settings"}
+                  : t("rag_failed_update")}
               </AlertDescription>
             </Alert>
           )}
 
           {updateMutation.isSuccess && !isDirty && (
             <Alert>
-              <AlertDescription>
-                Team RAG settings updated successfully
-              </AlertDescription>
+              <AlertDescription>{t("rag_settings_updated")}</AlertDescription>
             </Alert>
           )}
         </CardContent>
@@ -428,10 +426,10 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
               <div className="space-y-1 text-left">
                 <CardTitle className="flex items-center gap-2">
                   <Upload className="h-5 w-5" />
-                  Team Documents
+                  {t("rag_team_documents")}
                 </CardTitle>
                 <CardDescription>
-                  Upload documents available to all team members
+                  {t("rag_team_documents_desc")}
                 </CardDescription>
               </div>
               {documentsOpen ? (
@@ -452,7 +450,7 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                     />
                     <div className="border-t pt-6">
                       <h4 className="text-sm font-medium mb-4">
-                        Uploaded Documents
+                        {t("rag_uploaded_documents")}
                       </h4>
                       <DocumentList
                         orgId={orgId}
@@ -465,7 +463,9 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      Enable Document Search above to upload team documents.
+                      {t("rag_enable_to_upload", {
+                        scope: t("com_team").toLowerCase(),
+                      })}
                     </AlertDescription>
                   </Alert>
                 )}

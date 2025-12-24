@@ -7,6 +7,7 @@
 
 import { useState, useCallback } from "react";
 import { documentsApi, type Document, type DocumentScope } from "@/lib/api";
+import i18n from "@/locales/i18n";
 
 export interface UseDocumentUploadOptions {
   organizationId: string;
@@ -95,7 +96,8 @@ export function useDocumentUpload(
         onUploadComplete?.(document);
         return document;
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : "Upload failed";
+        const errorMsg =
+          err instanceof Error ? err.message : i18n.t("error_upload_failed");
 
         // Update status to error
         setUploads((prev) =>

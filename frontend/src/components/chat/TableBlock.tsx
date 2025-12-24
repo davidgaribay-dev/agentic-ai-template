@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useState, useCallback, useRef, useEffect, memo } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Copy, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ function CopyButton({
   content: string;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -50,7 +52,7 @@ function CopyButton({
         "cursor-pointer p-1 text-muted-foreground transition-colors hover:text-foreground",
         className,
       )}
-      title="Copy table"
+      title={t("table_copy")}
       type="button"
     >
       {copied ? <Check size={14} /> : <Copy size={14} />}
@@ -67,6 +69,7 @@ function DownloadButton({
   filename?: string;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const handleDownload = useCallback(() => {
     const downloadFilename = filename || "table.csv";
     const blob = new Blob([content], { type: "text/csv" });
@@ -87,7 +90,7 @@ function DownloadButton({
         "cursor-pointer p-1 text-muted-foreground transition-colors hover:text-foreground",
         className,
       )}
-      title="Download as CSV"
+      title={t("table_download_csv")}
       type="button"
     >
       <Download size={14} />

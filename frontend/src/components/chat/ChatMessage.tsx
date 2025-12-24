@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useState, useCallback, isValidElement, memo, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Streamdown } from "streamdown";
 import { Copy, Check, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -57,6 +58,7 @@ const MessageCopyButton = memo(function MessageCopyButton({
   content: string;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
@@ -72,7 +74,7 @@ const MessageCopyButton = memo(function MessageCopyButton({
         "flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
         className,
       )}
-      aria-label="Copy message"
+      aria-label={t("aria_copy_message")}
     >
       {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
     </button>
@@ -353,6 +355,7 @@ export const ChatMessage = memo(function ChatMessage({
   className,
   guardrail_blocked = false,
 }: ChatMessageProps) {
+  const { t } = useTranslation();
   const isUser = role === "user";
 
   // Pre-process content to replace [[citation]] markers with placeholders
@@ -420,7 +423,7 @@ export const ChatMessage = memo(function ChatMessage({
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-destructive mb-1">
-              Message blocked by content policy
+              {t("guardrail_message_blocked")}
             </p>
             <p className="text-sm text-muted-foreground">{content}</p>
           </div>

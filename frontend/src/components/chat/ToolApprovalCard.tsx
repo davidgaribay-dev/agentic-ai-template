@@ -11,6 +11,7 @@
  */
 
 import { memo, useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Play,
   X,
@@ -68,10 +69,13 @@ const ToolArgsViewer = memo(function ToolArgsViewer({
 }: {
   args: Record<string, unknown>;
 }) {
+  const { t } = useTranslation();
   const entries = Object.entries(args);
 
   if (entries.length === 0) {
-    return <span className="text-muted-foreground italic">No arguments</span>;
+    return (
+      <span className="text-muted-foreground italic">{t("tool_no_args")}</span>
+    );
   }
 
   return (
@@ -108,6 +112,7 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
   isLoading = false,
   className,
 }: ToolApprovalCardProps) {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   const [approvalState, setApprovalState] = useState<ApprovalState>("pending");
   const hasArgs = Object.keys(data.tool_args).length > 0;
@@ -142,7 +147,7 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
             <Check className="size-3.5" />
           </div>
           <div className="text-sm text-green-600 dark:text-green-400">
-            Approved: {data.tool_name}
+            {t("tool_approved")}: {data.tool_name}
           </div>
         </div>
       </div>
@@ -163,7 +168,7 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
             <X className="size-3.5" />
           </div>
           <div className="text-sm text-destructive">
-            Rejected: {data.tool_name}
+            {t("tool_rejected")}: {data.tool_name}
           </div>
         </div>
       </div>
@@ -205,7 +210,7 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
             className="text-muted-foreground hover:text-destructive"
           >
             <X className="size-3.5" />
-            <span className="hidden sm:inline">Cancel</span>
+            <span className="hidden sm:inline">{t("com_cancel")}</span>
           </Button>
           <Button
             variant="default"
@@ -219,7 +224,7 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
             ) : (
               <Play className="size-3.5" />
             )}
-            <span className="hidden sm:inline">Continue</span>
+            <span className="hidden sm:inline">{t("com_continue")}</span>
           </Button>
         </div>
       </div>
@@ -237,7 +242,7 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
               <ChevronRight className="size-3" />
             )}
             <span>
-              {isExpanded ? "Hide" : "Show"} arguments (
+              {isExpanded ? t("tool_hide_args") : t("tool_show_args")} (
               {Object.keys(data.tool_args).length})
             </span>
           </button>
@@ -270,6 +275,7 @@ export const ToolRejectionMessage = memo(function ToolRejectionMessage({
   undoTimeoutMs = 30000,
   className,
 }: ToolRejectionMessageProps) {
+  const { t } = useTranslation();
   const [canUndo, setCanUndo] = useState(!!onUndo);
 
   useEffect(() => {
@@ -291,7 +297,7 @@ export const ToolRejectionMessage = memo(function ToolRejectionMessage({
     >
       <X className="size-4 text-destructive shrink-0" />
       <span>
-        Tool call rejected:{" "}
+        {t("tool_call_rejected")}:{" "}
         <code className="text-xs bg-muted px-1 py-0.5 rounded">{toolName}</code>
       </span>
       {canUndo && onUndo && (
@@ -302,7 +308,7 @@ export const ToolRejectionMessage = memo(function ToolRejectionMessage({
           className="ml-auto h-6 px-2 text-xs"
         >
           <RotateCcw className="size-3 mr-1" />
-          Undo
+          {t("com_undo")}
         </Button>
       )}
     </div>

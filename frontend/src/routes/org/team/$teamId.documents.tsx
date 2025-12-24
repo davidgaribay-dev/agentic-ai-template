@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { FileSearch } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DocumentUpload } from "@/components/documents/document-upload";
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/org/team/$teamId/documents")({
 });
 
 function DocumentsPage() {
+  const { t } = useTranslation();
   const { currentOrg, teams } = useWorkspace();
   const { teamId } = Route.useParams();
   const [activeTab, setActiveTab] = useState("all");
@@ -27,7 +29,7 @@ function DocumentsPage() {
       <div className="bg-background min-h-screen">
         <div className="mx-auto max-w-5xl px-6 py-8">
           <div className="flex items-center justify-center min-h-[400px]">
-            <p className="text-muted-foreground">Team not found</p>
+            <p className="text-muted-foreground">{t("docs_team_not_found")}</p>
           </div>
         </div>
       </div>
@@ -40,13 +42,14 @@ function DocumentsPage() {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <FileSearch className="h-6 w-6" />
-            <h1 className="text-3xl font-bold">Documents</h1>
+            <h1 className="text-3xl font-bold">{t("docs_title")}</h1>
           </div>
           <p className="text-muted-foreground">
-            Upload and manage documents for AI-powered search in your
-            conversations
+            {t("docs_upload_manage_desc")}
           </p>
-          <p className="text-xs text-muted-foreground">Team: {team.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {t("com_team")}: {team.name}
+          </p>
         </div>
 
         <DocumentUpload
@@ -56,20 +59,22 @@ function DocumentsPage() {
         />
 
         <div>
-          <h2 className="text-xl font-semibold mb-4">Your Documents</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            {t("docs_your_documents")}
+          </h2>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList variant="underline">
               <TabsTrigger variant="underline" value="all">
-                All
+                {t("docs_tab_all")}
               </TabsTrigger>
               <TabsTrigger variant="underline" value="completed">
-                Ready
+                {t("docs_status_ready")}
               </TabsTrigger>
               <TabsTrigger variant="underline" value="processing">
-                Processing
+                {t("docs_status_processing")}
               </TabsTrigger>
               <TabsTrigger variant="underline" value="failed">
-                Failed
+                {t("docs_status_failed")}
               </TabsTrigger>
             </TabsList>
 

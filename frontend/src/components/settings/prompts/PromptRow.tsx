@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Power, ChevronDown, ChevronRight } from "lucide-react";
 import type { Prompt } from "@/lib/api";
@@ -15,6 +16,7 @@ interface PromptRowProps {
 }
 
 export function PromptRow({ prompt, scope, compact = false }: PromptRowProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
 
@@ -71,7 +73,7 @@ export function PromptRow({ prompt, scope, compact = false }: PromptRowProps) {
               variant="secondary"
               className={`bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0 ${sizes.badge}`}
             >
-              Active
+              {t("com_active")}
             </Badge>
           )}
         </div>

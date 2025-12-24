@@ -2,6 +2,7 @@
  * Standardized error display component using the Alert primitive.
  */
 
+import { useTranslation } from "react-i18next";
 import { AlertCircle } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -24,11 +25,13 @@ interface ErrorAlertProps {
  */
 export function ErrorAlert({
   error,
-  fallback = "An error occurred",
+  fallback,
   title,
   className,
 }: ErrorAlertProps) {
-  const message = getApiErrorMessage(error, fallback);
+  const { t } = useTranslation();
+  const effectiveFallback = fallback ?? t("error_default");
+  const message = getApiErrorMessage(error, effectiveFallback);
 
   return (
     <Alert variant="destructive" className={className}>

@@ -3,6 +3,7 @@
  */
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import {
   Plus,
@@ -32,6 +33,7 @@ import {
 import { cn, isValidImageUrl } from "@/lib/utils";
 
 export function TeamSwitcher() {
+  const { t } = useTranslation();
   const { state, toggleSidebar } = useSidebar();
   const {
     currentOrg,
@@ -65,7 +67,7 @@ export function TeamSwitcher() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
-                  tooltip={currentTeam?.name ?? "Select Team"}
+                  tooltip={currentTeam?.name ?? t("team_select")}
                   className={cn(
                     "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground h-8",
                     state === "collapsed" &&
@@ -94,7 +96,7 @@ export function TeamSwitcher() {
                   {state === "expanded" && (
                     <>
                       <span className="truncate text-sm font-medium">
-                        {currentTeam?.name ?? "Select Team"}
+                        {currentTeam?.name ?? t("team_select")}
                       </span>
                       <ChevronsUpDown className="ml-auto size-4" />
                     </>
@@ -108,12 +110,12 @@ export function TeamSwitcher() {
                 sideOffset={4}
               >
                 <DropdownMenuLabel className="text-xs text-muted-foreground">
-                  Teams in {currentOrg.name}
+                  {t("team_teams_in", { org: currentOrg.name })}
                 </DropdownMenuLabel>
                 {isLoadingTeams ? (
                   <DropdownMenuItem disabled className="gap-2 p-2">
                     <span className="text-muted-foreground">
-                      Loading teams...
+                      {t("team_loading")}
                     </span>
                   </DropdownMenuItem>
                 ) : (
@@ -157,7 +159,7 @@ export function TeamSwitcher() {
                 {teams.length === 0 && !isLoadingTeams && (
                   <DropdownMenuItem disabled className="gap-2 p-2">
                     <span className="text-muted-foreground text-sm">
-                      No teams yet
+                      {t("team_no_teams")}
                     </span>
                   </DropdownMenuItem>
                 )}
@@ -171,7 +173,9 @@ export function TeamSwitcher() {
                       <div className="flex size-6 items-center justify-center rounded-sm border bg-background">
                         <Plus className="size-4" />
                       </div>
-                      <span className="text-muted-foreground">Create Team</span>
+                      <span className="text-muted-foreground">
+                        {t("team_create")}
+                      </span>
                     </DropdownMenuItem>
                   </>
                 )}
@@ -185,9 +189,11 @@ export function TeamSwitcher() {
             "flex size-8 items-center justify-center rounded-md hover:bg-sidebar-accent text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors",
             state === "collapsed" && "mt-1",
           )}
-          title={state === "expanded" ? "Collapse sidebar" : "Expand sidebar"}
+          title={
+            state === "expanded" ? t("sidebar_collapse") : t("sidebar_expand")
+          }
           aria-label={
-            state === "expanded" ? "Collapse sidebar" : "Expand sidebar"
+            state === "expanded" ? t("sidebar_collapse") : t("sidebar_expand")
           }
           aria-expanded={state === "expanded"}
         >

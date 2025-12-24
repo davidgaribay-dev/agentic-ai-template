@@ -28,6 +28,7 @@ import {
   type PendingToolApproval,
   type RejectedToolCall,
 } from "@/lib/chat-store";
+import i18n from "@/locales/i18n";
 import { useShallow } from "zustand/react/shallow";
 
 export type {
@@ -175,7 +176,6 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
         (async () => {
           try {
             // Consume the generator to trigger the rejection
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             for await (const _event of agentApi.resumeStream(
               {
                 conversation_id: conversationId,
@@ -318,12 +318,13 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           return;
         }
 
-        const error = err instanceof Error ? err : new Error("Stream failed");
+        const error =
+          err instanceof Error ? err : new Error(i18n.t("error_stream_failed"));
         actions.setError(instanceId, error);
         onError?.(error);
 
         actions.updateMessage(instanceId, assistantMessageId, {
-          content: "Failed to get response. Please try again.",
+          content: i18n.t("chat_error_response"),
           isStreaming: false,
         });
       } finally {
@@ -532,13 +533,14 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
           return;
         }
 
-        const error = err instanceof Error ? err : new Error("Resume failed");
+        const error =
+          err instanceof Error ? err : new Error(i18n.t("error_resume_failed"));
         actions.setError(instanceId, error);
         onError?.(error);
 
         if (approved) {
           actions.updateMessage(instanceId, assistantMessageId, {
-            content: "Failed to continue. Please try again.",
+            content: i18n.t("chat_error_continue"),
             isStreaming: false,
           });
         }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -54,6 +55,7 @@ const userRagSettingsSchema = z.object({
 type UserRagSettingsFormData = z.infer<typeof userRagSettingsSchema>;
 
 export function UserRAGSettings() {
+  const { t } = useTranslation();
   const { data: userSettings, isLoading: isLoadingSettings } =
     useUserRAGSettings();
   const updateMutation = useUpdateUserRAGSettings();
@@ -138,7 +140,7 @@ export function UserRAGSettings() {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>Failed to load user RAG settings</AlertDescription>
+        <AlertDescription>{t("rag_failed_load")}</AlertDescription>
       </Alert>
     );
   }
@@ -151,18 +153,16 @@ export function UserRAGSettings() {
             <div className="space-y-1">
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
-                Personal Document Search Preferences
+                {t("rag_user_title")}
               </CardTitle>
-              <CardDescription>
-                Customize your personal document search settings
-              </CardDescription>
+              <CardDescription>{t("rag_user_desc")}</CardDescription>
             </div>
             <Switch
               checked={ragEnabled}
               onCheckedChange={(checked) =>
                 setValue("rag_enabled", checked, { shouldDirty: true })
               }
-              aria-label="Enable RAG for yourself"
+              aria-label={t("rag_user_enable")}
             />
           </div>
         </CardHeader>
@@ -170,7 +170,9 @@ export function UserRAGSettings() {
         <CardContent className="space-y-6">
           {/* Search Settings */}
           <div className="space-y-4">
-            <h4 className="text-sm font-medium">Search Preferences</h4>
+            <h4 className="text-sm font-medium">
+              {t("rag_search_preferences")}
+            </h4>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <TooltipProvider>
@@ -180,13 +182,13 @@ export function UserRAGSettings() {
                         htmlFor="chunks-per-query"
                         className="flex items-center gap-1"
                       >
-                        Results Per Query
+                        {t("rag_results_per_query")}
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p className="max-w-xs">
-                        Number of document chunks to return per search (1-20)
+                        {t("rag_results_per_query_desc")}
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -209,13 +211,13 @@ export function UserRAGSettings() {
                         htmlFor="similarity-threshold"
                         className="flex items-center gap-1"
                       >
-                        Similarity Threshold
+                        {t("rag_similarity_threshold")}
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p className="max-w-xs">
-                        Minimum relevance score 0-1 (higher = more strict)
+                        {t("rag_similarity_threshold_desc")}
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -240,7 +242,7 @@ export function UserRAGSettings() {
               onClick={handleReset}
               disabled={!isDirty || updateMutation.isPending}
             >
-              Reset
+              {t("com_reset")}
             </Button>
             <Button
               onClick={handleSave}
@@ -249,7 +251,7 @@ export function UserRAGSettings() {
               {updateMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Save Changes
+              {t("com_save_changes")}
             </Button>
           </div>
 
@@ -259,16 +261,14 @@ export function UserRAGSettings() {
               <AlertDescription>
                 {updateMutation.error instanceof Error
                   ? updateMutation.error.message
-                  : "Failed to update user RAG settings"}
+                  : t("rag_personal_failed")}
               </AlertDescription>
             </Alert>
           )}
 
           {updateMutation.isSuccess && !isDirty && (
             <Alert>
-              <AlertDescription>
-                Personal RAG preferences updated successfully
-              </AlertDescription>
+              <AlertDescription>{t("rag_personal_updated")}</AlertDescription>
             </Alert>
           )}
         </CardContent>
@@ -282,10 +282,10 @@ export function UserRAGSettings() {
               <div className="space-y-1 text-left">
                 <CardTitle className="flex items-center gap-2">
                   <Upload className="h-5 w-5" />
-                  Personal Documents
+                  {t("rag_personal_documents")}
                 </CardTitle>
                 <CardDescription>
-                  Upload documents for your personal use only
+                  {t("rag_personal_documents_desc")}
                 </CardDescription>
               </div>
               {documentsOpen ? (
@@ -300,15 +300,14 @@ export function UserRAGSettings() {
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      Please select an organization and team to upload personal
-                      documents.
+                      {t("rag_select_org_team")}
                     </AlertDescription>
                   </Alert>
                 ) : !ragEnabled ? (
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      Enable Document Search above to upload personal documents.
+                      {t("rag_enable_to_upload_personal")}
                     </AlertDescription>
                   </Alert>
                 ) : (
@@ -321,7 +320,7 @@ export function UserRAGSettings() {
                     />
                     <div className="border-t pt-6">
                       <h4 className="text-sm font-medium mb-4">
-                        Your Documents
+                        {t("rag_your_documents")}
                       </h4>
                       <DocumentList
                         orgId={currentOrg.id}

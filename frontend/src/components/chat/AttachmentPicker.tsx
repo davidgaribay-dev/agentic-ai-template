@@ -8,6 +8,7 @@
 
 import * as React from "react";
 import { useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Paperclip, Database, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -91,6 +92,7 @@ export function AttachmentPicker({
   onRAGSelect,
   disabled = false,
 }: AttachmentPickerProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = React.useState(false);
   const inlineInputRef = useRef<HTMLInputElement>(null);
   const ragInputRef = useRef<HTMLInputElement>(null);
@@ -171,7 +173,7 @@ export function AttachmentPicker({
         multiple
         onChange={handleInlineChange}
         className="hidden"
-        aria-label="Select files for inline use"
+        aria-label={t("attachment_select_inline")}
       />
       <input
         id={ragInputId}
@@ -181,7 +183,7 @@ export function AttachmentPicker({
         multiple
         onChange={handleRAGChange}
         className="hidden"
-        aria-label="Select files for knowledge base"
+        aria-label={t("attachment_select_rag")}
       />
 
       <Popover open={open} onOpenChange={setOpen}>
@@ -194,14 +196,14 @@ export function AttachmentPicker({
                   size="icon"
                   disabled={disabled}
                   className="size-8 text-muted-foreground hover:text-foreground"
-                  aria-label="Attach files"
+                  aria-label={t("aria_attach_files")}
                 >
                   <Plus className="size-4" />
                 </Button>
               </PopoverTrigger>
             </TooltipTrigger>
             <TooltipContent side="top">
-              <p>Attach files</p>
+              <p>{t("attachment_title")}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -215,9 +217,9 @@ export function AttachmentPicker({
           <div className="flex flex-col">
             {/* Header */}
             <div className="border-b px-4 py-3">
-              <h4 className="text-sm font-medium">Attach Files</h4>
+              <h4 className="text-sm font-medium">{t("attachment_title")}</h4>
               <p className="text-xs text-muted-foreground">
-                Choose how to use your files
+                {t("attachment_desc")}
               </p>
             </div>
 
@@ -239,10 +241,10 @@ export function AttachmentPicker({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">
-                      Use in this conversation
+                      {t("attachment_inline")}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Attach for immediate analysis (images, PDFs)
+                      {t("attachment_inline_desc")}
                     </p>
                   </div>
                 </div>
@@ -269,10 +271,10 @@ export function AttachmentPicker({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">
-                        Add to Knowledge Base
+                        {t("attachment_rag")}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Store for retrieval across all conversations
+                        {t("attachment_rag_desc")}
                       </p>
                     </div>
                   </div>
@@ -285,10 +287,10 @@ export function AttachmentPicker({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-muted-foreground">
-                        Knowledge Base
+                        {t("attachment_rag_disabled")}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        RAG is disabled for this workspace
+                        {t("attachment_rag_disabled_desc")}
                       </p>
                     </div>
                   </div>
@@ -299,7 +301,7 @@ export function AttachmentPicker({
             {/* Footer hint */}
             <div className="border-t px-4 py-2">
               <p className="text-xs text-muted-foreground text-center">
-                Drag & drop files anywhere in the chat
+                {t("attachment_drag_hint")}
               </p>
             </div>
           </div>

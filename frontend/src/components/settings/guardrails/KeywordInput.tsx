@@ -3,6 +3,7 @@
  */
 
 import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -20,8 +21,10 @@ export function KeywordInput({
   keywords,
   onChange,
   disabled,
-  placeholder = "Add keyword...",
+  placeholder,
 }: KeywordInputProps) {
+  const { t } = useTranslation();
+  const placeholderText = placeholder ?? t("guardrails_add_keyword");
   const [input, setInput] = useState("");
 
   const handleAdd = useCallback(() => {
@@ -56,7 +59,7 @@ export function KeywordInput({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          placeholder={placeholderText}
           disabled={disabled}
           className="flex-1"
         />

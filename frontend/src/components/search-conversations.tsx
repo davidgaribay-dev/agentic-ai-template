@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import {
   Search,
   X,
@@ -35,6 +36,7 @@ import { formatRelativeTime } from "@/lib/utils";
 import { useSidePanel } from "@/components/side-panel";
 
 export function SearchConversations() {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedQuery = useDebounce(searchQuery, 300);
   const { currentTeam } = useWorkspace();
@@ -79,7 +81,7 @@ export function SearchConversations() {
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="text"
-          placeholder="Search conversations..."
+          placeholder={t("nav_search_conversations")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-9 pr-9"
@@ -93,7 +95,7 @@ export function SearchConversations() {
             onClick={() => setSearchQuery("")}
           >
             <X className="h-4 w-4" />
-            <span className="sr-only">Clear search</span>
+            <span className="sr-only">{t("nav_clear_search")}</span>
           </Button>
         )}
       </div>
@@ -102,16 +104,14 @@ export function SearchConversations() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           <span className="ml-2 text-sm text-muted-foreground">
-            {hasSearched ? "Searching..." : "Loading conversations..."}
+            {hasSearched ? t("search_searching") : t("search_loading")}
           </span>
         </div>
       )}
 
       {error && (
         <div className="rounded-md border border-destructive bg-destructive/10 p-4">
-          <p className="text-sm text-destructive">
-            Failed to load conversations. Please try again.
-          </p>
+          <p className="text-sm text-destructive">{t("search_failed")}</p>
         </div>
       )}
 
@@ -119,12 +119,12 @@ export function SearchConversations() {
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <MessageSquare className="h-12 w-12 text-muted-foreground/50" />
           <h3 className="mt-4 text-lg font-semibold">
-            {hasSearched ? "No conversations found" : "No conversations yet"}
+            {hasSearched
+              ? t("search_no_results")
+              : t("search_no_conversations")}
           </h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            {hasSearched
-              ? "Try adjusting your search query"
-              : "Start a new chat to begin"}
+            {hasSearched ? t("search_try_adjusting") : t("search_start_chat")}
           </p>
         </div>
       )}
@@ -133,8 +133,7 @@ export function SearchConversations() {
         <div className="flex flex-col gap-4">
           {hasSearched && (
             <p className="text-sm text-muted-foreground">
-              Found {data?.count || 0}{" "}
-              {data?.count === 1 ? "conversation" : "conversations"}
+              {t("search_found", { count: data?.count || 0 })}
             </p>
           )}
           <div className="rounded-md border">
@@ -142,8 +141,10 @@ export function SearchConversations() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12"></TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead className="w-48">Last Updated</TableHead>
+                  <TableHead>{t("search_title")}</TableHead>
+                  <TableHead className="w-48">
+                    {t("search_last_updated")}
+                  </TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -172,7 +173,7 @@ export function SearchConversations() {
                             className="h-8 w-8"
                           >
                             <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Actions</span>
+                            <span className="sr-only">{t("com_actions")}</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -183,7 +184,7 @@ export function SearchConversations() {
                               }
                             >
                               <ExternalLink className="mr-2 h-4 w-4" />
-                              Open in Page
+                              {t("search_open_page")}
                             </DropdownMenuItem>
                           )}
                           {chatPanelEnabled && (
@@ -196,7 +197,7 @@ export function SearchConversations() {
                               }
                             >
                               <PanelRightOpen className="mr-2 h-4 w-4" />
-                              Open in Panel
+                              {t("search_open_panel")}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>

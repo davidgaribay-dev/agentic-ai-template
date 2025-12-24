@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { PanelRight } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { UserMenu } from "./user-menu";
@@ -6,6 +7,7 @@ import { useSidePanel } from "./side-panel";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 
 export function Navbar() {
+  const { t } = useTranslation();
   const { isAuthenticated, isLoading } = useAuth();
   const { toggle } = useSidePanel();
 
@@ -18,7 +20,7 @@ export function Navbar() {
       <div className="flex h-12 items-center justify-between px-4">
         <div className="flex items-center gap-4">
           <Link to="/" className="text-sm font-semibold">
-            DeepGTM
+            {t("app_name")}
           </Link>
           <WorkspaceSwitcher />
         </div>
@@ -27,7 +29,7 @@ export function Navbar() {
           <button
             onClick={toggle}
             className="flex size-8 items-center justify-center rounded-md hover:bg-muted"
-            aria-label="Toggle panel"
+            aria-label={t("aria_toggle_panel")}
           >
             <PanelRight className="size-4" />
           </button>

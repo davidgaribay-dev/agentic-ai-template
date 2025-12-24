@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   FileText,
   FileCode,
@@ -25,6 +26,7 @@ import {
   useDeleteDocument,
   useReprocessDocument,
 } from "@/lib/queries";
+import { formatFileSize } from "@/lib/api/media";
 import type { Document, ProcessingStatus } from "@/lib/api";
 
 interface DocumentListProps {
@@ -71,12 +73,6 @@ function getFileIcon(fileType: string) {
   return File;
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 export function DocumentList({
   orgId,
   teamId,
@@ -84,6 +80,7 @@ export function DocumentList({
   scope,
   userId,
 }: DocumentListProps) {
+  const { t } = useTranslation();
   const {
     data: documents,
     isLoading,
@@ -145,7 +142,7 @@ export function DocumentList({
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          {error instanceof Error ? error.message : "Failed to load documents"}
+          {error instanceof Error ? error.message : t("docs_failed_load")}
         </AlertDescription>
       </Alert>
     );
@@ -157,10 +154,10 @@ export function DocumentList({
         <CardContent className="flex flex-col items-center justify-center p-8 text-center">
           <FileText className="h-12 w-12 text-muted-foreground mb-4" />
           <p className="text-sm font-medium text-muted-foreground">
-            No documents uploaded yet
+            {t("docs_no_documents")}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Upload documents above to enable AI-powered search
+            {t("docs_upload_hint")}
           </p>
         </CardContent>
       </Card>
@@ -183,11 +180,12 @@ export function DocumentList({
                   <p className="text-sm font-medium truncate">{doc.filename}</p>
                   <p className="text-xs text-muted-foreground">
                     {formatFileSize(doc.file_size)}
-                    {doc.chunk_count > 0 && ` • ${doc.chunk_count} chunks`}
+                    {doc.chunk_count > 0 &&
+                      ` • ${t("docs_chunk_count", { count: doc.chunk_count })}`}
                   </p>
                   {doc.processing_error && (
                     <p className="text-xs text-destructive mt-1 line-clamp-1">
-                      Error: {doc.processing_error}
+                      {t("docs_error_prefix", { error: doc.processing_error })}
                     </p>
                   )}
                 </div>
@@ -213,7 +211,7 @@ export function DocumentList({
                         ) : (
                           <RefreshCw className="mr-2 h-4 w-4" />
                         )}
-                        Retry Processing
+                        {t("docs_retry")}
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem
@@ -226,7 +224,7 @@ export function DocumentList({
                       ) : (
                         <Trash2 className="mr-2 h-4 w-4" />
                       )}
-                      Delete
+                      {t("com_delete")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -239,7 +237,7 @@ export function DocumentList({
       {documents && documents.total > filteredDocuments.length && (
         <div className="flex items-center justify-center gap-2 pt-4">
           <p className="text-xs text-muted-foreground">
-            Showing {filteredDocuments.length} documents
+            {t("docs_showing", { count: filteredDocuments.length })}
           </p>
         </div>
       )}

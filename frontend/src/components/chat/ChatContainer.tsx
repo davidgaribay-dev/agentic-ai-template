@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { ChatMessage } from "./ChatMessage";
 import type { MessageSource, ChatMediaAttachment } from "@/lib/chat-store";
@@ -23,6 +24,8 @@ export const ChatContainer = memo(function ChatContainer({
   messages,
   className,
 }: ChatContainerProps) {
+  const { t } = useTranslation();
+
   if (messages.length === 0) {
     return null;
   }
@@ -31,7 +34,7 @@ export const ChatContainer = memo(function ChatContainer({
     <div
       className={cn("flex min-h-full flex-col gap-4", className)}
       role="log"
-      aria-label="Chat messages"
+      aria-label={t("aria_chat_messages")}
       aria-live="polite"
       aria-relevant="additions"
     >

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "@tanstack/react-router";
 import { Home, Search, Settings, Building2, PanelLeft } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -6,7 +7,7 @@ import { cn } from "@/lib/utils";
 interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  label: string;
+  labelKey: string;
   matchPaths?: string[];
 }
 
@@ -14,30 +15,31 @@ const navItems: NavItem[] = [
   {
     href: "/",
     icon: Home,
-    label: "Home",
+    labelKey: "nav_home",
     matchPaths: ["/", "/chat"],
   },
   {
     href: "/search",
     icon: Search,
-    label: "Search",
+    labelKey: "com_search",
     matchPaths: ["/search"],
   },
   {
     href: "/organizations",
     icon: Building2,
-    label: "Orgs",
+    labelKey: "nav_orgs",
     matchPaths: ["/organizations", "/org/settings", "/org/team"],
   },
   {
     href: "/settings",
     icon: Settings,
-    label: "Settings",
+    labelKey: "nav_settings",
     matchPaths: ["/settings"],
   },
 ];
 
 export function MobileBottomNav() {
+  const { t } = useTranslation();
   const location = useLocation();
 
   const isActive = (item: NavItem) => {
@@ -49,6 +51,21 @@ export function MobileBottomNav() {
       );
     }
     return location.pathname === item.href;
+  };
+
+  const getLabel = (key: string): string => {
+    switch (key) {
+      case "nav_home":
+        return t("nav_home");
+      case "com_search":
+        return t("com_search");
+      case "nav_orgs":
+        return t("nav_orgs");
+      case "nav_settings":
+        return t("nav_settings");
+      default:
+        return key;
+    }
   };
 
   return (
@@ -68,7 +85,9 @@ export function MobileBottomNav() {
               )}
             >
               <item.icon className={cn("size-5", active && "text-primary")} />
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className="text-[10px] font-medium">
+                {getLabel(item.labelKey)}
+              </span>
             </Link>
           );
         })}
@@ -80,6 +99,7 @@ export function MobileBottomNav() {
 }
 
 export function MobileHeader() {
+  const { t } = useTranslation();
   const { toggleSidebar } = useSidebar();
 
   return (
@@ -87,7 +107,7 @@ export function MobileHeader() {
       <button
         onClick={toggleSidebar}
         className="flex size-10 items-center justify-center rounded-lg hover:bg-muted active:bg-muted/80"
-        aria-label="Open menu"
+        aria-label={t("com_open_menu")}
       >
         <PanelLeft className="size-5" />
       </button>

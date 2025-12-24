@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Loader2 } from "lucide-react";
 import { useWorkspace, workspaceKeys } from "@/lib/workspace";
@@ -41,6 +42,7 @@ export function CreateTeamDialog({
   open: controlledOpen,
   onOpenChange,
 }: CreateTeamDialogProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { currentOrg, currentOrgRole, switchTeam, refresh } = useWorkspace();
   const [internalOpen, setInternalOpen] = useState(false);
@@ -66,7 +68,7 @@ export function CreateTeamDialog({
     },
     onError: (err: ApiError) => {
       const detail = (err.body as { detail?: string })?.detail;
-      setError(detail || "Failed to create team");
+      setError(detail || t("team_failed_create"));
     },
   });
 
@@ -90,7 +92,7 @@ export function CreateTeamDialog({
   const defaultTrigger = (
     <Button variant="outline" size="sm">
       <Plus className="mr-2 h-4 w-4" />
-      Create Team
+      {t("team_create")}
     </Button>
   );
 
@@ -106,29 +108,31 @@ export function CreateTeamDialog({
       )}
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Team</DialogTitle>
+          <DialogTitle>{t("team_create_dialog_title")}</DialogTitle>
           <DialogDescription>
-            Create a new team in {currentOrg.name} to organize your work.
+            {t("team_create_dialog_desc", { org: currentOrg.name })}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="team-name">Team Name</Label>
+            <Label htmlFor="team-name">{t("team_name_label")}</Label>
             <Input
               id="team-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Engineering"
+              placeholder={t("team_name_placeholder")}
               autoFocus
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="team-description">Description (optional)</Label>
+            <Label htmlFor="team-description">
+              {t("team_description_optional")}
+            </Label>
             <Textarea
               id="team-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="A brief description of this team's purpose"
+              placeholder={t("team_description_placeholder")}
               rows={3}
             />
           </div>
@@ -136,7 +140,7 @@ export function CreateTeamDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={resetDialog}>
-            Cancel
+            {t("com_cancel")}
           </Button>
           <Button
             onClick={handleCreate}
@@ -145,7 +149,7 @@ export function CreateTeamDialog({
             {createMutation.isPending && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
-            Create Team
+            {t("team_create")}
           </Button>
         </DialogFooter>
       </DialogContent>

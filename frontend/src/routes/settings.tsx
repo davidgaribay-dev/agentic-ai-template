@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -22,6 +23,7 @@ import {
   FileSearch,
   Image as ImageIcon,
   Shield,
+  Globe,
 } from "lucide-react";
 import { useAuth, authKeys } from "@/lib/auth";
 import {
@@ -52,6 +54,7 @@ import {
   MediaLibrary,
   GuardrailSettings,
 } from "@/components/settings";
+import { LanguageSettings } from "@/components/settings/language-settings";
 import { guardrailsApi, type UserGuardrailsUpdate } from "@/lib/api";
 import { getInitials, isValidImageUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -81,6 +84,7 @@ const settingsSearchSchema = z.object({
       "rag",
       "media",
       "guardrails",
+      "language",
     ])
     .optional(),
 });
@@ -98,6 +102,7 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { tab: tabFromUrl } = Route.useSearch();
 
@@ -112,20 +117,23 @@ function SettingsPage() {
   };
 
   const tabs = [
-    { value: "profile", label: "Profile", icon: User },
-    { value: "ai", label: "AI Configuration", icon: Sparkles },
-    { value: "memory", label: "Memory", icon: Brain },
-    { value: "preferences", label: "Preferences", icon: Settings2 },
-    { value: "theme", label: "Theme", icon: Palette },
-    { value: "rag", label: "Document Search", icon: FileSearch },
-    { value: "media", label: "Media", icon: ImageIcon },
-    { value: "guardrails", label: "Guardrails", icon: Shield },
+    { value: "profile", label: t("settings_profile"), icon: User },
+    { value: "ai", label: t("settings_ai_config"), icon: Sparkles },
+    { value: "memory", label: t("settings_memory"), icon: Brain },
+    { value: "preferences", label: t("settings_preferences"), icon: Settings2 },
+    { value: "theme", label: t("settings_theme"), icon: Palette },
+    { value: "rag", label: t("settings_docs"), icon: FileSearch },
+    { value: "media", label: t("settings_media"), icon: ImageIcon },
+    { value: "guardrails", label: t("settings_guardrails"), icon: Shield },
+    { value: "language", label: t("settings_language"), icon: Globe },
   ];
 
   return (
     <div className="bg-background min-h-screen">
       <div className="mx-auto max-w-5xl px-4 md:px-6 py-4 md:py-8">
-        <h1 className="text-lg font-semibold mb-4 md:mb-6">Profile Settings</h1>
+        <h1 className="text-lg font-semibold mb-4 md:mb-6">
+          {t("settings_profile_title")}
+        </h1>
         <Tabs
           value={currentTab}
           onValueChange={handleTabChange}
@@ -187,6 +195,10 @@ function SettingsPage() {
             <TabsContent value="guardrails" className="mt-0">
               <UserGuardrailsSection />
             </TabsContent>
+
+            <TabsContent value="language" className="mt-0">
+              <LanguageSettings />
+            </TabsContent>
           </div>
         </Tabs>
       </div>
@@ -195,6 +207,7 @@ function SettingsPage() {
 }
 
 function ProfileSection() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -222,7 +235,7 @@ function ProfileSection() {
     },
     onError: (err: ApiError) => {
       const detail = (err.body as { detail?: string })?.detail;
-      setProfileError(detail || "Failed to update profile");
+      setProfileError(detail || t("profile_failed_update"));
     },
   });
 
@@ -234,7 +247,7 @@ function ProfileSection() {
     },
     onError: (err: ApiError) => {
       const detail = (err.body as { detail?: string })?.detail;
-      setProfileError(detail || "Failed to upload image");
+      setProfileError(detail || t("profile_failed_upload"));
     },
   });
 
@@ -246,7 +259,7 @@ function ProfileSection() {
     },
     onError: (err: ApiError) => {
       const detail = (err.body as { detail?: string })?.detail;
-      setProfileError(detail || "Failed to delete image");
+      setProfileError(detail || t("profile_failed_delete"));
     },
   });
 
@@ -263,7 +276,7 @@ function ProfileSection() {
 
   const handleSaveEmail = () => {
     if (!editEmail.trim()) {
-      setProfileError("Email is required");
+      setProfileError(t("profile_email_required"));
       return;
     }
     setProfileError(null);
@@ -284,11 +297,11 @@ function ProfileSection() {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        setProfileError("Image must be less than 10MB");
+        setProfileError(t("settings_image_too_large"));
         return;
       }
       if (!file.type.startsWith("image/")) {
-        setProfileError("Please select an image file");
+        setProfileError(t("settings_select_image"));
         return;
       }
       uploadImageMutation.mutate(file);
@@ -330,7 +343,7 @@ function ProfileSection() {
               isValidImageUrl(user.profile_image_url) ? (
                 <img
                   src={user.profile_image_url}
-                  alt={user.full_name || "Profile"}
+                  alt={user.full_name || t("profile_photo_alt")}
                   className="size-16 rounded-full object-cover"
                 />
               ) : (
@@ -352,7 +365,9 @@ function ProfileSection() {
           <DropdownMenuContent align="start" className="w-40">
             <DropdownMenuItem onClick={handleImageClick}>
               <Camera className="mr-2 size-4" />
-              {user?.profile_image_url ? "Change" : "Upload"}
+              {user?.profile_image_url
+                ? t("profile_change_photo")
+                : t("profile_upload_photo")}
             </DropdownMenuItem>
             {user?.profile_image_url && (
               <DropdownMenuItem
@@ -360,7 +375,7 @@ function ProfileSection() {
                 className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="mr-2 size-4" />
-                Remove
+                {t("profile_remove_photo")}
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
@@ -373,7 +388,7 @@ function ProfileSection() {
                 <Input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  placeholder="Enter your name"
+                  placeholder={t("settings_enter_name")}
                   className="h-8 max-w-xs"
                   autoFocus
                   onKeyDown={(e) => {
@@ -407,7 +422,7 @@ function ProfileSection() {
             ) : (
               <div className="flex items-center gap-1.5 group">
                 <span className="font-medium">
-                  {user?.full_name || "No name set"}
+                  {user?.full_name || t("settings_no_name")}
                 </span>
                 <button
                   onClick={() => setIsEditingName(true)}
@@ -426,7 +441,7 @@ function ProfileSection() {
                   type="email"
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
-                  placeholder="Enter your email"
+                  placeholder={t("settings_enter_email")}
                   className="h-7 max-w-xs text-sm"
                   autoFocus
                   onKeyDown={(e) => {
@@ -479,6 +494,7 @@ function ProfileSection() {
 }
 
 function AIConfigurationSection() {
+  const { t } = useTranslation();
   const { data: promptsData, isLoading } = useQuery({
     queryKey: ["user-prompts"],
     queryFn: () => promptsApi.listUserPrompts(),
@@ -502,7 +518,7 @@ function AIConfigurationSection() {
               <ChevronRight className="size-4" />
             )}
             <Sparkles className="size-4" />
-            System Prompts
+            {t("prompts_system")}
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
               {systemPrompts.length}
             </Badge>
@@ -516,7 +532,7 @@ function AIConfigurationSection() {
             </div>
           ) : systemPrompts.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">
-              No system prompts yet
+              {t("prompts_no_system")}
             </p>
           ) : (
             systemPrompts.map((prompt) => (
@@ -541,7 +557,7 @@ function AIConfigurationSection() {
               <ChevronRight className="size-4" />
             )}
             <MessageSquare className="size-4" />
-            Templates
+            {t("prompts_templates")}
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
               {templatePrompts.length}
             </Badge>
@@ -555,7 +571,7 @@ function AIConfigurationSection() {
             </div>
           ) : templatePrompts.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">
-              No templates yet
+              {t("prompts_no_templates")}
             </p>
           ) : (
             templatePrompts.map((prompt) => (
@@ -573,6 +589,7 @@ function AIConfigurationSection() {
 }
 
 function PreferencesSection() {
+  const { t } = useTranslation();
   const { currentOrg, currentTeam } = useWorkspace();
   const { data: orgSettings, isLoading: isLoadingOrg } = useOrgChatSettings(
     currentOrg?.id,
@@ -607,10 +624,10 @@ function PreferencesSection() {
       <div>
         <div className="flex items-center gap-2 py-2">
           <MessageSquare className="size-4" />
-          <span className="text-sm font-medium">Chat Features</span>
+          <span className="text-sm font-medium">{t("chat_features")}</span>
         </div>
         <p className="text-xs text-muted-foreground">
-          Organization and team settings take precedence over your preferences.
+          {t("memory_settings_desc")}
         </p>
         <ChatSettings
           settings={
@@ -695,15 +712,15 @@ function UserMCPSection({
       ? "team"
       : null;
 
+  const { t } = useTranslation();
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 py-2">
         <Plug className="size-4" />
-        <span className="text-sm font-medium">MCP Integration</span>
+        <span className="text-sm font-medium">{t("mcp_integration")}</span>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Add your own MCP servers for personal AI tool integrations.
-      </p>
+      <p className="text-xs text-muted-foreground">{t("mcp_add_own")}</p>
 
       <MCPSettings
         mcpEnabled={userSettings?.mcp_enabled ?? true}
@@ -725,6 +742,7 @@ function UserMCPSection({
 }
 
 function MemorySection() {
+  const { t } = useTranslation();
   const { currentOrg, currentTeam } = useWorkspace();
   const { data: orgSettings, isLoading: isLoadingOrg } = useOrgChatSettings(
     currentOrg?.id,
@@ -752,11 +770,10 @@ function MemorySection() {
       <div>
         <div className="flex items-center gap-2 py-2">
           <Brain className="size-4" />
-          <span className="text-sm font-medium">Memory Settings</span>
+          <span className="text-sm font-medium">{t("memory_settings")}</span>
         </div>
         <p className="text-xs text-muted-foreground mb-4">
-          Control whether the AI remembers information from your conversations.
-          Organization and team settings take precedence.
+          {t("memory_settings_desc")}
         </p>
         <MemorySettings
           memoryEnabled={memoryEnabled}
@@ -776,7 +793,9 @@ function MemorySection() {
       <div className="border-t pt-6">
         <div className="flex items-center gap-2 mb-4">
           <Brain className="size-4" />
-          <span className="text-sm font-medium">Your Memories</span>
+          <span className="text-sm font-medium">
+            {t("memory_your_memories")}
+          </span>
         </div>
         <MemoryViewer />
       </div>
@@ -785,12 +804,13 @@ function MemorySection() {
 }
 
 function MediaSection() {
+  const { t } = useTranslation();
   const { currentOrg, currentTeam } = useWorkspace();
 
   if (!currentOrg?.id) {
     return (
       <div className="text-sm text-muted-foreground py-8 text-center">
-        Select an organization to view your uploaded media.
+        {t("media_select_org")}
       </div>
     );
   }
@@ -800,11 +820,9 @@ function MediaSection() {
       <div>
         <div className="flex items-center gap-2 py-2">
           <ImageIcon className="size-4" />
-          <span className="text-sm font-medium">Uploaded Media</span>
+          <span className="text-sm font-medium">{t("media_uploaded")}</span>
         </div>
-        <p className="text-xs text-muted-foreground mb-4">
-          Images you&apos;ve attached to chat messages.
-        </p>
+        <p className="text-xs text-muted-foreground mb-4">{t("media_desc")}</p>
       </div>
       <MediaLibrary organizationId={currentOrg.id} teamId={currentTeam?.id} />
     </div>
@@ -812,6 +830,7 @@ function MediaSection() {
 }
 
 function UserGuardrailsSection() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const { data: guardrails, isLoading } = useQuery({
@@ -840,11 +859,10 @@ function UserGuardrailsSection() {
       <div>
         <div className="flex items-center gap-2 py-2">
           <Shield className="size-4" />
-          <span className="text-sm font-medium">Content Guardrails</span>
+          <span className="text-sm font-medium">{t("guardrails_title")}</span>
         </div>
         <p className="text-xs text-muted-foreground mb-4">
-          Configure personal content filtering rules. These are combined with
-          organization and team rules.
+          {t("guardrails_content_desc")}
         </p>
       </div>
       <GuardrailSettings

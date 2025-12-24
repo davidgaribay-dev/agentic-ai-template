@@ -3,6 +3,7 @@
  */
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
 import { Loader2, FlaskConical, ShieldCheck, ShieldAlert } from "lucide-react";
 
@@ -32,6 +33,7 @@ interface TestResult {
 }
 
 export function GuardrailTestPanel({ orgId, teamId }: GuardrailTestPanelProps) {
+  const { t } = useTranslation();
   const [content, setContent] = useState("");
   const [direction, setDirection] = useState<"input" | "output">("input");
   const [result, setResult] = useState<TestResult | null>(null);
@@ -52,17 +54,17 @@ export function GuardrailTestPanel({ orgId, teamId }: GuardrailTestPanelProps) {
     <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
       <div className="flex items-center gap-2 text-sm font-medium">
         <FlaskConical className="size-4" />
-        Test Guardrails
+        {t("guardrails_test")}
       </div>
       <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        placeholder="Enter content to test..."
+        placeholder={t("guardrails_test_placeholder")}
         className="min-h-[80px]"
       />
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <Label className="text-sm">Direction:</Label>
+          <Label className="text-sm">{t("guardrails_direction")}</Label>
           <Select
             value={direction}
             onValueChange={(v) => setDirection(v as "input" | "output")}
@@ -71,8 +73,12 @@ export function GuardrailTestPanel({ orgId, teamId }: GuardrailTestPanelProps) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="input">Input</SelectItem>
-              <SelectItem value="output">Output</SelectItem>
+              <SelectItem value="input">
+                {t("guardrails_direction_input")}
+              </SelectItem>
+              <SelectItem value="output">
+                {t("guardrails_direction_output")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -84,7 +90,7 @@ export function GuardrailTestPanel({ orgId, teamId }: GuardrailTestPanelProps) {
           {testMutation.isPending ? (
             <Loader2 className="size-4 animate-spin mr-1" />
           ) : null}
-          Test
+          {t("guardrails_test")}
         </Button>
       </div>
 
@@ -101,22 +107,22 @@ export function GuardrailTestPanel({ orgId, teamId }: GuardrailTestPanelProps) {
             {result.passed ? (
               <>
                 <ShieldCheck className="size-4" />
-                Passed
+                {t("guardrails_result_passed")}
               </>
             ) : (
               <>
                 <ShieldAlert className="size-4" />
                 {result.action === "block"
-                  ? "Blocked"
+                  ? t("guardrails_result_blocked")
                   : result.action === "redact"
-                    ? "Would be redacted"
-                    : "Warning triggered"}
+                    ? t("guardrails_result_redacted")
+                    : t("guardrails_result_warning")}
               </>
             )}
           </div>
           {result.matches.length > 0 && (
             <div className="mt-2 text-xs">
-              <strong>Matches:</strong>
+              <strong>{t("guardrails_matches")}</strong>
               <ul className="list-disc list-inside mt-1">
                 {result.matches.map((m, i) => (
                   <li key={i}>
@@ -131,7 +137,7 @@ export function GuardrailTestPanel({ orgId, teamId }: GuardrailTestPanelProps) {
           )}
           {result.redacted_content && (
             <div className="mt-2 text-xs">
-              <strong>Redacted:</strong>
+              <strong>{t("guardrails_redacted")}</strong>
               <pre className="mt-1 p-2 bg-background rounded overflow-auto">
                 {result.redacted_content}
               </pre>

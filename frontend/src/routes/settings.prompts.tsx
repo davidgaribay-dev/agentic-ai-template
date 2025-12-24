@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   FileText,
@@ -74,6 +75,8 @@ export const Route = createFileRoute("/settings/prompts")({
 });
 
 function UserPromptsPage() {
+  const { t } = useTranslation();
+
   return (
     <div className="bg-background">
       <div className="mx-auto max-w-4xl px-4 py-8">
@@ -82,7 +85,7 @@ function UserPromptsPage() {
           <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
             <Link to="/settings">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Settings
+              {t("prompts_back_settings")}
             </Link>
           </Button>
           <div className="flex items-center justify-between">
@@ -91,9 +94,11 @@ function UserPromptsPage() {
                 <FileText className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">My Prompts</h1>
+                <h1 className="text-2xl font-bold">
+                  {t("prompts_my_prompts")}
+                </h1>
                 <p className="text-sm text-muted-foreground">
-                  Personal prompts that follow you across all organizations
+                  {t("prompts_personal_follow")}
                 </p>
               </div>
             </div>
@@ -106,11 +111,9 @@ function UserPromptsPage() {
           <div className="flex gap-3">
             <Sparkles className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-medium">Personal Prompts</p>
+              <p className="font-medium">{t("prompts_personal_info")}</p>
               <p className="text-muted-foreground">
-                These prompts are private to you and available in all your
-                conversations, regardless of which organization or team you're
-                working in.
+                {t("prompts_personal_info_desc")}
               </p>
             </div>
           </div>
@@ -124,6 +127,7 @@ function UserPromptsPage() {
 }
 
 function PromptsTabsSection() {
+  const { t } = useTranslation();
   const { data: promptsData, isLoading } = useQuery({
     queryKey: ["user-prompts"],
     queryFn: () => promptsApi.listUserPrompts(),
@@ -148,7 +152,7 @@ function PromptsTabsSection() {
       <TabsList>
         <TabsTrigger value="system" className="gap-2">
           <Sparkles className="h-4 w-4" />
-          System Prompts
+          {t("prompts_system")}
           {systemPrompts.length > 0 && (
             <Badge variant="secondary" className="ml-1 h-5 px-1.5">
               {systemPrompts.length}
@@ -157,7 +161,7 @@ function PromptsTabsSection() {
         </TabsTrigger>
         <TabsTrigger value="templates" className="gap-2">
           <MessageSquare className="h-4 w-4" />
-          Templates
+          {t("prompts_templates")}
           {templatePrompts.length > 0 && (
             <Badge variant="secondary" className="ml-1 h-5 px-1.5">
               {templatePrompts.length}
@@ -170,8 +174,8 @@ function PromptsTabsSection() {
         {systemPrompts.length === 0 ? (
           <EmptyState
             icon={Sparkles}
-            title="No system prompts"
-            description="Personal system prompts add to the AI's behavior on top of organization and team prompts."
+            title={t("prompts_no_system")}
+            description={t("prompts_personal_system_desc")}
           />
         ) : (
           systemPrompts.map((prompt) => (
@@ -184,8 +188,8 @@ function PromptsTabsSection() {
         {templatePrompts.length === 0 ? (
           <EmptyState
             icon={MessageSquare}
-            title="No templates"
-            description="Personal templates are text snippets only you can see and use in conversations."
+            title={t("prompts_no_templates")}
+            description={t("prompts_personal_template_desc")}
           />
         ) : (
           templatePrompts.map((prompt) => (
@@ -216,6 +220,7 @@ function EmptyState({
 }
 
 function PromptCard({ prompt }: { prompt: Prompt }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const activateMutation = useMutation({
@@ -248,7 +253,7 @@ function PromptCard({ prompt }: { prompt: Prompt }) {
                     className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0"
                   >
                     <Check className="mr-1 h-3 w-3" />
-                    Active
+                    {t("prompts_active")}
                   </Badge>
                 )}
               </CardTitle>
@@ -270,13 +275,13 @@ function PromptCard({ prompt }: { prompt: Prompt }) {
                 ) : (
                   <Power className="mr-2 h-4 w-4" />
                 )}
-                Activate
+                {t("prompts_activate")}
               </Button>
             )}
             {isSystem && prompt.is_active && (
               <Badge variant="outline" className="text-muted-foreground">
                 <PowerOff className="mr-1 h-3 w-3" />
-                In Use
+                {t("prompts_in_use")}
               </Badge>
             )}
             <EditPromptDialog prompt={prompt} />
@@ -298,6 +303,7 @@ function PromptCard({ prompt }: { prompt: Prompt }) {
 }
 
 function CreatePromptDialog() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -314,7 +320,7 @@ function CreatePromptDialog() {
     },
     onError: (err: ApiError) => {
       setError(
-        (err.body as { detail?: string })?.detail || "Failed to create prompt",
+        (err.body as { detail?: string })?.detail || t("prompts_failed_create"),
       );
     },
   });
@@ -331,7 +337,7 @@ function CreatePromptDialog() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !content.trim()) {
-      setError("Name and content are required");
+      setError(t("prompts_name_content_required"));
       return;
     }
     createMutation.mutate({
@@ -347,20 +353,20 @@ function CreatePromptDialog() {
       <DialogTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
-          Create Prompt
+          {t("prompts_create")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create Personal Prompt</DialogTitle>
+          <DialogTitle>{t("prompts_create_personal")}</DialogTitle>
           <DialogDescription>
-            Create a new prompt for your personal use.
+            {t("prompts_create_personal_desc")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="prompt-type">Type</Label>
+              <Label htmlFor="prompt-type">{t("prompts_type")}</Label>
               <Select
                 value={promptType}
                 onValueChange={(v) => setPromptType(v as PromptType)}
@@ -372,25 +378,25 @@ function CreatePromptDialog() {
                   <SelectItem value="template">
                     <div className="flex items-center gap-2">
                       <MessageSquare className="h-4 w-4" />
-                      Template
+                      {t("prompts_type_template")}
                     </div>
                   </SelectItem>
                   <SelectItem value="system">
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-4 w-4" />
-                      System Prompt
+                      {t("prompts_type_system")}
                     </div>
                   </SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
                 {promptType === "system"
-                  ? "System prompts add to the AI's behavior (combined with org/team prompts)"
-                  : "Templates are text snippets you can insert into messages"}
+                  ? t("prompts_system_add_desc")
+                  : t("prompts_template_insert_desc")}
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">{t("com_name")}</Label>
               <Input
                 id="name"
                 value={name}
@@ -398,20 +404,22 @@ function CreatePromptDialog() {
                   setName(e.target.value);
                   setError(null);
                 }}
-                placeholder="e.g., My Writing Style"
+                placeholder={t("prompts_name_example")}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Description (optional)</Label>
+              <Label htmlFor="description">
+                {t("prompts_description_optional")}
+              </Label>
               <Input
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief description of this prompt"
+                placeholder={t("prompts_brief_description")}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="content">Content</Label>
+              <Label htmlFor="content">{t("com_content")}</Label>
               <Textarea
                 id="content"
                 value={content}
@@ -421,8 +429,8 @@ function CreatePromptDialog() {
                 }}
                 placeholder={
                   promptType === "system"
-                    ? "Always respond in a concise manner..."
-                    : "Enter the template text..."
+                    ? t("prompts_system_content_placeholder")
+                    : t("prompts_template_content_placeholder")
                 }
                 rows={6}
                 className="font-mono text-sm"
@@ -432,13 +440,13 @@ function CreatePromptDialog() {
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={resetForm}>
-              Cancel
+              {t("com_cancel")}
             </Button>
             <Button type="submit" disabled={createMutation.isPending}>
               {createMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Create
+              {t("com_create")}
             </Button>
           </DialogFooter>
         </form>
@@ -448,6 +456,7 @@ function CreatePromptDialog() {
 }
 
 function EditPromptDialog({ prompt }: { prompt: Prompt }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(prompt.name);
   const [description, setDescription] = useState(prompt.description ?? "");
@@ -465,7 +474,7 @@ function EditPromptDialog({ prompt }: { prompt: Prompt }) {
     },
     onError: (err: ApiError) => {
       setError(
-        (err.body as { detail?: string })?.detail || "Failed to update prompt",
+        (err.body as { detail?: string })?.detail || t("prompts_failed_update"),
       );
     },
   });
@@ -473,7 +482,7 @@ function EditPromptDialog({ prompt }: { prompt: Prompt }) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !content.trim()) {
-      setError("Name and content are required");
+      setError(t("prompts_name_content_required"));
       return;
     }
     updateMutation.mutate({
@@ -505,13 +514,13 @@ function EditPromptDialog({ prompt }: { prompt: Prompt }) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit Prompt</DialogTitle>
-          <DialogDescription>Update the prompt details.</DialogDescription>
+          <DialogTitle>{t("prompts_edit")}</DialogTitle>
+          <DialogDescription>{t("prompts_edit_update_desc")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-name">Name</Label>
+              <Label htmlFor="edit-name">{t("com_name")}</Label>
               <Input
                 id="edit-name"
                 value={name}
@@ -522,7 +531,9 @@ function EditPromptDialog({ prompt }: { prompt: Prompt }) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-description">Description (optional)</Label>
+              <Label htmlFor="edit-description">
+                {t("prompts_description_optional")}
+              </Label>
               <Input
                 id="edit-description"
                 value={description}
@@ -530,7 +541,7 @@ function EditPromptDialog({ prompt }: { prompt: Prompt }) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-content">Content</Label>
+              <Label htmlFor="edit-content">{t("com_content")}</Label>
               <Textarea
                 id="edit-content"
                 value={content}
@@ -550,13 +561,13 @@ function EditPromptDialog({ prompt }: { prompt: Prompt }) {
               variant="outline"
               onClick={() => setOpen(false)}
             >
-              Cancel
+              {t("com_cancel")}
             </Button>
             <Button type="submit" disabled={updateMutation.isPending}>
               {updateMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Save Changes
+              {t("com_save_changes")}
             </Button>
           </DialogFooter>
         </form>
@@ -566,6 +577,7 @@ function EditPromptDialog({ prompt }: { prompt: Prompt }) {
 }
 
 function DeletePromptButton({ prompt }: { prompt: Prompt }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
@@ -588,14 +600,13 @@ function DeletePromptButton({ prompt }: { prompt: Prompt }) {
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Prompt</AlertDialogTitle>
+          <AlertDialogTitle>{t("prompts_delete")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete "{prompt.name}"? This action cannot
-            be undone.
+            {t("prompts_delete_confirm_msg", { name: prompt.name })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t("com_cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={() => deleteMutation.mutate()}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -603,10 +614,10 @@ function DeletePromptButton({ prompt }: { prompt: Prompt }) {
             {deleteMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {t("prompts_deleting")}
               </>
             ) : (
-              "Delete"
+              t("com_delete")
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

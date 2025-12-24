@@ -13,6 +13,7 @@ import {
   getFilteredRowModel,
 } from "@tanstack/react-table";
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Table,
@@ -47,14 +48,16 @@ interface DataTableProps<TData, TValue> {
 function MobileCardList<TData>({
   rows,
   renderCard,
+  noResultsText,
 }: {
   rows: Row<TData>[];
   renderCard: (row: Row<TData>) => ReactNode;
+  noResultsText: string;
 }) {
   if (rows.length === 0) {
     return (
       <div className="py-8 text-center text-sm text-muted-foreground">
-        No results.
+        {noResultsText}
       </div>
     );
   }
@@ -77,14 +80,17 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   searchKey,
-  searchPlaceholder = "Search...",
+  searchPlaceholder,
   pageSize = 10,
   mobileCardView = false,
   renderMobileCard,
 }: DataTableProps<TData, TValue>) {
+  const { t } = useTranslation();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const isMobile = useIsMobile();
+  const effectiveSearchPlaceholder =
+    searchPlaceholder ?? t("table_search_placeholder");
 
   const table = useReactTable({
     data,
@@ -113,7 +119,7 @@ export function DataTable<TData, TValue>({
       {searchKey && (
         <div className="flex items-center">
           <Input
-            placeholder={searchPlaceholder}
+            placeholder={effectiveSearchPlaceholder}
             value={
               (table.getColumn(searchKey)?.getFilterValue() as string) ?? ""
             }
@@ -129,6 +135,7 @@ export function DataTable<TData, TValue>({
         <MobileCardList
           rows={table.getRowModel().rows}
           renderCard={renderMobileCard}
+          noResultsText={t("table_no_results")}
         />
       ) : (
         <div className="rounded-lg border border-border overflow-x-auto">
@@ -174,7 +181,7 @@ export function DataTable<TData, TValue>({
                     colSpan={columns.length}
                     className="h-24 text-center"
                   >
-                    No results.
+                    {t("table_no_results")}
                   </TableCell>
                 </TableRow>
               )}
@@ -186,8 +193,10 @@ export function DataTable<TData, TValue>({
       {table.getPageCount() > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {table.getPageCount()}
+            {t("table_page_of", {
+              current: table.getState().pagination.pageIndex + 1,
+              total: table.getPageCount(),
+            })}
           </div>
           <div className="flex items-center gap-1">
             <Button

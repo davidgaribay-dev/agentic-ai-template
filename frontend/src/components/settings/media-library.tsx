@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Loader2,
@@ -36,6 +37,7 @@ interface MediaLibraryProps {
 }
 
 export function MediaLibrary({ organizationId, teamId }: MediaLibraryProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<ChatMedia | null>(null);
@@ -107,7 +109,9 @@ export function MediaLibrary({ organizationId, teamId }: MediaLibraryProps) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <AlertCircle className="size-8 text-destructive mb-2" />
-        <p className="text-sm text-muted-foreground">Failed to load media</p>
+        <p className="text-sm text-muted-foreground">
+          {t("media_failed_load")}
+        </p>
       </div>
     );
   }
@@ -119,11 +123,13 @@ export function MediaLibrary({ organizationId, teamId }: MediaLibraryProps) {
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <HardDrive className="size-4" />
           <span>
-            {formatFileSize(usageData.total_bytes)} used ({usageData.file_count}{" "}
-            {usageData.file_count === 1 ? "file" : "files"})
+            {formatFileSize(usageData.total_bytes)} {t("media_used")} (
+            {t("media_file", { count: usageData.file_count })})
           </span>
           {usageData.quota_bytes && (
-            <span>of {formatFileSize(usageData.quota_bytes)}</span>
+            <span>
+              {t("media_of")} {formatFileSize(usageData.quota_bytes)}
+            </span>
           )}
         </div>
       )}
@@ -133,10 +139,10 @@ export function MediaLibrary({ organizationId, teamId }: MediaLibraryProps) {
         <div className="flex flex-col items-center justify-center py-12 text-center border rounded-lg border-dashed">
           <ImageIcon className="size-10 text-muted-foreground/50 mb-3" />
           <p className="text-sm text-muted-foreground">
-            No uploaded images yet
+            {t("media_no_images")}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Images you attach to chat messages will appear here
+            {t("media_no_images_desc")}
           </p>
         </div>
       ) : (
@@ -198,15 +204,14 @@ export function MediaLibrary({ organizationId, teamId }: MediaLibraryProps) {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Image</AlertDialogTitle>
+            <AlertDialogTitle>{t("media_delete_title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this image? This action cannot be
-              undone.
+              {t("media_delete_confirm")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>
-              Cancel
+              {t("com_cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteId && deleteMutation.mutate(deleteId)}
@@ -216,7 +221,7 @@ export function MediaLibrary({ organizationId, teamId }: MediaLibraryProps) {
               {deleteMutation.isPending ? (
                 <Loader2 className="size-4 animate-spin mr-2" />
               ) : null}
-              Delete
+              {t("com_delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -230,7 +235,7 @@ export function MediaLibrary({ organizationId, teamId }: MediaLibraryProps) {
         <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-background/95 backdrop-blur-sm">
           <VisuallyHidden>
             <DialogTitle>
-              {selectedImage?.filename || "Image preview"}
+              {selectedImage?.filename || t("media_preview")}
             </DialogTitle>
           </VisuallyHidden>
 

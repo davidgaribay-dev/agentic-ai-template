@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Upload, FileText, X, Users, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 import { useUploadDocument } from "@/lib/queries";
+import { formatFileSize } from "@/lib/api/media";
 import type { DocumentScope } from "@/lib/api";
 
 interface DocumentUploadProps {
@@ -32,6 +34,7 @@ export function DocumentUpload({
   defaultScope = "user",
   onUploadComplete,
 }: DocumentUploadProps) {
+  const { t } = useTranslation();
   const [dragActive, setDragActive] = useState(false);
   const [files, setFiles] = useState<FileWithProgress[]>([]);
   const [scope, setScope] = useState<DocumentScope>(fixedScope ?? defaultScope);
@@ -80,7 +83,7 @@ export function DocumentUpload({
                         error:
                           error instanceof Error
                             ? error.message
-                            : "Upload failed",
+                            : t("docs_upload_failed"),
                       }
                     : f,
                 ),
@@ -90,7 +93,7 @@ export function DocumentUpload({
         );
       });
     },
-    [orgId, teamId, effectiveScope, uploadMutation, onUploadComplete],
+    [orgId, teamId, effectiveScope, uploadMutation, onUploadComplete, t],
   );
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -134,7 +137,7 @@ export function DocumentUpload({
           {!fixedScope && teamId && (
             <div className="space-y-3">
               <Label className="text-sm font-medium">
-                Who can access these documents?
+                {t("docs_upload_title")}
               </Label>
               <RadioGroup
                 value={scope}
@@ -148,10 +151,10 @@ export function DocumentUpload({
                       className="flex items-center gap-2 font-normal cursor-pointer"
                     >
                       <Users className="h-4 w-4" />
-                      <span>Team</span>
+                      <span>{t("docs_scope_team")}</span>
                     </Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Anyone in the team can search and view these documents
+                      {t("docs_scope_team_desc")}
                     </p>
                   </div>
                 </div>
@@ -163,10 +166,10 @@ export function DocumentUpload({
                       className="flex items-center gap-2 font-normal cursor-pointer"
                     >
                       <UserCircle className="h-4 w-4" />
-                      <span>Personal</span>
+                      <span>{t("docs_scope_personal")}</span>
                     </Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Only you can search and view these documents
+                      {t("docs_scope_personal_desc")}
                     </p>
                   </div>
                 </div>
@@ -188,12 +191,9 @@ export function DocumentUpload({
           >
             <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
             <div className="mt-4 space-y-2">
-              <p className="text-sm font-medium">
-                Drag and drop files here, or click to select
-              </p>
+              <p className="text-sm font-medium">{t("docs_drag_drop")}</p>
               <p className="text-xs text-muted-foreground">
-                Supported: PDF, TXT, MD, DOCX, JSON, YAML, CSV, code files (max
-                50MB)
+                {t("docs_supported")}
               </p>
             </div>
 
@@ -207,7 +207,7 @@ export function DocumentUpload({
             />
             <Button asChild className="mt-4">
               <label htmlFor="file-upload" className="cursor-pointer">
-                Select Files
+                {t("docs_select_files")}
               </label>
             </Button>
           </div>
@@ -228,7 +228,7 @@ export function DocumentUpload({
                           {file.name}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                          {formatFileSize(file.size)}
                         </p>
                       </div>
                       <Button

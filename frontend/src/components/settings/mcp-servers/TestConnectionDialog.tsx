@@ -3,6 +3,7 @@
  */
 
 import { useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
 import {
   Server,
@@ -46,6 +47,7 @@ export function TestConnectionDialog({
   open,
   onOpenChange,
 }: TestConnectionDialogProps) {
+  const { t } = useTranslation();
   const [result, setResult] = useState<MCPTestResult | null>(null);
 
   const testMutation = useMutation({
@@ -68,11 +70,11 @@ export function TestConnectionDialog({
     onError: (err: unknown) => {
       setResult({
         success: false,
-        message: "Failed to test connection",
+        message: t("mcp_connection_failed"),
         tools: [],
         tool_count: 0,
         connection_time_ms: null,
-        error_details: getApiErrorMessage(err, "Unknown error"),
+        error_details: getApiErrorMessage(err, t("mcp_error_unknown")),
       });
     },
   });
@@ -100,10 +102,10 @@ export function TestConnectionDialog({
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Server className="size-5" />
-            Test Connection: {server.name}
+            {t("mcp_test_connection_title", { name: server.name })}
           </DialogTitle>
           <DialogDescription className="truncate">
-            Testing connection to {server.url}
+            {t("mcp_test_connection_desc", { url: server.url })}
           </DialogDescription>
         </DialogHeader>
 
@@ -112,7 +114,7 @@ export function TestConnectionDialog({
             <div className="flex flex-col items-center justify-center py-8 gap-3">
               <Loader2 className="size-8 animate-spin text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
-                Connecting to server...
+                {t("mcp_connecting")}
               </p>
             </div>
           ) : result ? (
@@ -135,8 +137,8 @@ export function TestConnectionDialog({
                     className={`font-medium ${result.success ? "text-green-700 dark:text-green-300" : "text-destructive"}`}
                   >
                     {result.success
-                      ? "Connection Successful"
-                      : "Connection Failed"}
+                      ? t("mcp_connection_success")
+                      : t("mcp_connection_failed")}
                   </p>
                   <p className="text-sm text-muted-foreground truncate">
                     {result.message}
@@ -150,7 +152,7 @@ export function TestConnectionDialog({
                   <div className="flex items-center gap-2 text-sm">
                     <Clock className="size-4 text-muted-foreground" />
                     <span className="text-muted-foreground">
-                      Response time:
+                      {t("mcp_response_time")}
                     </span>
                     <span className="font-mono">
                       {result.connection_time_ms.toFixed(0)}ms
@@ -163,7 +165,7 @@ export function TestConnectionDialog({
                     <div className="flex items-center gap-2 text-sm">
                       <Wrench className="size-4 text-muted-foreground" />
                       <span className="text-muted-foreground">
-                        Discovered tools:
+                        {t("mcp_discovered_tools")}
                       </span>
                       <Badge variant="secondary">{result.tool_count}</Badge>
                     </div>
@@ -194,14 +196,14 @@ export function TestConnectionDialog({
                 {result.success && result.tool_count === 0 && (
                   <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
                     <AlertTriangle className="size-4" />
-                    <span>Server connected but no tools were discovered.</span>
+                    <span>{t("mcp_no_tools_discovered")}</span>
                   </div>
                 )}
 
                 {result.error_details && (
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-destructive">
-                      Error Details:
+                      {t("mcp_error_details")}
                     </p>
                     <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3">
                       <pre className="text-xs text-destructive whitespace-pre-wrap break-all font-mono">
@@ -217,18 +219,18 @@ export function TestConnectionDialog({
 
         <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
+            {t("com_close")}
           </Button>
           <Button onClick={handleTestAgain} disabled={testMutation.isPending}>
             {testMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 size-4 animate-spin" />
-                Testing...
+                {t("mcp_testing")}
               </>
             ) : (
               <>
                 <PlayCircle className="mr-2 size-4" />
-                Test Again
+                {t("mcp_test_again")}
               </>
             )}
           </Button>

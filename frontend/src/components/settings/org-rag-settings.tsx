@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -64,6 +65,7 @@ interface OrgRAGSettingsProps {
 }
 
 export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
+  const { t } = useTranslation();
   const { data: orgSettings, isLoading: isLoadingSettings } =
     useOrgRAGSettings(orgId);
   const updateMutation = useUpdateOrgRAGSettings(orgId);
@@ -194,7 +196,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>Failed to load RAG settings</AlertDescription>
+        <AlertDescription>{t("rag_failed_load")}</AlertDescription>
       </Alert>
     );
   }
@@ -207,19 +209,16 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
             <div className="space-y-1">
               <CardTitle className="flex items-center gap-2">
                 <FileSearch className="h-5 w-5" />
-                Document Search (RAG)
+                {t("rag_title")}
               </CardTitle>
-              <CardDescription>
-                Enable AI-powered document search and knowledge retrieval for
-                your organization
-              </CardDescription>
+              <CardDescription>{t("rag_enable_desc")}</CardDescription>
             </div>
             <Switch
               checked={ragEnabled}
               onCheckedChange={(checked) =>
                 setValue("rag_enabled", checked, { shouldDirty: true })
               }
-              aria-label="Enable RAG"
+              aria-label={t("rag_enable")}
             />
           </div>
         </CardHeader>
@@ -227,15 +226,17 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
         <CardContent className="space-y-6">
           {/* Customization Controls */}
           <div className="space-y-4">
-            <h4 className="text-sm font-medium">Customization Controls</h4>
+            <h4 className="text-sm font-medium">
+              {t("rag_customization_controls")}
+            </h4>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="rag-customization-enabled">
-                    Allow RAG Customization
+                    {t("rag_allow_customization")}
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Allow teams and users to customize RAG settings
+                    {t("rag_allow_customization_desc")}
                   </p>
                 </div>
                 <Switch
@@ -253,10 +254,10 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="allow-team-customization">
-                    Team Customization
+                    {t("rag_team_customization")}
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Allow teams to override organization RAG settings
+                    {t("rag_team_customization_desc")}
                   </p>
                 </div>
                 <Switch
@@ -274,10 +275,10 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="allow-user-customization">
-                    User Customization
+                    {t("rag_user_customization")}
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Allow users to customize their personal RAG preferences
+                    {t("rag_user_customization_desc")}
                   </p>
                 </div>
                 <Switch
@@ -296,7 +297,9 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
 
           {/* Processing Settings */}
           <div className="space-y-4">
-            <h4 className="text-sm font-medium">Processing Settings</h4>
+            <h4 className="text-sm font-medium">
+              {t("rag_processing_settings")}
+            </h4>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <TooltipProvider>
@@ -306,15 +309,12 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                         htmlFor="chunk-size"
                         className="flex items-center gap-1"
                       >
-                        Chunk Size
+                        {t("rag_chunk_size")}
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">
-                        Number of characters per chunk. Larger chunks provide
-                        more context but may reduce precision.
-                      </p>
+                      <p className="max-w-xs">{t("rag_chunk_size_desc")}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -327,7 +327,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                   disabled={!ragEnabled}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Recommended: 1000
+                  {t("rag_chunk_size_recommended")}
                 </p>
               </div>
 
@@ -339,15 +339,12 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                         htmlFor="chunk-overlap"
                         className="flex items-center gap-1"
                       >
-                        Chunk Overlap
+                        {t("rag_chunk_overlap")}
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p className="max-w-xs">
-                        Number of characters overlapping between chunks. Helps
-                        maintain context across boundaries.
-                      </p>
+                      <p className="max-w-xs">{t("rag_chunk_overlap_desc")}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -360,7 +357,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                   disabled={!ragEnabled}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Recommended: 200 (20% of chunk size)
+                  {t("rag_chunk_overlap_recommended")}
                 </p>
               </div>
             </div>
@@ -368,7 +365,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
 
           {/* Search Settings */}
           <div className="space-y-4">
-            <h4 className="text-sm font-medium">Search Settings</h4>
+            <h4 className="text-sm font-medium">{t("rag_search_settings")}</h4>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <TooltipProvider>
@@ -378,15 +375,13 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                         htmlFor="chunks-per-query"
                         className="flex items-center gap-1"
                       >
-                        Results Per Query
+                        {t("rag_results_per_query")}
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p className="max-w-xs">
-                        Number of relevant chunks to return for each search.
-                        More results provide better coverage but increase token
-                        usage.
+                        {t("rag_results_per_query_desc")}
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -399,7 +394,9 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                   {...register("chunks_per_query", { valueAsNumber: true })}
                   disabled={!ragEnabled}
                 />
-                <p className="text-xs text-muted-foreground">Recommended: 4</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("rag_results_recommended")}
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -410,14 +407,13 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                         htmlFor="similarity-threshold"
                         className="flex items-center gap-1"
                       >
-                        Similarity Threshold
+                        {t("rag_similarity_threshold")}
                         <Info className="h-3 w-3 text-muted-foreground" />
                       </Label>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p className="max-w-xs">
-                        Minimum relevance score (0-1) for results. Higher values
-                        return only very relevant results.
+                        {t("rag_similarity_threshold_desc")}
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -432,7 +428,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                   disabled={!ragEnabled}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Recommended: 0.7
+                  {t("rag_similarity_recommended")}
                 </p>
               </div>
             </div>
@@ -440,10 +436,12 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
 
           {/* Resource Limits */}
           <div className="space-y-4">
-            <h4 className="text-sm font-medium">Resource Limits</h4>
+            <h4 className="text-sm font-medium">{t("rag_resource_limits")}</h4>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="max-documents">Max Documents Per User</Label>
+                <Label htmlFor="max-documents">
+                  {t("rag_max_docs_per_user")}
+                </Label>
                 <Input
                   id="max-documents"
                   type="number"
@@ -455,12 +453,12 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                   disabled={!ragEnabled}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Limit the number of documents each user can upload
+                  {t("rag_max_docs_desc")}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="max-size">Max Document Size (MB)</Label>
+                <Label htmlFor="max-size">{t("rag_max_doc_size")}</Label>
                 <Input
                   id="max-size"
                   type="number"
@@ -470,7 +468,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                   disabled={!ragEnabled}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Maximum file size for uploaded documents
+                  {t("rag_max_doc_size_desc")}
                 </p>
               </div>
             </div>
@@ -478,7 +476,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
 
           {/* File Types */}
           <div className="space-y-4">
-            <h4 className="text-sm font-medium">Supported File Types</h4>
+            <h4 className="text-sm font-medium">{t("rag_supported_types")}</h4>
             <div className="flex flex-wrap gap-2">
               {orgSettings.allowed_file_types.slice(0, 15).map((type) => (
                 <Badge key={type} variant="secondary">
@@ -487,13 +485,16 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
               ))}
               {orgSettings.allowed_file_types.length > 15 && (
                 <Badge variant="outline">
-                  +{orgSettings.allowed_file_types.length - 15} more
+                  {t("com_more_count", {
+                    count: orgSettings.allowed_file_types.length - 15,
+                  })}
                 </Badge>
               )}
             </div>
             <p className="text-sm text-muted-foreground">
-              Total: {orgSettings.allowed_file_types.length} file types
-              supported
+              {t("rag_types_count", {
+                count: orgSettings.allowed_file_types.length,
+              })}
             </p>
           </div>
 
@@ -504,7 +505,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
               onClick={handleReset}
               disabled={!isDirty || updateMutation.isPending}
             >
-              Reset
+              {t("com_reset")}
             </Button>
             <Button
               onClick={handleSave}
@@ -513,7 +514,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
               {updateMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Save Changes
+              {t("com_save_changes")}
             </Button>
           </div>
 
@@ -523,16 +524,14 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
               <AlertDescription>
                 {updateMutation.error instanceof Error
                   ? updateMutation.error.message
-                  : "Failed to update RAG settings"}
+                  : t("rag_failed_update")}
               </AlertDescription>
             </Alert>
           )}
 
           {updateMutation.isSuccess && !isDirty && (
             <Alert>
-              <AlertDescription>
-                RAG settings updated successfully
-              </AlertDescription>
+              <AlertDescription>{t("rag_settings_updated")}</AlertDescription>
             </Alert>
           )}
         </CardContent>
@@ -546,11 +545,9 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
               <div className="space-y-1 text-left">
                 <CardTitle className="flex items-center gap-2">
                   <Upload className="h-5 w-5" />
-                  Organization Documents
+                  {t("rag_org_documents")}
                 </CardTitle>
-                <CardDescription>
-                  Upload documents available to all organization members
-                </CardDescription>
+                <CardDescription>{t("rag_org_documents_desc")}</CardDescription>
               </div>
               {documentsOpen ? (
                 <ChevronDown className="h-5 w-5 text-muted-foreground" />
@@ -569,7 +566,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                     />
                     <div className="border-t pt-6">
                       <h4 className="text-sm font-medium mb-4">
-                        Uploaded Documents
+                        {t("rag_uploaded_documents")}
                       </h4>
                       <DocumentList orgId={orgId} scope="org" />
                     </div>
@@ -578,8 +575,9 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      Enable Document Search above to upload organization
-                      documents.
+                      {t("rag_enable_to_upload", {
+                        scope: t("com_organization").toLowerCase(),
+                      })}
                     </AlertDescription>
                   </Alert>
                 )}

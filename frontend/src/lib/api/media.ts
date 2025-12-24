@@ -5,6 +5,7 @@
  */
 
 import { apiClient, getAuthHeader } from "./client";
+import i18n from "@/locales/i18n";
 
 /** Supported MIME types for chat media */
 export const ALLOWED_MEDIA_TYPES = [
@@ -78,9 +79,10 @@ export function isAllowedMediaType(
  * Format file size for display
  */
 export function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024) return i18n.t("file_size_bytes", { count: bytes });
+  if (bytes < 1024 * 1024)
+    return i18n.t("file_size_kb", { size: (bytes / 1024).toFixed(1) });
+  return i18n.t("file_size_mb", { size: (bytes / (1024 * 1024)).toFixed(1) });
 }
 
 export const mediaApi = {

@@ -20,13 +20,13 @@ export const PII_TYPES = [
 
 export type PIIType = (typeof PII_TYPES)[number];
 
-/** PII type display labels */
-export const PII_TYPE_LABELS: Record<PIIType, string> = {
-  email: "Email Addresses",
-  phone: "Phone Numbers",
-  ssn: "Social Security Numbers",
-  credit_card: "Credit Card Numbers",
-  ip_address: "IP Addresses",
+/** PII type translation keys */
+export const PII_TYPE_LABEL_KEYS: Record<PIIType, string> = {
+  email: "pii_email",
+  phone: "pii_phone",
+  ssn: "pii_ssn",
+  credit_card: "pii_credit_card",
+  ip_address: "pii_ip_address",
 };
 
 /** Base guardrail settings shared across all levels */
