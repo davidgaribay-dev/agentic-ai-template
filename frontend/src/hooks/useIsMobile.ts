@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const DEFAULT_BREAKPOINT = 768;
+import { BREAKPOINTS } from "@/lib/design-tokens";
 
 /**
  * Hook to detect if the current viewport is mobile-sized.
@@ -9,7 +9,7 @@ const DEFAULT_BREAKPOINT = 768;
  * @param breakpoint - The max-width breakpoint in pixels (default: 768)
  * @returns boolean - true if viewport is below breakpoint
  */
-export function useIsMobile(breakpoint: number = DEFAULT_BREAKPOINT): boolean {
+export function useIsMobile(breakpoint: number = BREAKPOINTS.mobile): boolean {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {

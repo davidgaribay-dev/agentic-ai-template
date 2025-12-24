@@ -34,7 +34,12 @@ export interface MessageMediaInfo {
   type: string;
 }
 
-export interface ChatMessage {
+/**
+ * API response type for chat messages.
+ * Does not include client-side fields like `id` or `isStreaming`.
+ * Use `apiMessageToChatMessage()` to convert to UI-ready format.
+ */
+export interface APIChatMessage {
   role: "user" | "assistant";
   content: string;
   sources?: MessageSource[] | null;
@@ -42,6 +47,9 @@ export interface ChatMessage {
   /** Whether this message was blocked by guardrails */
   guardrail_blocked?: boolean;
 }
+
+/** @deprecated Use APIChatMessage for API responses */
+export type ChatMessage = APIChatMessage;
 
 /** SSE Stream Event Types - Discriminated Union for type-safe event handling */
 export type StreamTokenEvent = {

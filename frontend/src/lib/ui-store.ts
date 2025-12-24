@@ -2,9 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
 
-const DEFAULT_SIDE_PANEL_WIDTH = 500;
-const MIN_SIDE_PANEL_WIDTH = 450;
-const MAX_SIDE_PANEL_WIDTH = 600;
+import { LAYOUT } from "@/lib/design-tokens";
+
+const DEFAULT_SIDE_PANEL_WIDTH = LAYOUT.sidePanel.default;
+const MIN_SIDE_PANEL_WIDTH = LAYOUT.sidePanel.min;
+const MAX_SIDE_PANEL_WIDTH = LAYOUT.sidePanel.max;
 
 interface UIState {
   sidebarOpen: boolean;

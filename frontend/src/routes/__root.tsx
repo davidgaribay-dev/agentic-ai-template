@@ -13,7 +13,7 @@ import { SettingsProvider, useEffectiveSettings } from "@/lib/settings-context";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useAuth } from "@/lib/auth";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
+import { AppSidebar } from "@/components/sidebar";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { PanelRight, PanelLeft } from "lucide-react";
 import { useIsMobile } from "@/hooks";

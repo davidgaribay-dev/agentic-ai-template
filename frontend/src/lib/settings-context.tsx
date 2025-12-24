@@ -1,11 +1,22 @@
-import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { useEffectiveChatSettings } from "@/lib/queries";
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useCallback,
+  type ReactNode,
+} from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffectiveChatSettings, queryKeys } from "@/lib/queries";
 import { useWorkspace } from "@/lib/workspace";
 import type { EffectiveChatSettings } from "@/lib/api";
 
 interface SettingsContextValue {
   effectiveSettings: EffectiveChatSettings | null;
   isLoading: boolean;
+  isError: boolean;
+  error: Error | null;
+  isStale: boolean;
+  refetch: () => void;
 }
 
 const defaultEffectiveSettings: EffectiveChatSettings = {
@@ -27,18 +38,35 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const { currentOrg, currentTeam } = useWorkspace();
+  const queryClient = useQueryClient();
 
-  const { data: effectiveSettings, isLoading } = useEffectiveChatSettings(
-    currentOrg?.id,
-    currentTeam?.id,
-  );
+  const {
+    data: effectiveSettings,
+    isLoading,
+    isError,
+    error,
+    isStale,
+  } = useEffectiveChatSettings(currentOrg?.id, currentTeam?.id);
+
+  const refetch = useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.chatSettings.effective(
+        currentOrg?.id,
+        currentTeam?.id,
+      ),
+    });
+  }, [queryClient, currentOrg?.id, currentTeam?.id]);
 
   const value = useMemo<SettingsContextValue>(
     () => ({
       effectiveSettings: effectiveSettings ?? defaultEffectiveSettings,
       isLoading,
+      isError,
+      error: error as Error | null,
+      isStale,
+      refetch,
     }),
-    [effectiveSettings, isLoading],
+    [effectiveSettings, isLoading, isError, error, isStale, refetch],
   );
 
   return (
@@ -48,12 +76,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   );
 }
 
+const noopRefetch = () => {};
+
 export function useSettings(): SettingsContextValue {
   const context = useContext(SettingsContext);
   if (!context) {
     return {
       effectiveSettings: defaultEffectiveSettings,
       isLoading: false,
+      isError: false,
+      error: null,
+      isStale: false,
+      refetch: noopRefetch,
     };
   }
   return context;

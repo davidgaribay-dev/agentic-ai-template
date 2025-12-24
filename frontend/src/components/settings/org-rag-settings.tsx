@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   Card,
   CardContent,
@@ -41,6 +44,21 @@ import { DocumentUpload } from "@/components/documents/document-upload";
 import { DocumentList } from "@/components/documents/document-list";
 import type { OrganizationRAGSettingsUpdate } from "@/lib/api";
 
+const orgRagSettingsSchema = z.object({
+  rag_enabled: z.boolean(),
+  rag_customization_enabled: z.boolean(),
+  allow_team_customization: z.boolean(),
+  allow_user_customization: z.boolean(),
+  chunk_size: z.number().min(100).max(4000),
+  chunk_overlap: z.number().min(0).max(1000),
+  chunks_per_query: z.number().min(1).max(20),
+  similarity_threshold: z.number().min(0).max(1),
+  max_documents_per_user: z.number().min(1).max(10000),
+  max_document_size_mb: z.number().min(1).max(500),
+});
+
+type OrgRagSettingsFormData = z.infer<typeof orgRagSettingsSchema>;
+
 interface OrgRAGSettingsProps {
   orgId: string;
 }
@@ -52,123 +70,111 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
   const { refetch: refetchDocuments } = useDocuments({
     organization_id: orgId,
   });
-
-  const [ragEnabled, setRagEnabled] = useState(true);
-  const [ragCustomizationEnabled, setRagCustomizationEnabled] = useState(true);
-  const [allowTeamCustomization, setAllowTeamCustomization] = useState(true);
-  const [allowUserCustomization, setAllowUserCustomization] = useState(true);
-  const [chunkSize, setChunkSize] = useState(1000);
-  const [chunkOverlap, setChunkOverlap] = useState(200);
-  const [chunksPerQuery, setChunksPerQuery] = useState(4);
-  const [similarityThreshold, setSimilarityThreshold] = useState(0.7);
-  const [maxDocumentsPerUser, setMaxDocumentsPerUser] = useState(100);
-  const [maxDocumentSizeMb, setMaxDocumentSizeMb] = useState(50);
-  const [hasChanges, setHasChanges] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(true);
+
+  const form = useForm<OrgRagSettingsFormData>({
+    resolver: zodResolver(orgRagSettingsSchema),
+    defaultValues: {
+      rag_enabled: true,
+      rag_customization_enabled: true,
+      allow_team_customization: true,
+      allow_user_customization: true,
+      chunk_size: 1000,
+      chunk_overlap: 200,
+      chunks_per_query: 4,
+      similarity_threshold: 0.7,
+      max_documents_per_user: 100,
+      max_document_size_mb: 50,
+    },
+  });
+
+  const {
+    formState: { isDirty },
+    reset,
+    register,
+    watch,
+    setValue,
+  } = form;
+
+  const ragEnabled = watch("rag_enabled");
+  const ragCustomizationEnabled = watch("rag_customization_enabled");
 
   useEffect(() => {
     if (orgSettings) {
-      setRagEnabled(orgSettings.rag_enabled);
-      setRagCustomizationEnabled(orgSettings.rag_customization_enabled);
-      setAllowTeamCustomization(orgSettings.allow_team_customization);
-      setAllowUserCustomization(orgSettings.allow_user_customization);
-      setChunkSize(orgSettings.chunk_size);
-      setChunkOverlap(orgSettings.chunk_overlap);
-      setChunksPerQuery(orgSettings.chunks_per_query);
-      setSimilarityThreshold(orgSettings.similarity_threshold);
-      setMaxDocumentsPerUser(orgSettings.max_documents_per_user);
-      setMaxDocumentSizeMb(orgSettings.max_document_size_mb);
-      setHasChanges(false);
+      reset({
+        rag_enabled: orgSettings.rag_enabled,
+        rag_customization_enabled: orgSettings.rag_customization_enabled,
+        allow_team_customization: orgSettings.allow_team_customization,
+        allow_user_customization: orgSettings.allow_user_customization,
+        chunk_size: orgSettings.chunk_size,
+        chunk_overlap: orgSettings.chunk_overlap,
+        chunks_per_query: orgSettings.chunks_per_query,
+        similarity_threshold: orgSettings.similarity_threshold,
+        max_documents_per_user: orgSettings.max_documents_per_user,
+        max_document_size_mb: orgSettings.max_document_size_mb,
+      });
     }
-  }, [orgSettings]);
+  }, [orgSettings, reset]);
 
-  const handleSave = () => {
+  const handleSave = form.handleSubmit((data) => {
     const updates: OrganizationRAGSettingsUpdate = {};
 
-    if (ragEnabled !== orgSettings?.rag_enabled) {
-      updates.rag_enabled = ragEnabled;
+    if (data.rag_enabled !== orgSettings?.rag_enabled) {
+      updates.rag_enabled = data.rag_enabled;
     }
-    if (ragCustomizationEnabled !== orgSettings?.rag_customization_enabled) {
-      updates.rag_customization_enabled = ragCustomizationEnabled;
+    if (data.rag_customization_enabled !== orgSettings?.rag_customization_enabled) {
+      updates.rag_customization_enabled = data.rag_customization_enabled;
     }
-    if (allowTeamCustomization !== orgSettings?.allow_team_customization) {
-      updates.allow_team_customization = allowTeamCustomization;
+    if (data.allow_team_customization !== orgSettings?.allow_team_customization) {
+      updates.allow_team_customization = data.allow_team_customization;
     }
-    if (allowUserCustomization !== orgSettings?.allow_user_customization) {
-      updates.allow_user_customization = allowUserCustomization;
+    if (data.allow_user_customization !== orgSettings?.allow_user_customization) {
+      updates.allow_user_customization = data.allow_user_customization;
     }
-    if (chunkSize !== orgSettings?.chunk_size) {
-      updates.chunk_size = chunkSize;
+    if (data.chunk_size !== orgSettings?.chunk_size) {
+      updates.chunk_size = data.chunk_size;
     }
-    if (chunkOverlap !== orgSettings?.chunk_overlap) {
-      updates.chunk_overlap = chunkOverlap;
+    if (data.chunk_overlap !== orgSettings?.chunk_overlap) {
+      updates.chunk_overlap = data.chunk_overlap;
     }
-    if (chunksPerQuery !== orgSettings?.chunks_per_query) {
-      updates.chunks_per_query = chunksPerQuery;
+    if (data.chunks_per_query !== orgSettings?.chunks_per_query) {
+      updates.chunks_per_query = data.chunks_per_query;
     }
-    if (similarityThreshold !== orgSettings?.similarity_threshold) {
-      updates.similarity_threshold = similarityThreshold;
+    if (data.similarity_threshold !== orgSettings?.similarity_threshold) {
+      updates.similarity_threshold = data.similarity_threshold;
     }
-    if (maxDocumentsPerUser !== orgSettings?.max_documents_per_user) {
-      updates.max_documents_per_user = maxDocumentsPerUser;
+    if (data.max_documents_per_user !== orgSettings?.max_documents_per_user) {
+      updates.max_documents_per_user = data.max_documents_per_user;
     }
-    if (maxDocumentSizeMb !== orgSettings?.max_document_size_mb) {
-      updates.max_document_size_mb = maxDocumentSizeMb;
+    if (data.max_document_size_mb !== orgSettings?.max_document_size_mb) {
+      updates.max_document_size_mb = data.max_document_size_mb;
     }
 
     if (Object.keys(updates).length > 0) {
       updateMutation.mutate(updates, {
         onSuccess: () => {
-          setHasChanges(false);
+          reset(data);
         },
       });
     }
-  };
+  });
 
   const handleReset = () => {
     if (orgSettings) {
-      setRagEnabled(orgSettings.rag_enabled);
-      setRagCustomizationEnabled(orgSettings.rag_customization_enabled);
-      setAllowTeamCustomization(orgSettings.allow_team_customization);
-      setAllowUserCustomization(orgSettings.allow_user_customization);
-      setChunkSize(orgSettings.chunk_size);
-      setChunkOverlap(orgSettings.chunk_overlap);
-      setChunksPerQuery(orgSettings.chunks_per_query);
-      setSimilarityThreshold(orgSettings.similarity_threshold);
-      setMaxDocumentsPerUser(orgSettings.max_documents_per_user);
-      setMaxDocumentSizeMb(orgSettings.max_document_size_mb);
-      setHasChanges(false);
+      reset({
+        rag_enabled: orgSettings.rag_enabled,
+        rag_customization_enabled: orgSettings.rag_customization_enabled,
+        allow_team_customization: orgSettings.allow_team_customization,
+        allow_user_customization: orgSettings.allow_user_customization,
+        chunk_size: orgSettings.chunk_size,
+        chunk_overlap: orgSettings.chunk_overlap,
+        chunks_per_query: orgSettings.chunks_per_query,
+        similarity_threshold: orgSettings.similarity_threshold,
+        max_documents_per_user: orgSettings.max_documents_per_user,
+        max_document_size_mb: orgSettings.max_document_size_mb,
+      });
     }
   };
-
-  useEffect(() => {
-    if (orgSettings) {
-      const changed =
-        ragEnabled !== orgSettings.rag_enabled ||
-        ragCustomizationEnabled !== orgSettings.rag_customization_enabled ||
-        allowTeamCustomization !== orgSettings.allow_team_customization ||
-        allowUserCustomization !== orgSettings.allow_user_customization ||
-        chunkSize !== orgSettings.chunk_size ||
-        chunkOverlap !== orgSettings.chunk_overlap ||
-        chunksPerQuery !== orgSettings.chunks_per_query ||
-        similarityThreshold !== orgSettings.similarity_threshold ||
-        maxDocumentsPerUser !== orgSettings.max_documents_per_user ||
-        maxDocumentSizeMb !== orgSettings.max_document_size_mb;
-      setHasChanges(changed);
-    }
-  }, [
-    ragEnabled,
-    ragCustomizationEnabled,
-    allowTeamCustomization,
-    allowUserCustomization,
-    chunkSize,
-    chunkOverlap,
-    chunksPerQuery,
-    similarityThreshold,
-    maxDocumentsPerUser,
-    maxDocumentSizeMb,
-    orgSettings,
-  ]);
 
   if (isLoadingSettings) {
     return (
@@ -204,9 +210,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
             </div>
             <Switch
               checked={ragEnabled}
-              onCheckedChange={(checked) => {
-                setRagEnabled(checked);
-              }}
+              onCheckedChange={(checked) => setValue("rag_enabled", checked, { shouldDirty: true })}
               aria-label="Enable RAG"
             />
           </div>
@@ -229,7 +233,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                 <Switch
                   id="rag-customization-enabled"
                   checked={ragCustomizationEnabled}
-                  onCheckedChange={setRagCustomizationEnabled}
+                  onCheckedChange={(checked) => setValue("rag_customization_enabled", checked, { shouldDirty: true })}
                   disabled={!ragEnabled}
                 />
               </div>
@@ -245,8 +249,8 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                 </div>
                 <Switch
                   id="allow-team-customization"
-                  checked={allowTeamCustomization}
-                  onCheckedChange={setAllowTeamCustomization}
+                  checked={watch("allow_team_customization")}
+                  onCheckedChange={(checked) => setValue("allow_team_customization", checked, { shouldDirty: true })}
                   disabled={!ragEnabled || !ragCustomizationEnabled}
                 />
               </div>
@@ -262,8 +266,8 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                 </div>
                 <Switch
                   id="allow-user-customization"
-                  checked={allowUserCustomization}
-                  onCheckedChange={setAllowUserCustomization}
+                  checked={watch("allow_user_customization")}
+                  onCheckedChange={(checked) => setValue("allow_user_customization", checked, { shouldDirty: true })}
                   disabled={!ragEnabled || !ragCustomizationEnabled}
                 />
               </div>
@@ -299,8 +303,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                   type="number"
                   min={100}
                   max={4000}
-                  value={chunkSize}
-                  onChange={(e) => setChunkSize(Number(e.target.value))}
+                  {...register("chunk_size", { valueAsNumber: true })}
                   disabled={!ragEnabled}
                 />
                 <p className="text-xs text-muted-foreground">
@@ -333,8 +336,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                   type="number"
                   min={0}
                   max={1000}
-                  value={chunkOverlap}
-                  onChange={(e) => setChunkOverlap(Number(e.target.value))}
+                  {...register("chunk_overlap", { valueAsNumber: true })}
                   disabled={!ragEnabled}
                 />
                 <p className="text-xs text-muted-foreground">
@@ -374,8 +376,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                   type="number"
                   min={1}
                   max={20}
-                  value={chunksPerQuery}
-                  onChange={(e) => setChunksPerQuery(Number(e.target.value))}
+                  {...register("chunks_per_query", { valueAsNumber: true })}
                   disabled={!ragEnabled}
                 />
                 <p className="text-xs text-muted-foreground">Recommended: 4</p>
@@ -407,10 +408,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                   min={0}
                   max={1}
                   step={0.1}
-                  value={similarityThreshold}
-                  onChange={(e) =>
-                    setSimilarityThreshold(Number(e.target.value))
-                  }
+                  {...register("similarity_threshold", { valueAsNumber: true })}
                   disabled={!ragEnabled}
                 />
                 <p className="text-xs text-muted-foreground">
@@ -431,10 +429,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                   type="number"
                   min={1}
                   max={10000}
-                  value={maxDocumentsPerUser}
-                  onChange={(e) =>
-                    setMaxDocumentsPerUser(Number(e.target.value))
-                  }
+                  {...register("max_documents_per_user", { valueAsNumber: true })}
                   disabled={!ragEnabled}
                 />
                 <p className="text-xs text-muted-foreground">
@@ -449,8 +444,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
                   type="number"
                   min={1}
                   max={500}
-                  value={maxDocumentSizeMb}
-                  onChange={(e) => setMaxDocumentSizeMb(Number(e.target.value))}
+                  {...register("max_document_size_mb", { valueAsNumber: true })}
                   disabled={!ragEnabled}
                 />
                 <p className="text-xs text-muted-foreground">
@@ -486,13 +480,13 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
             <Button
               variant="outline"
               onClick={handleReset}
-              disabled={!hasChanges || updateMutation.isPending}
+              disabled={!isDirty || updateMutation.isPending}
             >
               Reset
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!hasChanges || updateMutation.isPending}
+              disabled={!isDirty || updateMutation.isPending}
             >
               {updateMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -512,7 +506,7 @@ export function OrgRAGSettings({ orgId }: OrgRAGSettingsProps) {
             </Alert>
           )}
 
-          {updateMutation.isSuccess && !hasChanges && (
+          {updateMutation.isSuccess && !isDirty && (
             <Alert>
               <AlertDescription>
                 RAG settings updated successfully

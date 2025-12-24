@@ -14,6 +14,12 @@ export {
 export { OrgDangerZone, TeamDangerZone } from "./danger-zone";
 export { OrgDetailsSection, TeamDetailsSection } from "./entity-details";
 export { MCPSettings } from "./mcp-settings";
-export { MCPServersList } from "./mcp-servers";
+export {
+  MCPServersList,
+  AddServerDialog,
+  EditServerDialog,
+  TestConnectionDialog,
+  type Scope as MCPServerScope,
+} from "./mcp-servers";
 export { MediaLibrary } from "./media-library";
-export { GuardrailSettings } from "./guardrail-settings";
+export { GuardrailSettings } from "./guardrails";

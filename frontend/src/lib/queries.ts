@@ -161,55 +161,132 @@ export function useConversations(
   });
 }
 
-/** Mutation hook for updating a conversation. */
+/** Mutation hook for updating a conversation with optimistic update. */
 export function useUpdateConversation(teamId?: string) {
   const queryClient = useQueryClient();
+  const queryKey = queryKeys.conversations.list(teamId);
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: ConversationUpdate }) =>
       conversationsApi.updateConversation(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["conversations", "list", teamId],
-      });
+    onMutate: async ({ id, data }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey });
+
+      // Snapshot the previous value
+      const previousData = queryClient.getQueryData<{
+        data: { id: string; title: string }[];
+        count: number;
+      }>(queryKey);
+
+      // Optimistically update the conversation
+      if (previousData && data.title) {
+        queryClient.setQueryData(queryKey, {
+          ...previousData,
+          data: previousData.data.map((c) =>
+            c.id === id ? { ...c, title: data.title } : c,
+          ),
+        });
+      }
+
+      return { previousData };
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      // Rollback to the previous value on error
+      if (context?.previousData) {
+        queryClient.setQueryData(queryKey, context.previousData);
+      }
       console.error("Failed to update conversation:", error);
+    },
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ queryKey });
     },
   });
 }
 
-/** Mutation hook for deleting a conversation (soft delete). */
+/** Mutation hook for deleting a conversation (soft delete) with optimistic update. */
 export function useDeleteConversation(teamId?: string) {
   const queryClient = useQueryClient();
+  const queryKey = queryKeys.conversations.list(teamId);
 
   return useMutation({
     mutationFn: (id: string) => conversationsApi.deleteConversation(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["conversations", "list", teamId],
-      });
+    onMutate: async (id) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey });
+
+      // Snapshot the previous value
+      const previousData = queryClient.getQueryData<{
+        data: { id: string }[];
+        count: number;
+      }>(queryKey);
+
+      // Optimistically remove the conversation
+      if (previousData) {
+        queryClient.setQueryData(queryKey, {
+          ...previousData,
+          data: previousData.data.filter((c) => c.id !== id),
+          count: previousData.count - 1,
+        });
+      }
+
+      return { previousData };
     },
-    onError: (error) => {
+    onError: (error, _id, context) => {
+      // Rollback to the previous value on error
+      if (context?.previousData) {
+        queryClient.setQueryData(queryKey, context.previousData);
+      }
       console.error("Failed to delete conversation:", error);
+    },
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ queryKey });
     },
   });
 }
 
-/** Mutation hook for starring/unstarring a conversation. */
+/** Mutation hook for starring/unstarring a conversation with optimistic update. */
 export function useStarConversation(teamId?: string) {
   const queryClient = useQueryClient();
+  const queryKey = queryKeys.conversations.list(teamId);
 
   return useMutation({
     mutationFn: ({ id, isStarred }: { id: string; isStarred: boolean }) =>
       conversationsApi.starConversation(id, isStarred),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["conversations", "list", teamId],
-      });
+    onMutate: async ({ id, isStarred }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey });
+
+      // Snapshot the previous value
+      const previousData = queryClient.getQueryData<{
+        data: { id: string; is_starred: boolean }[];
+        count: number;
+      }>(queryKey);
+
+      // Optimistically update the star status
+      if (previousData) {
+        queryClient.setQueryData(queryKey, {
+          ...previousData,
+          data: previousData.data.map((c) =>
+            c.id === id ? { ...c, is_starred: isStarred } : c,
+          ),
+        });
+      }
+
+      return { previousData };
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      // Rollback to the previous value on error
+      if (context?.previousData) {
+        queryClient.setQueryData(queryKey, context.previousData);
+      }
       console.error("Failed to update star status:", error);
+    },
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ queryKey });
     },
   });
 }

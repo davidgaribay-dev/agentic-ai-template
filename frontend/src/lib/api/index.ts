@@ -71,7 +71,8 @@ export {
   type ChatRequest,
   type ChatResponse,
   type HealthResponse,
-  type ChatMessage,
+  type APIChatMessage,
+  type ChatMessage, // @deprecated - use APIChatMessage
   type StreamTokenEvent,
   type StreamTitleEvent,
   type StreamDoneEvent,
