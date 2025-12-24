@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   Card,
   CardContent,
@@ -42,6 +45,14 @@ import { DocumentUpload } from "@/components/documents/document-upload";
 import { DocumentList } from "@/components/documents/document-list";
 import type { UserRAGSettingsUpdate } from "@/lib/api";
 
+const userRagSettingsSchema = z.object({
+  rag_enabled: z.boolean(),
+  chunks_per_query: z.number().min(1).max(20),
+  similarity_threshold: z.number().min(0).max(1),
+});
+
+type UserRagSettingsFormData = z.infer<typeof userRagSettingsSchema>;
+
 export function UserRAGSettings() {
   const { data: userSettings, isLoading: isLoadingSettings } =
     useUserRAGSettings();
@@ -52,62 +63,68 @@ export function UserRAGSettings() {
     organization_id: currentOrg?.id ?? "",
     team_id: currentTeam?.id,
   });
-
-  const [ragEnabled, setRagEnabled] = useState(true);
-  const [chunksPerQuery, setChunksPerQuery] = useState(4);
-  const [similarityThreshold, setSimilarityThreshold] = useState(0.7);
-  const [hasChanges, setHasChanges] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(true);
+
+  const form = useForm<UserRagSettingsFormData>({
+    resolver: zodResolver(userRagSettingsSchema),
+    defaultValues: {
+      rag_enabled: true,
+      chunks_per_query: 4,
+      similarity_threshold: 0.7,
+    },
+  });
+
+  const {
+    formState: { isDirty },
+    reset,
+    register,
+    watch,
+    setValue,
+  } = form;
+
+  const ragEnabled = watch("rag_enabled");
 
   useEffect(() => {
     if (userSettings) {
-      setRagEnabled(userSettings.rag_enabled);
-      setChunksPerQuery(userSettings.chunks_per_query);
-      setSimilarityThreshold(userSettings.similarity_threshold);
-      setHasChanges(false);
+      reset({
+        rag_enabled: userSettings.rag_enabled,
+        chunks_per_query: userSettings.chunks_per_query,
+        similarity_threshold: userSettings.similarity_threshold,
+      });
     }
-  }, [userSettings]);
+  }, [userSettings, reset]);
 
-  const handleSave = () => {
+  const handleSave = form.handleSubmit((data) => {
     const updates: UserRAGSettingsUpdate = {};
 
-    if (ragEnabled !== userSettings?.rag_enabled) {
-      updates.rag_enabled = ragEnabled;
+    if (data.rag_enabled !== userSettings?.rag_enabled) {
+      updates.rag_enabled = data.rag_enabled;
     }
-    if (chunksPerQuery !== userSettings?.chunks_per_query) {
-      updates.chunks_per_query = chunksPerQuery;
+    if (data.chunks_per_query !== userSettings?.chunks_per_query) {
+      updates.chunks_per_query = data.chunks_per_query;
     }
-    if (similarityThreshold !== userSettings?.similarity_threshold) {
-      updates.similarity_threshold = similarityThreshold;
+    if (data.similarity_threshold !== userSettings?.similarity_threshold) {
+      updates.similarity_threshold = data.similarity_threshold;
     }
 
     if (Object.keys(updates).length > 0) {
       updateMutation.mutate(updates, {
         onSuccess: () => {
-          setHasChanges(false);
+          reset(data);
         },
       });
     }
-  };
+  });
 
   const handleReset = () => {
     if (userSettings) {
-      setRagEnabled(userSettings.rag_enabled);
-      setChunksPerQuery(userSettings.chunks_per_query);
-      setSimilarityThreshold(userSettings.similarity_threshold);
-      setHasChanges(false);
+      reset({
+        rag_enabled: userSettings.rag_enabled,
+        chunks_per_query: userSettings.chunks_per_query,
+        similarity_threshold: userSettings.similarity_threshold,
+      });
     }
   };
-
-  useEffect(() => {
-    if (userSettings) {
-      const changed =
-        ragEnabled !== userSettings.rag_enabled ||
-        chunksPerQuery !== userSettings.chunks_per_query ||
-        similarityThreshold !== userSettings.similarity_threshold;
-      setHasChanges(changed);
-    }
-  }, [ragEnabled, chunksPerQuery, similarityThreshold, userSettings]);
 
   if (isLoadingSettings) {
     return (
@@ -142,9 +159,9 @@ export function UserRAGSettings() {
             </div>
             <Switch
               checked={ragEnabled}
-              onCheckedChange={(checked) => {
-                setRagEnabled(checked);
-              }}
+              onCheckedChange={(checked) =>
+                setValue("rag_enabled", checked, { shouldDirty: true })
+              }
               aria-label="Enable RAG for yourself"
             />
           </div>
@@ -179,8 +196,7 @@ export function UserRAGSettings() {
                   type="number"
                   min={1}
                   max={20}
-                  value={chunksPerQuery}
-                  onChange={(e) => setChunksPerQuery(Number(e.target.value))}
+                  {...register("chunks_per_query", { valueAsNumber: true })}
                   disabled={!ragEnabled}
                 />
               </div>
@@ -210,10 +226,7 @@ export function UserRAGSettings() {
                   min={0}
                   max={1}
                   step={0.1}
-                  value={similarityThreshold}
-                  onChange={(e) =>
-                    setSimilarityThreshold(Number(e.target.value))
-                  }
+                  {...register("similarity_threshold", { valueAsNumber: true })}
                   disabled={!ragEnabled}
                 />
               </div>
@@ -225,13 +238,13 @@ export function UserRAGSettings() {
             <Button
               variant="outline"
               onClick={handleReset}
-              disabled={!hasChanges || updateMutation.isPending}
+              disabled={!isDirty || updateMutation.isPending}
             >
               Reset
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!hasChanges || updateMutation.isPending}
+              disabled={!isDirty || updateMutation.isPending}
             >
               {updateMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -251,7 +264,7 @@ export function UserRAGSettings() {
             </Alert>
           )}
 
-          {updateMutation.isSuccess && !hasChanges && (
+          {updateMutation.isSuccess && !isDirty && (
             <Alert>
               <AlertDescription>
                 Personal RAG preferences updated successfully

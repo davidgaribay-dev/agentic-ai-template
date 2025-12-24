@@ -1,17 +1,16 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Trash2, Eye, EyeOff, Check, Building2 } from "lucide-react";
-import {
-  apiKeysApi,
-  type APIKeyStatus,
-  type LLMProvider,
-  ApiError,
-} from "@/lib/api";
+import { apiKeysApi, type APIKeyStatus, type LLMProvider } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import {
   Select,
   SelectContent,
@@ -204,6 +203,12 @@ export function ProviderRow({ provider, status, scope }: ProviderRowProps) {
   );
 }
 
+const apiKeySchema = z.object({
+  api_key: z.string().min(1, "API key is required"),
+});
+
+type ApiKeyFormData = z.infer<typeof apiKeySchema>;
+
 interface SetApiKeyDialogProps {
   provider: LLMProvider;
   scope: ApiKeyScope;
@@ -216,28 +221,47 @@ export function SetApiKeyDialog({
   hasKey,
 }: SetApiKeyDialogProps) {
   const [open, setOpen] = useState(false);
-  const [apiKey, setApiKeyValue] = useState("");
   const [showKey, setShowKey] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const mutation = useMutation({
-    mutationFn: () => setApiKey(scope, provider, apiKey),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: getQueryKey(scope) });
-      setOpen(false);
-      setApiKeyValue("");
-      setError(null);
-    },
-    onError: (err: ApiError) => {
-      setError(
-        (err.body as { detail?: string })?.detail || "Failed to save API key",
-      );
+  const form = useForm<ApiKeyFormData>({
+    resolver: zodResolver(apiKeySchema),
+    defaultValues: {
+      api_key: "",
     },
   });
 
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = form;
+
+  const mutation = useMutation({
+    mutationFn: (data: ApiKeyFormData) =>
+      setApiKey(scope, provider, data.api_key),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getQueryKey(scope) });
+      setOpen(false);
+      reset();
+    },
+  });
+
+  const onSubmit = handleSubmit((data) => {
+    mutation.mutate(data);
+  });
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      reset();
+      setShowKey(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button
           variant={hasKey ? "ghost" : "outline"}
@@ -253,12 +277,7 @@ export function SetApiKeyDialog({
             {hasKey ? "Update" : "Set"} {PROVIDER_INFO[provider].name} Key
           </DialogTitle>
         </DialogHeader>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            mutation.mutate();
-          }}
-        >
+        <form onSubmit={onSubmit}>
           <div className="space-y-3 py-3">
             <div className="space-y-1.5">
               <Label htmlFor="api-key" className="text-xs">
@@ -268,11 +287,7 @@ export function SetApiKeyDialog({
                 <Input
                   id="api-key"
                   type={showKey ? "text" : "password"}
-                  value={apiKey}
-                  onChange={(e) => {
-                    setApiKeyValue(e.target.value);
-                    setError(null);
-                  }}
+                  {...register("api_key")}
                   placeholder="sk-..."
                   className="h-8 text-sm pr-9"
                 />
@@ -290,23 +305,29 @@ export function SetApiKeyDialog({
                   )}
                 </Button>
               </div>
+              {errors.api_key && (
+                <p className="text-xs text-destructive">
+                  {errors.api_key.message}
+                </p>
+              )}
             </div>
-            {error && <p className="text-xs text-destructive">{error}</p>}
+            {mutation.isError && (
+              <ErrorAlert
+                error={mutation.error}
+                fallback="Failed to save API key"
+              />
+            )}
           </div>
           <DialogFooter>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => setOpen(false)}
+              onClick={() => handleOpenChange(false)}
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              size="sm"
-              disabled={!apiKey || mutation.isPending}
-            >
+            <Button type="submit" size="sm" disabled={mutation.isPending}>
               {mutation.isPending && (
                 <Loader2 className="mr-1.5 size-3 animate-spin" />
               )}

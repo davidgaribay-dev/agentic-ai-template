@@ -177,7 +177,7 @@ export function DocumentViewer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0">
+      <DialogContent className="!max-w-6xl w-[90vw] h-[80vh] flex flex-col p-0">
         {/* Header */}
         <DialogHeader className="px-4 py-3 border-b flex-shrink-0">
           <div className="flex items-center justify-between pr-8">

@@ -1,4 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Trash2, Camera, Building2, Users } from "lucide-react";
 import {
@@ -6,7 +9,6 @@ import {
   teamsApi,
   type OrganizationUpdate,
   type TeamUpdate,
-  ApiError,
 } from "@/lib/api";
 import { workspaceKeys } from "@/lib/workspace";
 import { isValidImageUrl } from "@/lib/utils";
@@ -14,12 +16,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+const detailsSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string(),
+});
+
+type DetailsFormData = z.infer<typeof detailsSchema>;
 
 interface OrgDetailsSectionProps {
   org: {
@@ -33,23 +43,41 @@ interface OrgDetailsSectionProps {
 
 export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
   const queryClient = useQueryClient();
-  const [name, setName] = useState(org.name);
-  const [description, setDescription] = useState(org.description ?? "");
-  const [error, setError] = useState<string | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const form = useForm<DetailsFormData>({
+    resolver: zodResolver(detailsSchema),
+    defaultValues: {
+      name: org.name,
+      description: org.description ?? "",
+    },
+  });
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { isDirty, errors },
+  } = form;
+
+  useEffect(() => {
+    reset({
+      name: org.name,
+      description: org.description ?? "",
+    });
+  }, [org, reset]);
 
   const updateMutation = useMutation({
     mutationFn: (data: OrganizationUpdate) =>
       organizationsApi.updateOrganization(org.id, data),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: workspaceKeys.organizations });
       onUpdate();
-      setError(null);
-    },
-    onError: (err: ApiError) => {
-      const detail = (err.body as { detail?: string })?.detail;
-      setError(detail || "Failed to update organization");
+      reset({
+        name: variables.name ?? org.name,
+        description: variables.description ?? "",
+      });
     },
   });
 
@@ -60,9 +88,11 @@ export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
       onUpdate();
       setLogoError(null);
     },
-    onError: (err: ApiError) => {
-      const detail = (err.body as { detail?: string })?.detail;
-      setLogoError(detail || "Failed to upload logo");
+    onError: (err) => {
+      const detail =
+        (err as { body?: { detail?: string } }).body?.detail ??
+        "Failed to upload logo";
+      setLogoError(detail);
     },
   });
 
@@ -73,15 +103,20 @@ export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
       onUpdate();
       setLogoError(null);
     },
-    onError: (err: ApiError) => {
-      const detail = (err.body as { detail?: string })?.detail;
-      setLogoError(detail || "Failed to delete logo");
+    onError: (err) => {
+      const detail =
+        (err as { body?: { detail?: string } }).body?.detail ??
+        "Failed to delete logo";
+      setLogoError(detail);
     },
   });
 
-  const handleSave = () => {
-    updateMutation.mutate({ name, description: description || null });
-  };
+  const onSubmit = handleSubmit((data) => {
+    updateMutation.mutate({
+      name: data.name,
+      description: data.description || null,
+    });
+  });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -101,8 +136,6 @@ export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
     deleteLogoMutation.mutate();
   };
 
-  const hasChanges =
-    name !== org.name || description !== (org.description ?? "");
   const isLogoLoading =
     uploadLogoMutation.isPending || deleteLogoMutation.isPending;
 
@@ -167,11 +200,13 @@ export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
             </Label>
             <Input
               id="org-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              {...register("name")}
               placeholder="Organization name"
               className="h-8 text-sm"
             />
+            {errors.name && (
+              <p className="text-xs text-destructive">{errors.name.message}</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="org-description" className="text-xs">
@@ -179,8 +214,7 @@ export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
             </Label>
             <Textarea
               id="org-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              {...register("description")}
               placeholder="Optional description"
               rows={2}
               className="text-sm resize-none"
@@ -189,14 +223,19 @@ export function OrgDetailsSection({ org, onUpdate }: OrgDetailsSectionProps) {
         </div>
       </div>
 
-      {(error || logoError) && (
-        <p className="text-xs text-destructive">{error || logoError}</p>
+      {updateMutation.isError && (
+        <ErrorAlert
+          error={updateMutation.error}
+          fallback="Failed to update organization"
+        />
       )}
+
+      {logoError && <p className="text-xs text-destructive">{logoError}</p>}
 
       <Button
         size="sm"
-        onClick={handleSave}
-        disabled={!hasChanges || updateMutation.isPending}
+        onClick={onSubmit}
+        disabled={!isDirty || updateMutation.isPending}
       >
         {updateMutation.isPending && (
           <Loader2 className="mr-1.5 size-3 animate-spin" />
@@ -224,27 +263,40 @@ export function TeamDetailsSection({
   onUpdate,
 }: TeamDetailsSectionProps) {
   const queryClient = useQueryClient();
-  const [name, setName] = useState(team.name);
-  const [description, setDescription] = useState(team.description ?? "");
-  const [error, setError] = useState<string | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const form = useForm<DetailsFormData>({
+    resolver: zodResolver(detailsSchema),
+    defaultValues: {
+      name: team.name,
+      description: team.description ?? "",
+    },
+  });
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { isDirty, errors },
+  } = form;
+
   useEffect(() => {
-    setName(team.name);
-    setDescription(team.description ?? "");
-  }, [team]);
+    reset({
+      name: team.name,
+      description: team.description ?? "",
+    });
+  }, [team, reset]);
 
   const updateMutation = useMutation({
     mutationFn: (data: TeamUpdate) => teamsApi.updateTeam(orgId, team.id, data),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: workspaceKeys.teams(orgId) });
       onUpdate();
-      setError(null);
-    },
-    onError: (err: ApiError) => {
-      const detail = (err.body as { detail?: string })?.detail;
-      setError(detail || "Failed to update team");
+      reset({
+        name: variables.name ?? team.name,
+        description: variables.description ?? "",
+      });
     },
   });
 
@@ -255,9 +307,11 @@ export function TeamDetailsSection({
       onUpdate();
       setLogoError(null);
     },
-    onError: (err: ApiError) => {
-      const detail = (err.body as { detail?: string })?.detail;
-      setLogoError(detail || "Failed to upload logo");
+    onError: (err) => {
+      const detail =
+        (err as { body?: { detail?: string } }).body?.detail ??
+        "Failed to upload logo";
+      setLogoError(detail);
     },
   });
 
@@ -268,15 +322,20 @@ export function TeamDetailsSection({
       onUpdate();
       setLogoError(null);
     },
-    onError: (err: ApiError) => {
-      const detail = (err.body as { detail?: string })?.detail;
-      setLogoError(detail || "Failed to delete logo");
+    onError: (err) => {
+      const detail =
+        (err as { body?: { detail?: string } }).body?.detail ??
+        "Failed to delete logo";
+      setLogoError(detail);
     },
   });
 
-  const handleSave = () => {
-    updateMutation.mutate({ name, description: description || null });
-  };
+  const onSubmit = handleSubmit((data) => {
+    updateMutation.mutate({
+      name: data.name,
+      description: data.description || null,
+    });
+  });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -296,8 +355,6 @@ export function TeamDetailsSection({
     deleteLogoMutation.mutate();
   };
 
-  const hasChanges =
-    name !== team.name || description !== (team.description ?? "");
   const isLogoLoading =
     uploadLogoMutation.isPending || deleteLogoMutation.isPending;
 
@@ -362,11 +419,13 @@ export function TeamDetailsSection({
             </Label>
             <Input
               id="team-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              {...register("name")}
               placeholder="Team name"
               className="h-8 text-sm"
             />
+            {errors.name && (
+              <p className="text-xs text-destructive">{errors.name.message}</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="team-description" className="text-xs">
@@ -374,8 +433,7 @@ export function TeamDetailsSection({
             </Label>
             <Textarea
               id="team-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              {...register("description")}
               placeholder="Optional description"
               rows={2}
               className="text-sm resize-none"
@@ -384,14 +442,19 @@ export function TeamDetailsSection({
         </div>
       </div>
 
-      {(error || logoError) && (
-        <p className="text-xs text-destructive">{error || logoError}</p>
+      {updateMutation.isError && (
+        <ErrorAlert
+          error={updateMutation.error}
+          fallback="Failed to update team"
+        />
       )}
+
+      {logoError && <p className="text-xs text-destructive">{logoError}</p>}
 
       <Button
         size="sm"
-        onClick={handleSave}
-        disabled={!hasChanges || updateMutation.isPending}
+        onClick={onSubmit}
+        disabled={!isDirty || updateMutation.isPending}
       >
         {updateMutation.isPending && (
           <Loader2 className="mr-1.5 size-3 animate-spin" />

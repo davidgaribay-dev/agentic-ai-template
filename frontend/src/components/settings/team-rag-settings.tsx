@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   Card,
   CardContent,
@@ -40,6 +43,18 @@ import { DocumentUpload } from "@/components/documents/document-upload";
 import { DocumentList } from "@/components/documents/document-list";
 import type { TeamRAGSettingsUpdate } from "@/lib/api";
 
+const teamRagSettingsSchema = z.object({
+  rag_enabled: z.boolean(),
+  rag_customization_enabled: z.boolean(),
+  allow_user_customization: z.boolean(),
+  chunk_size: z.number().min(100).max(4000),
+  chunk_overlap: z.number().min(0).max(1000),
+  chunks_per_query: z.number().min(1).max(20),
+  similarity_threshold: z.number().min(0).max(1),
+});
+
+type TeamRagSettingsFormData = z.infer<typeof teamRagSettingsSchema>;
+
 interface TeamRAGSettingsProps {
   orgId: string;
   teamId: string;
@@ -53,99 +68,97 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
     organization_id: orgId,
     team_id: teamId,
   });
-
-  const [ragEnabled, setRagEnabled] = useState(true);
-  const [ragCustomizationEnabled, setRagCustomizationEnabled] = useState(true);
-  const [allowUserCustomization, setAllowUserCustomization] = useState(true);
-  const [chunkSize, setChunkSize] = useState(1000);
-  const [chunkOverlap, setChunkOverlap] = useState(200);
-  const [chunksPerQuery, setChunksPerQuery] = useState(4);
-  const [similarityThreshold, setSimilarityThreshold] = useState(0.7);
-  const [hasChanges, setHasChanges] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(true);
+
+  const form = useForm<TeamRagSettingsFormData>({
+    resolver: zodResolver(teamRagSettingsSchema),
+    defaultValues: {
+      rag_enabled: true,
+      rag_customization_enabled: true,
+      allow_user_customization: true,
+      chunk_size: 1000,
+      chunk_overlap: 200,
+      chunks_per_query: 4,
+      similarity_threshold: 0.7,
+    },
+  });
+
+  const {
+    formState: { isDirty },
+    reset,
+    register,
+    watch,
+    setValue,
+  } = form;
+
+  const ragEnabled = watch("rag_enabled");
+  const ragCustomizationEnabled = watch("rag_customization_enabled");
 
   useEffect(() => {
     if (teamSettings) {
-      setRagEnabled(teamSettings.rag_enabled);
-      setRagCustomizationEnabled(teamSettings.rag_customization_enabled);
-      setAllowUserCustomization(teamSettings.allow_user_customization);
-      setChunkSize(teamSettings.chunk_size);
-      setChunkOverlap(teamSettings.chunk_overlap);
-      setChunksPerQuery(teamSettings.chunks_per_query);
-      setSimilarityThreshold(teamSettings.similarity_threshold);
-      setHasChanges(false);
+      reset({
+        rag_enabled: teamSettings.rag_enabled,
+        rag_customization_enabled: teamSettings.rag_customization_enabled,
+        allow_user_customization: teamSettings.allow_user_customization,
+        chunk_size: teamSettings.chunk_size,
+        chunk_overlap: teamSettings.chunk_overlap,
+        chunks_per_query: teamSettings.chunks_per_query,
+        similarity_threshold: teamSettings.similarity_threshold,
+      });
     }
-  }, [teamSettings]);
+  }, [teamSettings, reset]);
 
-  const handleSave = () => {
+  const handleSave = form.handleSubmit((data) => {
     const updates: TeamRAGSettingsUpdate = {};
 
-    if (ragEnabled !== teamSettings?.rag_enabled) {
-      updates.rag_enabled = ragEnabled;
+    if (data.rag_enabled !== teamSettings?.rag_enabled) {
+      updates.rag_enabled = data.rag_enabled;
     }
-    if (ragCustomizationEnabled !== teamSettings?.rag_customization_enabled) {
-      updates.rag_customization_enabled = ragCustomizationEnabled;
+    if (
+      data.rag_customization_enabled !== teamSettings?.rag_customization_enabled
+    ) {
+      updates.rag_customization_enabled = data.rag_customization_enabled;
     }
-    if (allowUserCustomization !== teamSettings?.allow_user_customization) {
-      updates.allow_user_customization = allowUserCustomization;
+    if (
+      data.allow_user_customization !== teamSettings?.allow_user_customization
+    ) {
+      updates.allow_user_customization = data.allow_user_customization;
     }
-    if (chunkSize !== teamSettings?.chunk_size) {
-      updates.chunk_size = chunkSize;
+    if (data.chunk_size !== teamSettings?.chunk_size) {
+      updates.chunk_size = data.chunk_size;
     }
-    if (chunkOverlap !== teamSettings?.chunk_overlap) {
-      updates.chunk_overlap = chunkOverlap;
+    if (data.chunk_overlap !== teamSettings?.chunk_overlap) {
+      updates.chunk_overlap = data.chunk_overlap;
     }
-    if (chunksPerQuery !== teamSettings?.chunks_per_query) {
-      updates.chunks_per_query = chunksPerQuery;
+    if (data.chunks_per_query !== teamSettings?.chunks_per_query) {
+      updates.chunks_per_query = data.chunks_per_query;
     }
-    if (similarityThreshold !== teamSettings?.similarity_threshold) {
-      updates.similarity_threshold = similarityThreshold;
+    if (data.similarity_threshold !== teamSettings?.similarity_threshold) {
+      updates.similarity_threshold = data.similarity_threshold;
     }
 
     if (Object.keys(updates).length > 0) {
       updateMutation.mutate(updates, {
         onSuccess: () => {
-          setHasChanges(false);
+          reset(data);
         },
       });
     }
-  };
+  });
 
   const handleReset = () => {
     if (teamSettings) {
-      setRagEnabled(teamSettings.rag_enabled);
-      setRagCustomizationEnabled(teamSettings.rag_customization_enabled);
-      setAllowUserCustomization(teamSettings.allow_user_customization);
-      setChunkSize(teamSettings.chunk_size);
-      setChunkOverlap(teamSettings.chunk_overlap);
-      setChunksPerQuery(teamSettings.chunks_per_query);
-      setSimilarityThreshold(teamSettings.similarity_threshold);
-      setHasChanges(false);
+      reset({
+        rag_enabled: teamSettings.rag_enabled,
+        rag_customization_enabled: teamSettings.rag_customization_enabled,
+        allow_user_customization: teamSettings.allow_user_customization,
+        chunk_size: teamSettings.chunk_size,
+        chunk_overlap: teamSettings.chunk_overlap,
+        chunks_per_query: teamSettings.chunks_per_query,
+        similarity_threshold: teamSettings.similarity_threshold,
+      });
     }
   };
-
-  useEffect(() => {
-    if (teamSettings) {
-      const changed =
-        ragEnabled !== teamSettings.rag_enabled ||
-        ragCustomizationEnabled !== teamSettings.rag_customization_enabled ||
-        allowUserCustomization !== teamSettings.allow_user_customization ||
-        chunkSize !== teamSettings.chunk_size ||
-        chunkOverlap !== teamSettings.chunk_overlap ||
-        chunksPerQuery !== teamSettings.chunks_per_query ||
-        similarityThreshold !== teamSettings.similarity_threshold;
-      setHasChanges(changed);
-    }
-  }, [
-    ragEnabled,
-    ragCustomizationEnabled,
-    allowUserCustomization,
-    chunkSize,
-    chunkOverlap,
-    chunksPerQuery,
-    similarityThreshold,
-    teamSettings,
-  ]);
 
   if (isLoadingSettings) {
     return (
@@ -180,9 +193,9 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
             </div>
             <Switch
               checked={ragEnabled}
-              onCheckedChange={(checked) => {
-                setRagEnabled(checked);
-              }}
+              onCheckedChange={(checked) =>
+                setValue("rag_enabled", checked, { shouldDirty: true })
+              }
               aria-label="Enable RAG for team"
             />
           </div>
@@ -205,7 +218,11 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                 <Switch
                   id="rag-customization-enabled"
                   checked={ragCustomizationEnabled}
-                  onCheckedChange={setRagCustomizationEnabled}
+                  onCheckedChange={(checked) =>
+                    setValue("rag_customization_enabled", checked, {
+                      shouldDirty: true,
+                    })
+                  }
                   disabled={!ragEnabled}
                 />
               </div>
@@ -221,8 +238,12 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                 </div>
                 <Switch
                   id="allow-user-customization"
-                  checked={allowUserCustomization}
-                  onCheckedChange={setAllowUserCustomization}
+                  checked={watch("allow_user_customization")}
+                  onCheckedChange={(checked) =>
+                    setValue("allow_user_customization", checked, {
+                      shouldDirty: true,
+                    })
+                  }
                   disabled={!ragEnabled || !ragCustomizationEnabled}
                 />
               </div>
@@ -257,8 +278,7 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                   type="number"
                   min={100}
                   max={4000}
-                  value={chunkSize}
-                  onChange={(e) => setChunkSize(Number(e.target.value))}
+                  {...register("chunk_size", { valueAsNumber: true })}
                   disabled={!ragEnabled}
                 />
               </div>
@@ -287,8 +307,7 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                   type="number"
                   min={0}
                   max={1000}
-                  value={chunkOverlap}
-                  onChange={(e) => setChunkOverlap(Number(e.target.value))}
+                  {...register("chunk_overlap", { valueAsNumber: true })}
                   disabled={!ragEnabled}
                 />
               </div>
@@ -323,8 +342,7 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                   type="number"
                   min={1}
                   max={20}
-                  value={chunksPerQuery}
-                  onChange={(e) => setChunksPerQuery(Number(e.target.value))}
+                  {...register("chunks_per_query", { valueAsNumber: true })}
                   disabled={!ragEnabled}
                 />
               </div>
@@ -354,10 +372,7 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
                   min={0}
                   max={1}
                   step={0.1}
-                  value={similarityThreshold}
-                  onChange={(e) =>
-                    setSimilarityThreshold(Number(e.target.value))
-                  }
+                  {...register("similarity_threshold", { valueAsNumber: true })}
                   disabled={!ragEnabled}
                 />
               </div>
@@ -369,13 +384,13 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
             <Button
               variant="outline"
               onClick={handleReset}
-              disabled={!hasChanges || updateMutation.isPending}
+              disabled={!isDirty || updateMutation.isPending}
             >
               Reset
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!hasChanges || updateMutation.isPending}
+              disabled={!isDirty || updateMutation.isPending}
             >
               {updateMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -395,7 +410,7 @@ export function TeamRAGSettings({ orgId, teamId }: TeamRAGSettingsProps) {
             </Alert>
           )}
 
-          {updateMutation.isSuccess && !hasChanges && (
+          {updateMutation.isSuccess && !isDirty && (
             <Alert>
               <AlertDescription>
                 Team RAG settings updated successfully
