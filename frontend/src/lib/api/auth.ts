@@ -14,6 +14,16 @@ export interface User {
   is_active: boolean;
   is_platform_admin: boolean;
   profile_image_url: string | null;
+  language: string;
+}
+
+export interface LanguageResponse {
+  language: string;
+  supported_languages: string[];
+}
+
+export interface LanguageUpdate {
+  language: string;
 }
 
 export interface UsersPublic {
@@ -98,6 +108,18 @@ export const authApi = {
   /** Delete profile image */
   deleteProfileImage: () =>
     apiClient.delete<User>("/v1/auth/me/profile-image", {
+      headers: getAuthHeader(),
+    }),
+
+  /** Get current user's language preference */
+  getLanguage: () =>
+    apiClient.get<LanguageResponse>("/v1/auth/me/language", {
+      headers: getAuthHeader(),
+    }),
+
+  /** Update current user's language preference */
+  updateLanguage: (data: LanguageUpdate) =>
+    apiClient.patch<LanguageResponse>("/v1/auth/me/language", data, {
       headers: getAuthHeader(),
     }),
 };

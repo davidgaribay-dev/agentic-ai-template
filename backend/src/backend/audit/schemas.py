@@ -137,6 +137,10 @@ class AuditEvent(BaseModel):
 
     Follows the OCSF (Open Cybersecurity Schema Framework) inspired format
     for compatibility with SIEM systems.
+
+    Includes i18n support with dual-language storage:
+    - action_message_en: English canonical message (for search/compliance)
+    - action_message_localized: Translated message (for UI display)
     """
 
     # Event identification
@@ -149,6 +153,18 @@ class AuditEvent(BaseModel):
     category: str = Field(default="audit", description="Event category: audit or app")
     outcome: str = Field(default="success", description="success, failure, or unknown")
     severity: LogLevel = Field(default=LogLevel.INFO)
+
+    # i18n support
+    locale: str = Field(default="en", description="Actor's preferred language (BCP 47)")
+    action_key: str | None = Field(
+        default=None, description="Translation key for action description"
+    )
+    action_message_en: str | None = Field(
+        default=None, description="English canonical action description"
+    )
+    action_message_localized: str | None = Field(
+        default=None, description="Translated action description (actor's language)"
+    )
 
     # Who did it
     actor: Actor = Field(default_factory=Actor)
@@ -179,6 +195,8 @@ class AppLogEvent(BaseModel):
     """Application log event for operational monitoring.
 
     Separate from audit logs for performance and different retention policies.
+
+    Includes i18n support with dual-language storage for log messages.
     """
 
     id: str
@@ -186,6 +204,18 @@ class AppLogEvent(BaseModel):
     level: LogLevel
     logger: str
     message: str
+
+    # i18n support
+    locale: str = Field(default="en", description="Request locale (BCP 47)")
+    message_key: str | None = Field(
+        default=None, description="Translation key for log message"
+    )
+    message_en: str | None = Field(
+        default=None, description="English canonical message"
+    )
+    message_localized: str | None = Field(
+        default=None, description="Translated message (if different from English)"
+    )
 
     # Context
     request_id: str | None = None

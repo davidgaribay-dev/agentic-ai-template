@@ -124,6 +124,7 @@
   "error_failed_to_load": "読み込みに失敗しました",
   "error_invalid_invitation": "無効な招待",
   "error_invalid_url": "有効なURLである必要があります",
+  "error_update_language": "言語設定の更新に失敗しました",
 
   "org_title": "組織",
   "org_manage": "組織を管理",

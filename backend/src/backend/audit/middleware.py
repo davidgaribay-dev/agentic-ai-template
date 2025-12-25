@@ -1,12 +1,16 @@
-from collections.abc import Callable
+"""Application logging middleware.
+
+Uses pure ASGI middleware to properly support contextvars propagation.
+See: https://github.com/encode/starlette/discussions/1729
+"""
+
 from http import HTTPStatus
 import time
 import traceback
 import uuid
 
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
+from starlette.datastructures import Headers
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from backend.audit.schemas import LogLevel
 from backend.audit.service import audit_service
@@ -14,9 +18,19 @@ from backend.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+# Default paths to exclude from logging
+DEFAULT_EXCLUDE_PATHS = frozenset(
+    {
+        "/health",
+        "/v1/docs",
+        "/v1/openapi.json",
+        "/v1/redoc",
+    }
+)
 
-class AuditLoggingMiddleware(BaseHTTPMiddleware):
-    """Middleware for automatic application log capture.
+
+class AuditLoggingMiddleware:
+    """Pure ASGI middleware for automatic application log capture.
 
     This middleware captures request/response metadata for application
     logs (not audit logs - those are explicit). It logs:
@@ -26,6 +40,9 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
 
     Audit events should be logged explicitly in route handlers
     using audit_service.log() for better control over what's logged.
+
+    Uses pure ASGI instead of BaseHTTPMiddleware to properly support
+    contextvars propagation from route handlers.
     """
 
     def __init__(
@@ -35,42 +52,52 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
         slow_request_threshold_ms: float = 1000.0,
         exclude_paths: set[str] | None = None,
     ) -> None:
-        super().__init__(app)
+        self.app = app
         self.slow_request_threshold_ms = slow_request_threshold_ms
-        self.exclude_paths = exclude_paths or {
-            "/health",
-            "/v1/docs",
-            "/v1/openapi.json",
-            "/v1/redoc",
-        }
+        self.exclude_paths = (
+            frozenset(exclude_paths) if exclude_paths else DEFAULT_EXCLUDE_PATHS
+        )
 
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: Callable,
-    ) -> Response:
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """ASGI interface."""
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # Get path from scope
+        path = scope.get("path", "")
+
         # Skip excluded paths
-        if request.url.path in self.exclude_paths:
-            return await call_next(request)
+        if path in self.exclude_paths:
+            await self.app(scope, receive, send)
+            return
 
-        # Generate request ID if not present
-        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        # Extract request context
+        headers = Headers(scope=scope)
+        request_id = headers.get("X-Request-ID", str(uuid.uuid4()))
+        method = scope.get("method", "UNKNOWN")
+        query_string = scope.get("query_string", b"").decode("utf-8", "ignore")
+        query = query_string if query_string else None
 
-        # Extract context
-        method = request.method
-        path = request.url.path
-        query = str(request.query_params) if request.query_params else None
+        # Get client info
+        client = scope.get("client")
+        client_ip = self._get_client_ip(headers, client)
+        user_agent = headers.get("User-Agent")
 
         # Start timing
         start_time = time.perf_counter()
-
-        # Process request
-        response: Response | None = None
+        status_code = 500  # Default to error if not set
         exception_info: dict | None = None
 
-        try:
-            return await call_next(request)
+        async def send_wrapper(message: Message) -> None:
+            """Capture response status code."""
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message.get("status", 500)
+            await send(message)
 
+        try:
+            await self.app(scope, receive, send_wrapper)
         except Exception as e:
             exception_info = {
                 "type": type(e).__name__,
@@ -78,11 +105,9 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
                 "traceback": traceback.format_exc(),
             }
             raise
-
         finally:
             # Calculate duration
             duration_ms = (time.perf_counter() - start_time) * 1000
-            status_code = response.status_code if response else 500
 
             # Determine log level based on outcome
             if exception_info or status_code >= HTTPStatus.INTERNAL_SERVER_ERROR:
@@ -96,13 +121,13 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
                 level = LogLevel.INFO
 
             # Build log message
-            message = f"{method} {path} -> {status_code} ({duration_ms:.1f}ms)"
+            message_text = f"{method} {path} -> {status_code} ({duration_ms:.1f}ms)"
 
             # Log to OpenSearch
             await audit_service.log_app(
                 level=level,
                 logger_name="http.request",
-                message=message,
+                message=message_text,
                 request_id=request_id,
                 duration_ms=duration_ms,
                 extra={
@@ -110,17 +135,19 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
                     "path": path,
                     "query": query,
                     "status_code": status_code,
-                    "client_ip": self._get_client_ip(request),
-                    "user_agent": request.headers.get("User-Agent"),
+                    "client_ip": client_ip,
+                    "user_agent": user_agent,
                 },
                 exception_type=exception_info["type"] if exception_info else None,
                 exception_message=exception_info["message"] if exception_info else None,
                 stack_trace=exception_info["traceback"] if exception_info else None,
             )
 
-    def _get_client_ip(self, request: Request) -> str | None:
+    def _get_client_ip(
+        self, headers: Headers, client: tuple[str, int] | None
+    ) -> str | None:
         """Extract client IP, handling proxies."""
-        forwarded = request.headers.get("X-Forwarded-For")
+        forwarded = headers.get("X-Forwarded-For")
         if forwarded:
             return forwarded.split(",")[0].strip()
-        return request.client.host if request.client else None
+        return client[0] if client else None

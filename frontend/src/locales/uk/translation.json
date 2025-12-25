@@ -124,6 +124,7 @@
   "error_failed_to_load": "Не вдалося завантажити",
   "error_invalid_invitation": "Недійсне запрошення",
   "error_invalid_url": "Має бути дійсний URL",
+  "error_update_language": "Не вдалося оновити налаштування мови",
 
   "org_title": "Організації",
   "org_manage": "Керуйте вашими організаціями",

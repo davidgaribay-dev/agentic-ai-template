@@ -45,6 +45,8 @@ export {
   type UpdatePassword,
   type NewPassword,
   type UserUpdateMe,
+  type LanguageResponse,
+  type LanguageUpdate,
 } from "./auth";
 
 // Items module

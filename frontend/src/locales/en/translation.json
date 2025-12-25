@@ -124,6 +124,7 @@
   "error_failed_to_load": "Failed to load",
   "error_invalid_invitation": "Invalid invitation",
   "error_invalid_url": "Must be a valid URL",
+  "error_update_language": "Failed to update language preference",
 
   "org_title": "Organizations",
   "org_manage": "Manage your organizations",

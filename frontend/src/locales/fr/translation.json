@@ -124,6 +124,7 @@
   "error_failed_to_load": "Échec du chargement",
   "error_invalid_invitation": "Invitation invalide",
   "error_invalid_url": "Doit être une URL valide",
+  "error_update_language": "Échec de la mise à jour des préférences de langue",
 
   "org_title": "Organisations",
   "org_manage": "Gérez vos organisations",

@@ -124,6 +124,7 @@
   "error_failed_to_load": "فشل التحميل",
   "error_invalid_invitation": "دعوة غير صالحة",
   "error_invalid_url": "يجب أن يكون URL صالحاً",
+  "error_update_language": "فشل في تحديث تفضيل اللغة",
 
   "org_title": "المؤسسات",
   "org_manage": "إدارة مؤسساتك",

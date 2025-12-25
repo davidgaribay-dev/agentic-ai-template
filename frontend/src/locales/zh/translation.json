@@ -124,6 +124,7 @@
   "error_failed_to_load": "加载失败",
   "error_invalid_invitation": "无效的邀请",
   "error_invalid_url": "必须是有效的 URL",
+  "error_update_language": "更新语言偏好失败",
 
   "org_title": "组织",
   "org_manage": "管理您的组织",

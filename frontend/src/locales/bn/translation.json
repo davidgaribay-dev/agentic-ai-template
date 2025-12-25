@@ -124,6 +124,7 @@
   "error_failed_to_load": "লোড করতে ব্যর্থ",
   "error_invalid_invitation": "অবৈধ আমন্ত্রণ",
   "error_invalid_url": "একটি বৈধ URL হতে হবে",
+  "error_update_language": "ভাষা পছন্দ আপডেট করতে ব্যর্থ",
 
   "org_title": "প্রতিষ্ঠানসমূহ",
   "org_manage": "আপনার প্রতিষ্ঠানসমূহ পরিচালনা করুন",

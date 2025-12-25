@@ -3,6 +3,7 @@
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, status
+from pydantic import BaseModel, Field
 
 from backend.audit.schemas import AuditAction, Target
 from backend.audit.service import audit_service
@@ -22,11 +23,30 @@ from backend.core.storage import (
     delete_file,
     upload_file,
 )
+from backend.i18n import SUPPORTED_LOCALE_CODES
 from backend.organizations import crud as org_crud
 from backend.organizations.models import OrgRole
 
 router = APIRouter()
 logger = get_logger(__name__)
+
+
+class LanguageUpdate(BaseModel):
+    """Request body for updating user language preference."""
+
+    language: str = Field(
+        ...,
+        min_length=2,
+        max_length=10,
+        description="BCP 47 language code (e.g., 'en', 'es', 'zh')",
+    )
+
+
+class LanguageResponse(BaseModel):
+    """Response for language preference endpoints."""
+
+    language: str
+    supported_languages: list[str]
 
 
 @router.get("/me", response_model=UserPublic)
@@ -245,3 +265,67 @@ async def delete_user_me(
     )
 
     return Message(message="User deleted successfully")
+
+
+@router.get("/me/language", response_model=LanguageResponse)
+def get_user_language(current_user: CurrentUser) -> Any:
+    """Get current user's language preference and list of supported languages."""
+    return LanguageResponse(
+        language=current_user.language,
+        supported_languages=list(SUPPORTED_LOCALE_CODES),
+    )
+
+
+@router.patch("/me/language", response_model=LanguageResponse)
+async def update_user_language(
+    request: Request,
+    session: SessionDep,
+    current_user: CurrentUser,
+    language_in: LanguageUpdate,
+) -> Any:
+    """Update the current user's language preference.
+
+    The language must be one of the supported languages.
+    """
+    if language_in.language not in SUPPORTED_LOCALE_CODES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported language: {language_in.language}. Supported: {', '.join(sorted(SUPPORTED_LOCALE_CODES))}",
+        )
+
+    old_language = current_user.language
+    if old_language == language_in.language:
+        # No change needed
+        return LanguageResponse(
+            language=current_user.language,
+            supported_languages=list(SUPPORTED_LOCALE_CODES),
+        )
+
+    current_user.language = language_in.language
+    session.add(current_user)
+    session.commit()
+    session.refresh(current_user)
+
+    logger.info(
+        "user_language_updated",
+        user_id=str(current_user.id),
+        old_language=old_language,
+        new_language=language_in.language,
+    )
+
+    await audit_service.log(
+        AuditAction.USER_SETTINGS_UPDATED,
+        actor=current_user,
+        request=request,
+        targets=[Target(type="user", id=str(current_user.id), name=current_user.email)],
+        changes={
+            "before": {"language": old_language},
+            "after": {"language": language_in.language},
+        },
+        metadata={"setting_type": "language"},
+    )
+
+    return LanguageResponse(
+        language=current_user.language,
+        supported_languages=list(SUPPORTED_LOCALE_CODES),
+    )

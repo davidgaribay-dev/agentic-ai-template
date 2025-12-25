@@ -126,7 +126,10 @@ async def recover_password(request: Request, email: str, session: SessionDep) ->
             email=email, password_changed_at=user.password_changed_at
         )
         email_data = generate_password_recovery_email(
-            email_to=user.email, email=email, token=password_reset_token
+            email_to=user.email,
+            email=email,
+            token=password_reset_token,
+            locale=user.language,
         )
         send_email(
             email_to=user.email,

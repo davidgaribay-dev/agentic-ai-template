@@ -25,8 +25,19 @@ from backend.audit.schemas import (
 )
 from backend.auth.models import User
 from backend.core.logging import get_logger
+from backend.i18n import get_locale, translate
 
 logger = get_logger(__name__)
+
+
+def _action_to_translation_key(action: AuditAction | str) -> str:
+    """Convert an AuditAction to its translation key.
+
+    Example: AuditAction.USER_LOGIN_SUCCESS -> "audit_user_login_success"
+    """
+    action_value = action.value if isinstance(action, AuditAction) else action
+    # Convert "user.login.success" to "audit_user_login_success"
+    return "audit_" + action_value.replace(".", "_")
 
 
 class AuditService:
@@ -211,6 +222,14 @@ class AuditService:
             user_agent=user_agent,
         )
 
+        # Get locale and generate translations for i18n
+        locale = get_locale()
+        action_key = _action_to_translation_key(action)
+        action_message_en = translate(action_key, "en")
+        action_message_localized = (
+            translate(action_key, locale) if locale != "en" else None
+        )
+
         event = AuditEvent(
             id=event_id,
             timestamp=datetime.now(UTC),
@@ -227,6 +246,11 @@ class AuditService:
             changes=changes,
             error_code=error_code,
             error_message=error_message,
+            # i18n fields
+            locale=locale,
+            action_key=action_key,
+            action_message_en=action_message_en,
+            action_message_localized=action_message_localized,
         )
 
         try:
@@ -291,6 +315,9 @@ class AuditService:
         """
         event_id = str(uuid.uuid4())
 
+        # Capture request locale for context
+        locale = get_locale()
+
         event = AppLogEvent(
             id=event_id,
             timestamp=datetime.now(UTC),
@@ -309,6 +336,9 @@ class AuditService:
             stack_trace=stack_trace,
             duration_ms=duration_ms,
             extra=extra or {},
+            # i18n context - app logs store message as-is with locale context
+            locale=locale,
+            message_en=message,  # Store English canonical (same as message for app logs)
         )
 
         try:

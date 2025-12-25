@@ -8,7 +8,7 @@
  * - TanStack Query for API calls and caching
  */
 
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, useEffect, useRef } from "react";
 import {
   useMutation,
   useQuery,
@@ -18,6 +18,7 @@ import {
 } from "@tanstack/react-query";
 import type { User, Token } from "./api";
 import i18n from "@/locales/i18n";
+import { supportedLanguages } from "@/locales/i18n";
 
 export type { User };
 
@@ -282,14 +283,46 @@ export const authQueryOptions = {
   },
 };
 
+/**
+ * Sync frontend i18n language with user's backend preference.
+ * Only changes language if it differs and is supported.
+ */
+function syncLanguageFromUser(user: User | undefined | null): void {
+  if (!user?.language) return;
+
+  const userLang = user.language;
+  const currentLang = i18n.language;
+
+  // Only change if different and the language is supported
+  if (
+    userLang !== currentLang &&
+    supportedLanguages.some((lang) => lang.code === userLang)
+  ) {
+    i18n.changeLanguage(userLang);
+  }
+}
+
 export function useCurrentUser(): UseQueryResult<User, Error> {
-  return useQuery({
+  const query = useQuery({
     queryKey: authKeys.user,
     queryFn: fetchCurrentUser,
     enabled: isLoggedIn(),
     retry: false,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
+
+  // Track if we've already synced for this user session to avoid repeated syncs
+  const hasSyncedRef = useRef<string | null>(null);
+
+  // Sync language when user data is loaded
+  useEffect(() => {
+    if (query.data && hasSyncedRef.current !== query.data.id) {
+      syncLanguageFromUser(query.data);
+      hasSyncedRef.current = query.data.id;
+    }
+  }, [query.data]);
+
+  return query;
 }
 
 export function useLogin(): UseMutationResult<Token, Error, LoginCredentials> {

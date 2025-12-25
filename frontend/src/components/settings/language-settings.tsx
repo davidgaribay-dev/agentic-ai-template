@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Globe } from "lucide-react";
+import { Globe, Loader2 } from "lucide-react";
 import { supportedLanguages } from "@/locales/i18n";
 import {
   Select,
@@ -9,12 +9,34 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { authApi } from "@/lib/api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { authKeys } from "@/lib/auth";
 
 export function LanguageSettings() {
   const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
+
+  const updateLanguageMutation = useMutation({
+    mutationFn: (language: string) => authApi.updateLanguage({ language }),
+    onSuccess: () => {
+      // Invalidate user query to refresh user data
+      queryClient.invalidateQueries({ queryKey: authKeys.user });
+    },
+    onError: (error) => {
+      // Log error - the frontend language is already updated optimistically
+      console.error(
+        "Failed to sync language to backend:",
+        error instanceof Error ? error.message : t("error_update_language"),
+      );
+    },
+  });
 
   const handleLanguageChange = (languageCode: string) => {
+    // Update frontend immediately for responsive UX
     i18n.changeLanguage(languageCode);
+    // Sync to backend
+    updateLanguageMutation.mutate(languageCode);
   };
 
   const currentLanguage = supportedLanguages.find(
@@ -33,8 +55,15 @@ export function LanguageSettings() {
           <Label htmlFor="language-select" className="flex items-center gap-2">
             <Globe className="size-4" />
             {t("language_select")}
+            {updateLanguageMutation.isPending && (
+              <Loader2 className="size-3 animate-spin text-muted-foreground" />
+            )}
           </Label>
-          <Select value={i18n.language} onValueChange={handleLanguageChange}>
+          <Select
+            value={i18n.language}
+            onValueChange={handleLanguageChange}
+            disabled={updateLanguageMutation.isPending}
+          >
             <SelectTrigger id="language-select" className="w-full max-w-xs">
               <SelectValue>
                 {currentLanguage?.nativeName ||

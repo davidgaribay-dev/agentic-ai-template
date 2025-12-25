@@ -57,6 +57,8 @@ dependencies = [
     "openpyxl>=3.1.0",
     "lxml>=5.0.0",
     "pyyaml>=6.0.0",
+    # Internationalization (i18n)
+    "python-i18n[YAML]>=0.3.9",
 ]
 
 [build-system]

@@ -25,6 +25,7 @@ from backend.core.config import settings
 from backend.core.exceptions import AppException
 from backend.core.logging import get_logger, setup_logging
 from backend.core.rate_limit import limiter
+from backend.i18n import LocaleMiddleware, get_locale, init_translations, translate
 from backend.mcp.client import cleanup_mcp_clients
 from backend.memory.store import cleanup_memory_store, init_memory_store
 
@@ -49,6 +50,9 @@ async def lifespan(app: FastAPI):
     # Check Langfuse connection on startup
     langfuse_connected = check_langfuse_connection()
 
+    # Initialize i18n translations
+    init_translations()
+
     logger.info(
         "application_startup",
         environment=settings.ENVIRONMENT,
@@ -58,6 +62,7 @@ async def lifespan(app: FastAPI):
         opensearch_enabled=settings.opensearch_enabled,
         langfuse_enabled=settings.langfuse_enabled,
         langfuse_connected=langfuse_connected,
+        default_language=settings.DEFAULT_LANGUAGE,
     )
 
     async with opensearch_lifespan():
@@ -112,18 +117,41 @@ def create_app() -> FastAPI:
     async def app_exception_handler(
         request: Request, exc: AppException
     ) -> JSONResponse:
-        """Handle all AppException subclasses with consistent JSON format."""
+        """Handle all AppException subclasses with consistent JSON format.
+
+        Translates error messages based on the request locale (Accept-Language header).
+        """
+        locale = get_locale()
+
+        # Translate message if message_key is available
+        translated_message = exc.message
+        if exc.message_key:
+            translated_message = translate(exc.message_key, locale, **exc.params)
+
         logger.warning(
             "app_exception",
             error_code=exc.error_code,
             message=exc.message,
+            translated_message=translated_message,
+            locale=locale,
             status_code=exc.status_code,
             details=exc.details,
             path=str(request.url.path),
         )
+
+        # Build response content
+        content = {
+            "error_code": exc.error_code,
+            "message": translated_message,
+            "details": exc.details,
+        }
+        if exc.message_key:
+            content["message_key"] = exc.message_key
+
         return JSONResponse(
             status_code=exc.status_code,
-            content=exc.to_dict(),
+            content=content,
+            headers={"Content-Language": locale},
         )
 
     @app.middleware("http")
@@ -202,6 +230,10 @@ def create_app() -> FastAPI:
             slow_request_threshold_ms=1000.0,
         )
         logger.info("audit_middleware_enabled")
+
+    # Add locale middleware for i18n (parses Accept-Language header)
+    # Added AFTER AuditLoggingMiddleware so it runs as outermost layer
+    app.add_middleware(LocaleMiddleware, default_locale=settings.DEFAULT_LANGUAGE)
 
     return app
 

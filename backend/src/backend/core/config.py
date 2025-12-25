@@ -166,6 +166,9 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER_EMAIL: str = "admin@example.com"
     FIRST_SUPERUSER_PASSWORD: str = "changethis"
 
+    # Default language for API responses (BCP 47 code)
+    DEFAULT_LANGUAGE: str = "en"
+
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
     SMTP_PORT: int = 587

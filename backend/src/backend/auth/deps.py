@@ -11,6 +11,7 @@ from backend.auth.models import TokenPayload, User
 from backend.auth.token_revocation import is_token_revoked
 from backend.core.config import settings
 from backend.core.db import get_db
+from backend.i18n.context import set_locale
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
@@ -81,6 +82,11 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
                 detail="Token invalidated by password change",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
+    # Set locale context from user's language preference
+    # This overrides the Accept-Language header parsed in middleware
+    if user.language:
+        set_locale(user.language)
 
     return user
 

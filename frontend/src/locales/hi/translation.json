@@ -124,6 +124,7 @@
   "error_failed_to_load": "लोड करने में विफल",
   "error_invalid_invitation": "अमान्य आमंत्रण",
   "error_invalid_url": "एक वैध URL होना चाहिए",
+  "error_update_language": "भाषा प्राथमिकता अपडेट करने में विफल",
 
   "org_title": "संगठन",
   "org_manage": "अपने संगठनों का प्रबंधन करें",

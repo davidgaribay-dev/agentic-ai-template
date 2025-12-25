@@ -124,6 +124,7 @@
   "error_failed_to_load": "Не удалось загрузить",
   "error_invalid_invitation": "Недействительное приглашение",
   "error_invalid_url": "Должен быть корректный URL",
+  "error_update_language": "Не удалось обновить языковые настройки",
 
   "org_title": "Организации",
   "org_manage": "Управление организациями",

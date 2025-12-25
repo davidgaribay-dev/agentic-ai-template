@@ -27,6 +27,8 @@ class UserBase(SQLModel):
     is_platform_admin: bool = False
     full_name: str | None = Field(default=None, max_length=255)
     profile_image_url: str | None = Field(default=None, max_length=500)
+    # User's preferred language (BCP 47 code, e.g., "en", "es", "zh")
+    language: str = Field(default="en", max_length=10)
 
 
 class User(UserBase, BaseTable, table=True):
@@ -127,6 +129,7 @@ class UserUpdate(SQLModel):
 class UserUpdateMe(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
     email: EmailStr | None = Field(default=None, max_length=255)
+    language: str | None = Field(default=None, max_length=10)
 
 
 class UpdatePassword(SQLModel):
