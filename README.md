@@ -20,6 +20,15 @@
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
 </p>
 
+<p align="center">
+  <img src="assets/demo1.png" alt="AI Chat Interface" width="49%">
+  <img src="assets/demo2.png" alt="Memory Management" width="49%">
+</p>
+
+<p align="center">
+  <em>Real-time streaming chat with AI agents • Semantic memory with automatic extraction</em>
+</p>
+
 ---
 
 ## Overview

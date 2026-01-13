@@ -9,27 +9,21 @@ See also: [backend/CLAUDE.md](backend/CLAUDE.md) for API patterns, [frontend/CLA
 ## Quick Start
 
 ```bash
-# Option 1: Automated setup (recommended for first-time)
-./setup-local.sh   # Infrastructure + migrations + Infisical/Langfuse setup
+# Option 1: Production mode - full stack in containers
+./setup.sh                    # Builds & starts everything (backend, frontend, infra)
+# Access at http://localhost:5173 - everything auto-starts
 
-# Option 2: Manual setup
-docker compose -f docker-compose-local.yml up -d
-cd backend && uv sync && uv run alembic upgrade head
-cd backend && uv run python scripts/setup-infisical.py
-cd backend && uv run python scripts/setup-langfuse.py
-
-# Then start dev servers in separate terminals:
-# Terminal 1 - Backend
-cd backend && uv run uvicorn backend.main:app --reload  # port 8000
-
-# Terminal 2 - Frontend
-cd frontend && npm install && npm run dev  # port 5173
+# Option 2: Local development - hot reload for backend/frontend
+./setup-local.sh              # Starts infrastructure only
+cd backend && uv run uvicorn backend.main:app --reload  # Terminal 1 (port 8000)
+cd frontend && npm run dev    # Terminal 2 (port 5173)
 ```
 
 Setup Scripts:
-- `setup.sh` - Full setup including dependency installation (CI/first-time)
-- `setup-local.sh` - Infrastructure only, for local dev with hot reload
-- `docker-compose-local.yml` - Infrastructure services without backend/frontend containers
+- `setup.sh` - **Production**: Full stack with backend/frontend in Docker containers
+- `setup-local.sh` - **Development**: Infrastructure only, run backend/frontend locally with hot reload
+- `docker-compose.yml` - Full stack (backend + frontend + all infrastructure)
+- `docker-compose-local.yml` - Infrastructure only (DB, SeaweedFS, Infisical, OpenSearch, Langfuse)
 
 Services: Frontend (5173), Backend API (8000), API Docs (8000/v1/docs), Infisical (8081), OpenSearch Dashboards (5601), Langfuse (3001)
 

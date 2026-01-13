@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Full-Stack AI Agent Template - Setup Script
-# This script prepares the local development environment by setting up all necessary
-# .env files, dependencies, and infrastructure.
+# Full-Stack AI Agent Template - Production Setup Script
+# This script sets up the FULL STACK including backend and frontend containers.
+# For local development with hot reload, use ./setup-local.sh instead.
 # https://github.com/davidgaribay-dev/agentic-ai-template
 
 set -e
@@ -26,8 +26,9 @@ NC='\033[0m' # No Color
 print_header() {
     echo ""
     echo -e "${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BOLD}${BLUE}           Full-Stack AI Agent SaaS Template Setup                   ${NC}"
+    echo -e "${BOLD}${BLUE}        Full-Stack AI Agent SaaS Template - Production Setup         ${NC}"
     echo -e "${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${DIM}       (For local dev with hot reload, use ./setup-local.sh)${NC}"
     echo ""
 }
 
@@ -119,7 +120,7 @@ wait_for_service() {
 # Configuration
 # =============================================================================
 
-TOTAL_STEPS=7
+TOTAL_STEPS=8
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$SCRIPT_DIR/backend"
 FRONTEND_DIR="$SCRIPT_DIR/frontend"
@@ -375,9 +376,57 @@ fi
 cd "$SCRIPT_DIR"
 
 # =============================================================================
-# Step 7: Setup Complete
+# Step 7: Configure Infisical & Langfuse
 # =============================================================================
-print_step 7 "Setup complete!"
+print_step 7 "Configuring Infisical & Langfuse"
+
+# Wait for Infisical to be fully ready
+echo -e "${DIM}  Waiting for Infisical to be ready...${NC}"
+sleep 5
+if wait_for_service "Infisical" "http://localhost:8081/api/status" 30 2>/dev/null; then
+    :
+else
+    sleep 10
+fi
+
+# Setup Infisical
+echo -e "${DIM}  Setting up Infisical (secrets management)...${NC}"
+cd "$BACKEND_DIR"
+if command_exists uv; then
+    if uv run python scripts/setup-infisical.py 2>&1 | grep -E "(SUCCESS|SKIP|ERROR|Created|already|configured)" | tail -5; then
+        print_success "Infisical configured"
+    else
+        print_warning "Infisical setup had issues - run manually: cd backend && uv run python scripts/setup-infisical.py"
+        WARNINGS=$((WARNINGS + 1))
+    fi
+fi
+cd "$SCRIPT_DIR"
+
+# Wait for Langfuse to be ready
+echo -e "${DIM}  Waiting for Langfuse to be ready...${NC}"
+if wait_for_service "Langfuse" "http://localhost:3001/api/public/health" 60 2>/dev/null; then
+    :
+else
+    sleep 15
+fi
+
+# Setup Langfuse
+echo -e "${DIM}  Setting up Langfuse (LLM observability)...${NC}"
+cd "$BACKEND_DIR"
+if command_exists uv; then
+    if uv run python scripts/setup-langfuse.py 2>&1 | grep -E "(SUCCESS|SKIP|ERROR|Created|already|configured)" | tail -5; then
+        print_success "Langfuse configured"
+    else
+        print_warning "Langfuse setup had issues - run manually: cd backend && uv run python scripts/setup-langfuse.py"
+        WARNINGS=$((WARNINGS + 1))
+    fi
+fi
+cd "$SCRIPT_DIR"
+
+# =============================================================================
+# Step 8: Setup Complete
+# =============================================================================
+print_step 8 "Setup complete!"
 
 echo ""
 if [ "$SUCCESS" = true ]; then
@@ -411,17 +460,14 @@ echo -e "  ${BOLD}1.${NC} Configure your LLM API key in ${CYAN}backend/.env${NC}
 echo -e "     ${DIM}ANTHROPIC_API_KEY=sk-ant-...${NC}"
 echo -e "     ${DIM}# or OPENAI_API_KEY, GOOGLE_API_KEY${NC}"
 echo ""
-echo -e "  ${BOLD}2.${NC} Start the backend (in a new terminal):"
-echo -e "     ${CYAN}cd backend && uv run uvicorn backend.main:app --reload${NC}"
+echo -e "  ${BOLD}2.${NC} Restart the backend to pick up the API key:"
+echo -e "     ${CYAN}docker compose restart backend${NC}"
 echo ""
-echo -e "  ${BOLD}3.${NC} Start the frontend (in another terminal):"
-echo -e "     ${CYAN}cd frontend && npm run dev${NC}"
+echo -e "  ${BOLD}3.${NC} Open the app:"
+echo -e "     ${CYAN}http://localhost:5173${NC}"
 echo ""
-echo -e "  ${BOLD}4.${NC} (Optional) Setup Infisical for org-level secrets:"
-echo -e "     ${CYAN}cd backend && uv run python scripts/setup-infisical.py${NC}"
-echo ""
-echo -e "  ${BOLD}5.${NC} (Optional) Setup Langfuse for LLM observability:"
-echo -e "     ${CYAN}cd backend && uv run python scripts/setup-langfuse.py${NC}"
+echo -e "  ${DIM}For local development with hot reload:${NC}"
+echo -e "     ${CYAN}docker compose down && ./setup-local.sh${NC}"
 echo ""
 
 echo -e "${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
