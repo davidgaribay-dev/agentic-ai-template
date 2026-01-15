@@ -29,6 +29,16 @@
   <em>Real-time streaming chat with AI agents • Semantic memory with automatic extraction</em>
 </p>
 
+<p align="center">
+  <a href="https://youtu.be/jSLxLkyy0fU">
+    <img src="https://img.youtube.com/vi/jSLxLkyy0fU/maxresdefault.jpg" alt="Watch Demo Video" width="70%">
+  </a>
+</p>
+
+<p align="center">
+  <em>📺 Watch the full demo video</em>
+</p>
+
 ---
 
 ## Overview
